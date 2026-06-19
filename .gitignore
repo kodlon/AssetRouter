@@ -1,0 +1,16 @@
+# IDE
+.idea/
+.vscode/
+.vs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Unity generated (IDE project files)
+*.csproj
+*.sln
+obj/
+
+# Claude Code
+.claude/

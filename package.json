@@ -1,0 +1,19 @@
+{
+  "name": "com.kodlon.assetrouter",
+  "version": "0.0.1",
+  "displayName": "Asset Router",
+  "description": "Automatically applies import presets and moves assets to target folders based on naming rules (prefix, suffix, extension). Zero setup — works out of the box.",
+  "unity": "2022.3",
+  "author": {
+    "name": "Ihor Chuchman",
+    "url": "https://github.com/kodlon"
+  },
+  "keywords": [
+    "import",
+    "asset",
+    "organizer",
+    "preset",
+    "automation"
+  ],
+  "license": "MIT"
+}
