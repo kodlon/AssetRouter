@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] — v0.4.0
+
+### Added
+- **Epic 3 — Dry-run preview.** New "Dry Run" tab in the Asset Router window.
+  - `DryRunPlanner` scans the project and builds a list of routing candidates without moving anything.
+  - Table shows: file name, current folder, target folder, matched rule. Entries are pre-checked for actionable moves.
+  - "Apply Selected" moves checked entries in a single `StartAssetEditing` batch.
+  - "Select All / None" toggles for bulk selection.
+  - "Show unmatched" toggle includes files with no matching rule in the table.
+  - "Force re-import" toggle re-applies preset + actions to assets already in the correct folder.
+- **Epic 4 — Batch re-import.** "Re-import All Matched" button in the Dry Run tab scans and applies all
+  matched assets in one click without showing the table first.
+  - Cancellable progress bar via `EditorUtility.DisplayCancelableProgressBar`.
+  - All moves executed inside `StartAssetEditing / StopAssetEditing` for up to 100× speedup on large sets.
+  - Console summary: `Moved: X, Skipped: Y, Errored: Z`.
+- **Epic 6 — Operation Log + Undo.** New "History" tab in the Asset Router window.
+  - Every batch of moves (auto-import and batch re-import) is recorded to `Library/AssetRouter/log.json`
+    (JSON, versioned `{"v":1,...}`, atomic write via `.tmp` + rename).
+  - History tab lists past sessions (timestamp, source, move count); click a session to see individual moves.
+  - "Undo Selected Session" calls `UndoEngine.Revert`, which moves assets back in reverse order inside
+    a single `StartAssetEditing` batch. Best-effort: assets no longer at the recorded path are skipped
+    with a warning.
+- New tests: `DryRunPlannerTests` (7 cases), `OperationLogTests` (5 cases).
+
+---
+
 ## [Unreleased] — v0.3.0
 
 ### Added

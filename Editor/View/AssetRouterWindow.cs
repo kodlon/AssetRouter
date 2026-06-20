@@ -35,6 +35,12 @@ namespace Kodlon.AssetRouter.View
         private ReorderableList _actionsList;
         private int _actionsForRuleIndex = -1;
 
+        // Tab state.
+        private static readonly string[] TabLabels = { "Settings", "Dry Run", "History" };
+        private int _activeTab;
+        private readonly DryRunView _dryRunView = new DryRunView();
+        private readonly HistoryView _historyView = new HistoryView();
+
         [MenuItem("Tools/Asset Router Settings")]
         public static void OpenWindow()
         {
@@ -75,6 +81,25 @@ namespace Kodlon.AssetRouter.View
 
             _serializedDb.Update();
 
+            _activeTab = GUILayout.Toolbar(_activeTab, TabLabels);
+            GUILayout.Space(4f);
+
+            switch (_activeTab)
+            {
+                case 0: DrawSettingsTab(); break;
+                case 1: _dryRunView.Draw(_database); break;
+                case 2: _historyView.Draw(); break;
+            }
+
+            if (_serializedDb.ApplyModifiedProperties())
+            {
+                DatabaseLocator.InvalidateCache();
+                RefreshConflicts();
+            }
+        }
+
+        private void DrawSettingsTab()
+        {
             _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
 
             DrawGeneralSettings();
@@ -90,12 +115,6 @@ namespace Kodlon.AssetRouter.View
 
             GUILayout.Space(4f);
             DrawSaveButton();
-
-            if (_serializedDb.ApplyModifiedProperties())
-            {
-                DatabaseLocator.InvalidateCache();
-                RefreshConflicts();
-            }
         }
 
         // ── Conflict detection ────────────────────────────────────────────────────

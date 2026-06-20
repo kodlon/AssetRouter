@@ -91,8 +91,14 @@ namespace Kodlon.AssetRouter.Logic
                 toMove.Add(new AssetMoveCandidate(assetPath, rule));
             }
 
+            var logEntries = new List<OperationLogEntry>();
+
             foreach (var candidate in toMove)
-                MoveToTargetFolder(candidate.Path, candidate.Rule);
+                if (MoveToTargetFolder(candidate.Path, candidate.Rule, out var targetPath))
+                    logEntries.Add(new OperationLogEntry(candidate.Path, targetPath, candidate.Rule.ruleName));
+
+            if (logEntries.Count > 0)
+                OperationLog.RecordBatch(logEntries, "AutoImport");
 
             foreach (var unknownPath in unknownAssets)
             {
@@ -174,10 +180,10 @@ namespace Kodlon.AssetRouter.Logic
             }
         }
 
-        private static void MoveToTargetFolder(string assetPath, BaseImportRule rule)
+        private static bool MoveToTargetFolder(string assetPath, BaseImportRule rule, out string targetPath)
         {
             var targetFolder = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
-            var targetPath = targetFolder + Path.GetFileName(assetPath);
+            targetPath = targetFolder + Path.GetFileName(assetPath);
 
             EnsureFolderExists(targetFolder.TrimEnd('/'));
 
@@ -191,9 +197,11 @@ namespace Kodlon.AssetRouter.Logic
                 AssetsBeingMoved.Remove(targetPath);
                 _pendingActions.Remove(targetPath);
                 Debug.LogWarning($"[AssetRouter] Failed to move {assetPath} -> {targetPath}: {error}");
+                return false;
             }
-            else
-                Debug.Log($"[AssetRouter] Moved: {assetPath} -> {targetPath} ({rule.ruleName})");
+
+            Debug.Log($"[AssetRouter] Moved: {assetPath} -> {targetPath} ({rule.ruleName})");
+            return true;
         }
     }
 }

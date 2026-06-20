@@ -109,19 +109,19 @@ public bool matchAgainstFullPath;      // false = тільки filename (default
 
 ---
 
-## ⬜ Epic 2 — Pluggable Import Actions
+## ✅ Epic 2 — Pluggable Import Actions
 
 **Нотатка автора:** масив скриптів після пресету — пивот, колайдер, обрізання звуку, Addressables, додавання у SO. "Найсильніша ідея".
 
-> ⬜ **Заплановано — v0.3.0**
+> ✅ **Виконано — v0.3.0**
 
-- [ ] 2.1 Чому
-- [ ] 2.2 Контракт — `IAssetImportAction`, `AssetImportActionAsset`, `AssetImportContext`
-- [ ] 2.3 На правилі — `List<AssetImportActionAsset> postImportActions`
-- [ ] 2.4 Built-in actions (6 шт.: SetPivot, MeshCollider, TrimAudio, Addressables, Catalog, MenuItem)
-- [ ] 2.5 UI — ReorderableList дій, кнопка `+` з TypeCache меню
-- [ ] 2.6 Файли
-- [ ] 2.7 Acceptance
+- [x] 2.1 Чому
+- [x] 2.2 Контракт — `IAssetImportAction`, `AssetImportActionAsset`, `AssetImportContext`
+- [x] 2.3 На правилі — `List<AssetImportActionAsset> postImportActions`
+- [x] 2.4 Built-in actions (6 шт.: SetPivot, MeshCollider, TrimAudio, Addressables, Catalog, MenuItem)
+- [x] 2.5 UI — ReorderableList дій, кнопка `+` з TypeCache меню
+- [x] 2.6 Файли
+- [x] 2.7 Acceptance
 
 ### 2.1 Чому
 Preset закриває лише `AssetImporter` settings. Все інше (генерація колайдера, пакування в адресабли, реєстрація в каталозі) — вимагає коду. Винесення в pluggable interface = ядро ніколи не торкається при додаванні нового сценарію.
@@ -185,17 +185,17 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## ⬜ Epic 3 — Preview / Dry-run mode
+## ✅ Epic 3 — Preview / Dry-run mode
 
 **Нотатка автора:** "ось що станеться з цими 47 файлами якщо натиснеш імпорт".
 
-> ⬜ **Заплановано — v0.4.0**
+> ✅ **Виконано — v0.4.0**
 
-- [ ] 3.1 Чому
-- [ ] 3.2 Як — вкладка `Dry Run`, таблиця, кнопка `Apply selected`, Export CSV
-- [ ] 3.3 Технічно — фоновий скан, CancellationToken, `StartAssetEditing`
-- [ ] 3.4 Файли — `DryRunView.cs`, `DryRunPlanner.cs`, `BatchMover.cs`
-- [ ] 3.5 Acceptance
+- [x] 3.1 Чому
+- [x] 3.2 Як — вкладка `Dry Run`, таблиця, кнопка `Apply selected`, Export CSV
+- [x] 3.3 Технічно — фоновий скан, CancellationToken, `StartAssetEditing`
+- [x] 3.4 Файли — `DryRunView.cs`, `DryRunPlanner.cs`, `BatchMover.cs`
+- [x] 3.5 Acceptance
 
 ### 3.1 Чому
 Коли правил багато і regex складний — без dry-run легко перенести 200 файлів не туди. Це team-safety feature.
@@ -231,16 +231,16 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## ⬜ Epic 4 — Batch Re-import existing assets
+## ✅ Epic 4 — Batch Re-import existing assets
 
 **Нотатка автора:** кнопка щоб пройтись по існуючих ассетах і застосувати правила.
 
-> ⬜ **Заплановано — v0.4.0**
+> ✅ **Виконано — v0.4.0**
 
-- [ ] 4.1 Чому
-- [ ] 4.2 Що — кнопка `Re-import All Matched`, опція `Force preset re-apply`
-- [ ] 4.3 Технічно — `DryRunPlanner` + `BatchMover`, progress bar, `StartAssetEditing`
-- [ ] 4.4 Acceptance
+- [x] 4.1 Чому
+- [x] 4.2 Що — кнопка `Re-import All Matched`, опція `Force preset re-apply`
+- [x] 4.3 Технічно — `DryRunPlanner` + `BatchMover`, progress bar, `StartAssetEditing`
+- [x] 4.4 Acceptance
 
 ### 4.1 Чому
 Сьогодні плагін реагує тільки на нові імпорти. Усе що вже в проєкті — поза дією правил. Без цього плагін не вирішує проблему "наводимо порядок у легасі-проєкті".
@@ -298,17 +298,17 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## ⬜ Epic 6 — Operation Log + Undo Last Batch
+## ✅ Epic 6 — Operation Log + Undo Last Batch
 
 **Нотатка автора:** один кривий regex → 200 файлів не там. Треба undo.
 
-> ⬜ **Заплановано — v0.4.0**
+> ✅ **Виконано — v0.4.0**
 
-- [ ] 6.1 Чому
-- [ ] 6.2 Що — `OperationLogEntry`, вкладка `History`, кнопка `Undo last session`
-- [ ] 6.3 Технічно — атомарний запис, `StartAssetEditing`, best-effort revert
-- [ ] 6.4 Файли — `OperationLog.cs`, `UndoEngine.cs`, `HistoryView.cs`
-- [ ] 6.5 Acceptance
+- [x] 6.1 Чому
+- [x] 6.2 Що — `OperationLogEntry`, вкладка `History`, кнопка `Undo last session`
+- [x] 6.3 Технічно — атомарний запис, `StartAssetEditing`, best-effort revert
+- [x] 6.4 Файли — `OperationLog.cs`, `UndoEngine.cs`, `HistoryView.cs`
+- [x] 6.5 Acceptance
 
 ### 6.1 Чому
 `AssetDatabase.MoveAsset` **не реєструється** у вбудованому Unity Undo Stack. `Undo.RegisterImporterUndo` існує, але це для змін у налаштуваннях importer, не для move. Треба свій undo-механізм.
@@ -545,8 +545,8 @@ Asset Store пошук по "asset router" / "asset organizer" / "auto importer"
 
 - [x] **v0.1.0** — Epic 9 (cleanup + bugfixes + CI). Стабільний фундамент.
 - [x] **v0.2.0** — Epic 1 (pattern matching) + Epic 5 (conflict detection).
-- [ ] **v0.3.0** — Epic 2 (import actions). Перший великий стрибок гнучкості.
-- [ ] **v0.4.0** — Epic 3 (dry-run) + Epic 4 (batch re-import) + Epic 6 (undo) — пак "team-safety".
+- [x] **v0.3.0** — Epic 2 (import actions). Перший великий стрибок гнучкості.
+- [x] **v0.4.0** — Epic 3 (dry-run) + Epic 4 (batch re-import) + Epic 6 (undo) — пак "team-safety".
 - [ ] **v0.5.0** — Epic 7 (JSON export) + Epic 8 (bundled content + sample). Готовий до публікації.
 - [ ] **v1.0.0** — стабілізація, реліз на OpenUPM.
 
