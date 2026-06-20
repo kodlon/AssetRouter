@@ -3,6 +3,7 @@ using System.IO;
 using Kodlon.AssetRouter.Logic;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Kodlon.AssetRouter.Actions
 {
