@@ -65,7 +65,8 @@ jobs:
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.tests.outputs.artifactsPath != ''
         with:
           name: test-results-${{ matrix.unity-version }}
           path: ${{ steps.tests.outputs.artifactsPath }}
+          if-no-files-found: warn
