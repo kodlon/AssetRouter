@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] — v0.2.0
+
+### Added
+- **Epic 1 — Pattern matching.** `BaseImportRule` now has a single `pattern` field (glob or regex)
+  and a `PatternMode` enum, replacing the old `prefix` / `suffix` / `extensionFilter` triplet.
+  - `PatternMatcher` static class: glob→regex compiler, per-rule compiled `Regex` cache,
+    50 ms timeout guard against ReDoS.
+  - `RuleMigrator`: one-shot migration from schema v1 (prefix/suffix/extension) to v2 (pattern).
+    Runs automatically on Editor startup via `AssetRouterInitializer`.
+  - `schemaVersion` field on `ImporterSettingsDatabase` (`LatestSchemaVersion = 2`).
+  - Legacy fields (`_legacyPrefix`, `_legacySuffix`, `_legacyExtensionFilter`) preserved with
+    `[FormerlySerializedAs]` so old `.asset` files survive the upgrade without data loss.
+  - Live pattern preview in the rule detail panel: shows up to 3 matching filenames from the
+    project, or a red error message for invalid regex syntax.
+- **Epic 5 — Conflict detection.** `ConflictDetector` finds duplicate and overlapping rules.
+  - Duplicate: identical `pattern` + `patternMode` + `matchAgainstFullPath`.
+  - Overlap: heuristic using a fixed set of representative asset paths.
+  - Warning banner in the editor window when conflicts exist.
+  - `⚠` prefix on conflicting rules in the `ReorderableList`.
+- New tests: `PatternMatcherTests`, `RuleMigratorTests`, `ConflictDetectorTests`.
+
+### Changed
+- `RuleValidator.FindMatchingRule` simplified: delegates matching to `PatternMatcher`.
+- Default rules in `DefaultDatabaseFactory` use the new `pattern` field (`"T_*"`, `"UI_*"`, …).
+- `RuleValidatorTests` updated to use `pattern` instead of the removed `prefix`/`suffix`/`extensionFilter`.
+
+---
+
 ## [Unreleased] — v0.1.0
 
 ### Added

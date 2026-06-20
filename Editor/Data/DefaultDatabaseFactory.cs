@@ -13,9 +13,10 @@ namespace Kodlon.AssetRouter.Data
     /// </summary>
     internal static class DefaultDatabaseFactory
     {
-        /// <summary>Fills <paramref name="db"/> with the standard defaults.</summary>
+        /// <summary>Fills <paramref name="db"/> with standard defaults and marks it as current schema.</summary>
         public static void PopulateDefaults(ImporterSettingsDatabase db)
         {
+            db.schemaVersion = ImporterSettingsDatabase.LatestSchemaVersion;
             db.enableAutoImport = true;
             db.showPopupForUnknownFiles = true;
             db.monitoredExtensions = CreateMonitoredExtensions();
@@ -44,28 +45,32 @@ namespace Kodlon.AssetRouter.Data
             new ImportRule
             {
                 ruleName = "UI Textures",
-                prefix = "UI_",
+                patternMode = PatternMode.Glob,
+                pattern = "UI_*",
                 targetFolder = "Assets/Art/UI/",
                 preset = LoadPreset("TextureImporter_UI")
             },
             new ImportRule
             {
                 ruleName = "General Textures",
-                prefix = "T_",
+                patternMode = PatternMode.Glob,
+                pattern = "T_*",
                 targetFolder = "Assets/Art/Textures/",
                 preset = LoadPreset("TextureImporter")
             },
             new ImportRule
             {
                 ruleName = "Sound Effects",
-                prefix = "SFX_",
+                patternMode = PatternMode.Glob,
+                pattern = "SFX_*",
                 targetFolder = "Assets/Audio/SFX/",
                 preset = LoadPreset("AudioImporter")
             },
             new ImportRule
             {
                 ruleName = "Music",
-                prefix = "Mus_",
+                patternMode = PatternMode.Glob,
+                pattern = "Mus_*",
                 targetFolder = "Assets/Audio/Music/",
                 preset = LoadPreset("AudioImporter_Music")
             }

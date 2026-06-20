@@ -7,42 +7,33 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal static class RuleValidator
     {
+        /// <summary>
+        /// Returns the first enabled rule whose pattern matches <paramref name="assetPath"/>,
+        /// or <c>null</c> if none match.
+        /// </summary>
         public static BaseImportRule FindMatchingRule(List<BaseImportRule> rules, string assetPath)
         {
             if (rules == null || rules.Count == 0)
                 return null;
 
-            var fileName = Path.GetFileNameWithoutExtension(assetPath);
-            var extension = Path.GetExtension(assetPath);
-
             for (var i = 0; i < rules.Count; i++)
             {
                 var rule = rules[i];
 
-                if (rule == null || !rule.isEnabled)
+                if (rule == null || !rule.isEnabled || string.IsNullOrEmpty(rule.pattern))
                     continue;
 
-                if (string.IsNullOrEmpty(rule.prefix)
-                    && string.IsNullOrEmpty(rule.suffix)
-                    && string.IsNullOrEmpty(rule.extensionFilter))
-                    continue;
-
-                var prefixOk = string.IsNullOrEmpty(rule.prefix)
-                               || fileName.StartsWith(rule.prefix, StringComparison.OrdinalIgnoreCase);
-
-                var suffixOk = string.IsNullOrEmpty(rule.suffix)
-                               || fileName.EndsWith(rule.suffix, StringComparison.OrdinalIgnoreCase);
-
-                var extOk = string.IsNullOrEmpty(rule.extensionFilter)
-                            || rule.extensionFilter.Equals(extension, StringComparison.OrdinalIgnoreCase);
-
-                if (prefixOk && suffixOk && extOk)
+                if (PatternMatcher.Matches(rule, assetPath))
                     return rule;
             }
 
             return null;
         }
 
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="assetPath"/> should be processed:
+        /// its extension is monitored and its path is not under any ignored folder.
+        /// </summary>
         public static bool ShouldProcess(ImporterSettingsDatabase db, string assetPath)
         {
             if (db == null || string.IsNullOrEmpty(assetPath))
@@ -60,7 +51,6 @@ namespace Kodlon.AssetRouter.Logic
                 if (db.monitoredExtensions[i].Equals(extension, StringComparison.OrdinalIgnoreCase))
                 {
                     monitored = true;
-
                     break;
                 }
             }

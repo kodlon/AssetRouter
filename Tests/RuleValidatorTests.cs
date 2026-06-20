@@ -32,95 +32,63 @@ namespace Kodlon.AssetRouter.Tests
             _db.rules = new List<BaseImportRule>();
         }
 
+        [TearDown]
+        public void TearDown()
+        {
+            Object.DestroyImmediate(_db);
+        }
+
+        // ── FindMatchingRule ──────────────────────────────────────────────────────
+
         [Test]
         public void FindMatchingRule_DisabledRule_IsSkipped()
         {
-            var disabled = new ImportRule
-            {
-                ruleName = "Off",
-                prefix = "T_",
-                isEnabled = false
-            };
+            var disabled = new ImportRule { ruleName = "Off", pattern = "T_*", patternMode = PatternMode.Glob, isEnabled = false };
+            var enabled  = new ImportRule { ruleName = "On",  pattern = "T_*", patternMode = PatternMode.Glob, isEnabled = true };
 
-            var enabled = new ImportRule
-            {
-                ruleName = "On",
-                prefix = "T_",
-                isEnabled = true
-            };
+            var result = RuleValidator.FindMatchingRule(new List<BaseImportRule> { disabled, enabled }, "Assets/T_Rock.png");
 
-            var rules = new List<BaseImportRule>
-            {
-                disabled,
-                enabled
-            };
-
-            Assert.AreEqual(enabled, RuleValidator.FindMatchingRule(rules, "Assets/T_Rock.png"));
+            Assert.AreEqual(enabled, result);
         }
 
         [Test]
         public void FindMatchingRule_FirstRuleWins()
         {
-            var first = new ImportRule
-            {
-                ruleName = "First",
-                prefix = "T_",
-                isEnabled = true
-            };
+            var first  = new ImportRule { ruleName = "First",  pattern = "T_*", patternMode = PatternMode.Glob, isEnabled = true };
+            var second = new ImportRule { ruleName = "Second", pattern = "T_*", patternMode = PatternMode.Glob, isEnabled = true };
 
-            var second = new ImportRule
-            {
-                ruleName = "Second",
-                prefix = "T_",
-                isEnabled = true
-            };
+            var result = RuleValidator.FindMatchingRule(new List<BaseImportRule> { first, second }, "Assets/T_Rock.png");
 
-            var rules = new List<BaseImportRule>
-            {
-                first,
-                second
-            };
-
-            Assert.AreEqual(first, RuleValidator.FindMatchingRule(rules, "Assets/T_Rock.png"));
+            Assert.AreEqual(first, result);
         }
 
         [Test]
-        public void FindMatchingRule_MatchesByPrefix()
+        public void FindMatchingRule_MatchesByGlobPrefix()
         {
-            var rule = new ImportRule
-            {
-                ruleName = "Textures",
-                prefix = "T_",
-                isEnabled = true
-            };
+            var rule = new ImportRule { ruleName = "Textures", pattern = "T_*", patternMode = PatternMode.Glob, isEnabled = true };
 
-            var rules = new List<BaseImportRule>
-            {
-                rule
-            };
-
-            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(rules, "Assets/T_Rock.png"));
+            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/T_Rock.png"));
         }
 
         [Test]
-        public void FindMatchingRule_PrefixAndExtensionBothRequired()
+        public void FindMatchingRule_PatternWithExtension_FiltersCorrectly()
         {
-            var rule = new ImportRule
-            {
-                ruleName = "Env FBX",
-                prefix = "Env_",
-                extensionFilter = ".fbx",
-                isEnabled = true
-            };
-
-            var rules = new List<BaseImportRule>
-            {
-                rule
-            };
+            var rule = new ImportRule { ruleName = "Env FBX", pattern = "Env_*.fbx", patternMode = PatternMode.Glob, isEnabled = true };
+            var rules = new List<BaseImportRule> { rule };
 
             Assert.IsNull(RuleValidator.FindMatchingRule(rules, "Assets/Env_Rock.png"));
             Assert.AreEqual(rule, RuleValidator.FindMatchingRule(rules, "Assets/Env_Rock.fbx"));
         }
+
+        [Test]
+        public void FindMatchingRule_EmptyPattern_IsSkipped()
+        {
+            var rule = new ImportRule { pattern = "", isEnabled = true };
+
+            Assert.IsNull(RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/T_Rock.png"));
+        }
+
+        // ── ShouldProcess ─────────────────────────────────────────────────────────
 
         [Test]
         public void ShouldProcess_IgnoredFolder_ReturnsFalse()
@@ -134,10 +102,10 @@ namespace Kodlon.AssetRouter.Tests
             Assert.IsFalse(RuleValidator.ShouldProcess(_db, "Assets/Script.cs"));
         }
 
-        [TearDown]
-        public void TearDown()
+        [Test]
+        public void ShouldProcess_MonitoredExtension_ReturnsTrue()
         {
-            Object.DestroyImmediate(_db);
+            Assert.IsTrue(RuleValidator.ShouldProcess(_db, "Assets/T_Rock.png"));
         }
     }
 }

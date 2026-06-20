@@ -6,6 +6,11 @@ namespace Kodlon.AssetRouter.Data
     [CreateAssetMenu(fileName = "ImporterSettingsDatabase", menuName = "Asset Router/Settings Database")]
     public class ImporterSettingsDatabase : ScriptableObject
     {
+        /// <summary>Schema version used by <see cref="Logic.RuleMigrator"/> to detect and upgrade older assets.</summary>
+        public const int LatestSchemaVersion = 2;
+
+        public int schemaVersion = 0;
+
         public bool enableAutoImport = true;
         public bool showPopupForUnknownFiles = true;
 
