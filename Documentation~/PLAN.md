@@ -45,9 +45,19 @@
 
 ---
 
-## Epic 1 — Pattern matching: glob/regex замість prefix/suffix
+## ✅ Epic 1 — Pattern matching: glob/regex замість prefix/suffix
 
 **Нотатка автора:** прибрати `prefix`/`suffix`, замінити на одне поле glob-стилю `UI_*_Button.png`; опціонально regex для просунутих.
+
+> ✅ **Виконано — v0.2.0**
+
+- [x] 1.1 Чому
+- [x] 1.2 Що — нові поля `patternMode`, `pattern`, `matchAgainstFullPath`
+- [x] 1.3 Як (технічно) — `PatternMatcher`: glob→regex, кеш, ReDoS timeout
+- [x] 1.4 Міграція даних — `RuleMigrator` v1→v2, `schemaVersion`, `[FormerlySerializedAs]`
+- [x] 1.5 UI — dropdown Mode, поле Pattern, live-preview + regex error highlight
+- [x] 1.6 Файли — `PatternMode.cs`, `PatternMatcher.cs`, `RuleMigrator.cs`, оновлені `BaseImportRule`, `RuleValidator`, `AssetRouterWindow`
+- [x] 1.7 Acceptance
 
 ### 1.1 Чому
 - Три окремі поля (`prefix`, `suffix`, `extensionFilter`) — це жорсткий частковий випадок повного glob. Один patern читається інтуїтивніше: `T_*_D.png` замість трьох полів.
@@ -99,9 +109,19 @@ public bool matchAgainstFullPath;      // false = тільки filename (default
 
 ---
 
-## Epic 2 — Pluggable Import Actions
+## ⬜ Epic 2 — Pluggable Import Actions
 
 **Нотатка автора:** масив скриптів після пресету — пивот, колайдер, обрізання звуку, Addressables, додавання у SO. "Найсильніша ідея".
+
+> ⬜ **Заплановано — v0.3.0**
+
+- [ ] 2.1 Чому
+- [ ] 2.2 Контракт — `IAssetImportAction`, `AssetImportActionAsset`, `AssetImportContext`
+- [ ] 2.3 На правилі — `List<AssetImportActionAsset> postImportActions`
+- [ ] 2.4 Built-in actions (6 шт.: SetPivot, MeshCollider, TrimAudio, Addressables, Catalog, MenuItem)
+- [ ] 2.5 UI — ReorderableList дій, кнопка `+` з TypeCache меню
+- [ ] 2.6 Файли
+- [ ] 2.7 Acceptance
 
 ### 2.1 Чому
 Preset закриває лише `AssetImporter` settings. Все інше (генерація колайдера, пакування в адресабли, реєстрація в каталозі) — вимагає коду. Винесення в pluggable interface = ядро ніколи не торкається при додаванні нового сценарію.
@@ -165,9 +185,17 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## Epic 3 — Preview / Dry-run mode
+## ⬜ Epic 3 — Preview / Dry-run mode
 
 **Нотатка автора:** "ось що станеться з цими 47 файлами якщо натиснеш імпорт".
+
+> ⬜ **Заплановано — v0.4.0**
+
+- [ ] 3.1 Чому
+- [ ] 3.2 Як — вкладка `Dry Run`, таблиця, кнопка `Apply selected`, Export CSV
+- [ ] 3.3 Технічно — фоновий скан, CancellationToken, `StartAssetEditing`
+- [ ] 3.4 Файли — `DryRunView.cs`, `DryRunPlanner.cs`, `BatchMover.cs`
+- [ ] 3.5 Acceptance
 
 ### 3.1 Чому
 Коли правил багато і regex складний — без dry-run легко перенести 200 файлів не туди. Це team-safety feature.
@@ -203,9 +231,16 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## Epic 4 — Batch Re-import existing assets
+## ⬜ Epic 4 — Batch Re-import existing assets
 
 **Нотатка автора:** кнопка щоб пройтись по існуючих ассетах і застосувати правила.
+
+> ⬜ **Заплановано — v0.4.0**
+
+- [ ] 4.1 Чому
+- [ ] 4.2 Що — кнопка `Re-import All Matched`, опція `Force preset re-apply`
+- [ ] 4.3 Технічно — `DryRunPlanner` + `BatchMover`, progress bar, `StartAssetEditing`
+- [ ] 4.4 Acceptance
 
 ### 4.1 Чому
 Сьогодні плагін реагує тільки на нові імпорти. Усе що вже в проєкті — поза дією правил. Без цього плагін не вирішує проблему "наводимо порядок у легасі-проєкті".
@@ -227,9 +262,17 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## Epic 5 — Conflict Detection
+## ✅ Epic 5 — Conflict Detection
 
 **Нотатка автора:** якщо два правила можуть матчити один ассет — підсвічувати у вікні.
+
+> ✅ **Виконано — v0.2.0**
+
+- [x] 5.1 Типи конфліктів (Duplicate, Overlap)
+- [x] 5.2 Як виявити — string-equality для дублікатів, sample-path heuristic для overlap
+- [x] 5.3 UI — banner у вікні, `⚠` у ReorderableList
+- [x] 5.4 Файли — `ConflictDetector.cs`, `ConflictDetectorTests.cs`
+- [x] 5.5 Acceptance
 
 ### 5.1 Типи конфліктів
 1. **Strict duplicate** — два правила з ідентичним `pattern` + `patternMode` + `matchAgainstFullPath` → дублікат, треба видалити одне.
@@ -255,9 +298,17 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## Epic 6 — Operation Log + Undo Last Batch
+## ⬜ Epic 6 — Operation Log + Undo Last Batch
 
 **Нотатка автора:** один кривий regex → 200 файлів не там. Треба undo.
+
+> ⬜ **Заплановано — v0.4.0**
+
+- [ ] 6.1 Чому
+- [ ] 6.2 Що — `OperationLogEntry`, вкладка `History`, кнопка `Undo last session`
+- [ ] 6.3 Технічно — атомарний запис, `StartAssetEditing`, best-effort revert
+- [ ] 6.4 Файли — `OperationLog.cs`, `UndoEngine.cs`, `HistoryView.cs`
+- [ ] 6.5 Acceptance
 
 ### 6.1 Чому
 `AssetDatabase.MoveAsset` **не реєструється** у вбудованому Unity Undo Stack. `Undo.RegisterImporterUndo` існує, але це для змін у налаштуваннях importer, не для move. Треба свій undo-механізм.
@@ -284,9 +335,17 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## Epic 7 — Git-friendly persistence
+## ⬜ Epic 7 — Git-friendly persistence
 
 **Нотатка автора:** ScriptableObject у бінарі → merge conflicts.
+
+> ⬜ **Заплановано — v0.5.0**
+
+- [ ] 7.1 Реальність
+- [ ] 7.2 Що робити — варіант A (JSON export/import) рекомендовано
+- [ ] 7.3 Формат JSON — `$type` discriminator, GUID refs, Newtonsoft.Json
+- [ ] 7.4 Файли — `JsonExporter.cs`, `JsonImporter.cs`, `JsonRoundTripTests.cs`
+- [ ] 7.5 Acceptance
 
 ### 7.1 Реальність
 Unity з 2017+ за замовчуванням Force Text mode (підтверджено: у проєкті `m_SerializationMode: 2`). SO **уже** зберігається як YAML, читабельно. Реальна біль — `[SerializeReference]`-айдішники (`fileID: -8345671234`) зсуваються при reorder, тому diff виглядає більшим ніж насправді. Це знайдено в [Unity docs про SerializeReference](https://docs.unity3d.com/ScriptReference/SerializeReference.html).
@@ -317,9 +376,17 @@ Unity з 2017+ за замовчуванням Force Text mode (підтверд
 
 ---
 
-## Epic 8 — Bundled content (presets + actions + sample scene)
+## ⬜ Epic 8 — Bundled content (presets + actions + sample scene)
 
 **Нотатка автора:** готовий набір пресетів + готовий набір простих скриптів, разом.
+
+> ⬜ **Заплановано — v0.5.0**
+
+- [ ] 8.1 Presets — 6 нових (Sprite, Lightmap, NormalMap, ModelStatic, ModelCharacter, Voice)
+- [ ] 8.2 Actions — built-in actions з Epic 2
+- [ ] 8.3 Sample scene — `Samples~/QuickStart/` з Raw-файлами і README
+- [ ] 8.4 Файли
+- [ ] 8.5 Acceptance
 
 ### 8.1 Presets (уже частково є)
 Доповнити поточні 4 пресети:
@@ -354,9 +421,21 @@ Unity з 2017+ за замовчуванням Force Text mode (підтверд
 
 ---
 
-## Epic 9 — Cross-platform & infrastructure cleanup
+## ✅ Epic 9 — Cross-platform & infrastructure cleanup
 
 Чисто інженерні борги, не feature-roadmap, але без них senior-bar не пройти.
+
+> ✅ **Виконано — v0.1.0**
+
+- [x] 9.1 Path normalization audit — `PathUtility` (NormalizeAssetPath, ToAbsolute, IsUnderFolder)
+- [x] 9.2 `CreateNewDatabase()` bug — явний виклик `DefaultDatabaseFactory.PopulateDefaults(db)`
+- [x] 9.3 Duplicate defaults — `DefaultDatabaseFactory`, обидва місця делегують до нього
+- [x] 9.4 Window not reactive — `EditorApplication.projectChanged` підписка
+- [x] 9.5 CHANGELOG.md — створено, Keep a Changelog формат
+- [x] 9.6 CI — `.github/workflows/test.yml` (game-ci/unity-test-runner@v4)
+- [x] 9.7 Runtime folder — не створювати (немає runtime features)
+- [x] 9.8 SmartAssetImporter naming — залишаємо `Asset Router` (питання відкрите)
+- [x] 9.9 Acceptance
 
 ### 9.1 Path normalization audit
 Пройти grep по всьому коду:
@@ -402,7 +481,7 @@ Editor/
 У нотатках згадка `Assets/SmartAssetImporter/`. Поточна назва пакета — `com.kodlon.assetrouter`, namespace `Kodlon.AssetRouter`. Якщо це старе ім'я з нотаток до rename — нічого не робимо. Якщо це нове ім'я, на яке треба перейти — це окремий жорсткий рефактор (rename namespace + `[MovedFrom]` на кожен серіалізуємий клас + redirect для package manifest + git tag old version). Уточнити перед стартом.
 
 ### 9.9 Acceptance
-- Усі баги вище пофіксені.
+- Усі баги вище пофіксані.
 - CI зелений на main.
 - CHANGELOG актуальний.
 
@@ -448,12 +527,12 @@ Asset Store пошук по "asset router" / "asset organizer" / "auto importer"
 
 ## Suggested release order
 
-1. **v0.1.0** — Epic 9 (cleanup + bugfixes + CI). Стабільний фундамент.
-2. **v0.2.0** — Epic 1 (pattern matching) + Epic 5 (conflict detection) — це парні фічі, обидві про правила.
-3. **v0.3.0** — Epic 2 (import actions). Перший великий стрибок гнучкості.
-4. **v0.4.0** — Epic 3 (dry-run) + Epic 4 (batch re-import) + Epic 6 (undo) — пак "team-safety".
-5. **v0.5.0** — Epic 7 (JSON export) + Epic 8 (bundled content + sample). Готовий до публікації.
-6. **v1.0.0** — стабілізація, реліз на OpenUPM.
+- [x] **v0.1.0** — Epic 9 (cleanup + bugfixes + CI). Стабільний фундамент.
+- [x] **v0.2.0** — Epic 1 (pattern matching) + Epic 5 (conflict detection).
+- [ ] **v0.3.0** — Epic 2 (import actions). Перший великий стрибок гнучкості.
+- [ ] **v0.4.0** — Epic 3 (dry-run) + Epic 4 (batch re-import) + Epic 6 (undo) — пак "team-safety".
+- [ ] **v0.5.0** — Epic 7 (JSON export) + Epic 8 (bundled content + sample). Готовий до публікації.
+- [ ] **v1.0.0** — стабілізація, реліз на OpenUPM.
 
 Кожен реліз — тег у git, оновлення `package.json` version, оновлення `CHANGELOG.md`, GitHub Release notes.
 
