@@ -5,6 +5,8 @@ using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
 using Kodlon.AssetRouter.Logic;
 using UnityEngine;
+using UnityEngine.TestTools;
+using Object = UnityEngine.Object;
 
 // ── Test-only action helpers ──────────────────────────────────────────────────
 // Defined at namespace level (not nested) so Unity can create ScriptableObject instances.
@@ -86,6 +88,9 @@ namespace Kodlon.AssetRouter.Tests
         public void ErrorInOneAction_DoesNotBlockNext()
         {
             var rule = MakeRule(_thrower, _counter);
+
+            // Tell Unity's test runner to expect the exception log — otherwise it fails the test.
+            LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("InvalidOperationException"));
 
             // Must not throw — exception is caught internally.
             Assert.DoesNotThrow(() => ActionPipeline.Execute(rule, null, "Assets/fake.png", _db));

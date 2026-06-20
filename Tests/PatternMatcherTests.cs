@@ -36,8 +36,11 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void Glob_DoubleStar_MatchesAcrossSlashes()
         {
-            var rule = MakeRule(PatternMode.Glob, "T_**", matchFullPath: true);
+            // Assets/**/T_*.png with matchFullPath must match paths at any depth.
+            var rule = MakeRule(PatternMode.Glob, "Assets/**/T_*.png", matchFullPath: true);
             Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/Textures/T_Rock.png"));
+            Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/Art/Textures/Sub/T_Wall.png"));
+            Assert.IsFalse(PatternMatcher.Matches(rule, "Assets/Textures/UI_Button.png"));
         }
 
         [Test]

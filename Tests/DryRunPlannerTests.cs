@@ -20,6 +20,8 @@ namespace Kodlon.AssetRouter.Tests
         public void Scan_DatabaseWithNoRules_ReturnsNoMatchedEntries()
         {
             var db = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
+            // CreateInstance calls Reset() in the Editor, which populates defaults — clear explicitly.
+            db.rules.Clear();
             db.enableAutoImport = true;
             db.monitoredExtensions.Add(".png");
 
