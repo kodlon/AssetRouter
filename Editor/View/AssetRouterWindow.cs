@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.View
 {
-    public class AssetRouterWindow : EditorWindow
+    internal sealed class AssetRouterWindow : EditorWindow
     {
         private const float ListElementHeight = 22f;
         private const float SectionSpacing = 6f;
@@ -29,6 +29,23 @@ namespace Kodlon.AssetRouter.View
 
         private void OnEnable()
         {
+            EditorApplication.projectChanged += OnProjectChanged;
+            LoadDatabase(DatabaseLocator.FindDatabase());
+        }
+
+        private void OnDisable()
+        {
+            EditorApplication.projectChanged -= OnProjectChanged;
+        }
+
+        // Automatically picks up a database that was created externally (e.g. by
+        // AssetRouterInitializer) while the window was already open and showing no database.
+        private void OnProjectChanged()
+        {
+            if (_database != null)
+                return;
+
+            DatabaseLocator.InvalidateCache();
             LoadDatabase(DatabaseLocator.FindDatabase());
         }
 
@@ -142,6 +159,10 @@ namespace Kodlon.AssetRouter.View
                 return;
 
             var db = CreateInstance<ImporterSettingsDatabase>();
+
+            // CreateInstance does not invoke Reset(), so populate defaults explicitly.
+            DefaultDatabaseFactory.PopulateDefaults(db);
+
             AssetDatabase.CreateAsset(db, path);
             AssetDatabase.SaveAssets();
 

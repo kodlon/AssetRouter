@@ -4,10 +4,18 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Logic
 {
-    public static class DatabaseLocator
+    internal static class DatabaseLocator
     {
         private static bool AlreadySearched;
         private static ImporterSettingsDatabase Cached;
+
+        // Invalidate the cache before assembly reload so a fresh search runs after recompile.
+        // Covers the case where domain reload is disabled and statics are not reset automatically.
+        [InitializeOnLoadMethod]
+        private static void RegisterReloadHook()
+        {
+            AssemblyReloadEvents.beforeAssemblyReload += InvalidateCache;
+        }
 
         public static ImporterSettingsDatabase FindDatabase()
         {

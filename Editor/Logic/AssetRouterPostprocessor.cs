@@ -7,9 +7,20 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Logic
 {
-    public class AssetRouterPostprocessor : AssetPostprocessor
+    internal sealed class AssetRouterPostprocessor : AssetPostprocessor
     {
         private static readonly HashSet<string> AssetsBeingMoved = new(StringComparer.OrdinalIgnoreCase);
+
+        // Clear the re-entry guard on assembly reload and when entering play mode so stale
+        // entries cannot block imports if domain reload is disabled in Enter Play Mode Settings.
+        [InitializeOnLoadMethod]
+        private static void RegisterClearHooks()
+        {
+            AssemblyReloadEvents.beforeAssemblyReload += AssetsBeingMoved.Clear;
+        }
+
+        [InitializeOnEnterPlayMode]
+        private static void OnEnterPlayMode() => AssetsBeingMoved.Clear();
 
         private static void OnPostprocessAllAssets(
             string[] importedAssets,
@@ -47,11 +58,8 @@ namespace Kodlon.AssetRouter.Logic
                     continue;
                 }
 
-                var currentFolder = (Path.GetDirectoryName(assetPath) ?? "")
-                    .Replace('\\', '/')
-                    .TrimEnd('/') + "/";
-
-                var targetFolder = rule.targetFolder.TrimEnd('/') + "/";
+                var currentFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(assetPath) ?? "") + "/";
+                var targetFolder = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
 
                 if (string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -85,9 +93,7 @@ namespace Kodlon.AssetRouter.Logic
 
         private void ApplyPreset(BaseImportRule rule)
         {
-            var importRule = rule as ImportRule;
-
-            if (importRule?.preset == null)
+            if (rule is not ImportRule importRule || importRule.preset == null)
                 return;
 
             if (importRule.preset.ApplyTo(assetImporter))
@@ -120,7 +126,10 @@ namespace Kodlon.AssetRouter.Logic
 
         private static void HandleUnknownAsset(string assetPath)
         {
-            if (!File.Exists(Path.Combine(Application.dataPath.Replace("Assets", ""), assetPath)))
+            // PathUtility.ToAbsolute uses Path.GetDirectoryName(Application.dataPath) as the
+            // project root — avoids the "Replace("Assets", "")" bug that would corrupt any
+            // path containing the word "Assets" more than once.
+            if (!File.Exists(PathUtility.ToAbsolute(assetPath)))
                 return;
 
             var fileName = Path.GetFileName(assetPath);
@@ -143,7 +152,7 @@ namespace Kodlon.AssetRouter.Logic
 
         private static void MoveToTargetFolder(string assetPath, BaseImportRule rule)
         {
-            var targetFolder = rule.targetFolder.TrimEnd('/') + "/";
+            var targetFolder = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
             var targetPath = targetFolder + Path.GetFileName(assetPath);
 
             EnsureFolderExists(targetFolder.TrimEnd('/'));

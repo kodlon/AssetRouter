@@ -1,0 +1,71 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Edit Mode Tests — Unity ${{ matrix.unity-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        unity-version:
+          - 2022.3.62f1
+
+    steps:
+      - name: Checkout package
+        uses: actions/checkout@v4
+        with:
+          path: package
+
+      # Build a minimal Unity project that references this package as a local path dependency.
+      # The project lives outside the package folder so Unity does not try to import it.
+      - name: Create test project structure
+        run: |
+          mkdir -p test-project/Assets
+          mkdir -p test-project/Packages
+          mkdir -p test-project/ProjectSettings
+
+          # Reference the checked-out package as a local UPM dependency
+          cat > test-project/Packages/manifest.json <<'EOF'
+          {
+            "dependencies": {
+              "com.kodlon.assetrouter": "file:../../package",
+              "com.unity.ext.nunit": "1.0.6",
+              "com.unity.test-framework": "1.1.33"
+            }
+          }
+          EOF
+
+          # Minimum required project settings file
+          cat > test-project/ProjectSettings/ProjectVersion.txt <<'EOF'
+          m_EditorVersion: ${{ matrix.unity-version }}
+          m_EditorVersionWithRevision: ${{ matrix.unity-version }}
+          EOF
+
+      - name: Run edit-mode tests
+        uses: game-ci/unity-test-runner@v4
+        id: tests
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ matrix.unity-version }}
+          projectPath: test-project
+          testMode: EditMode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          # Store results as JUnit XML so GitHub can annotate the PR
+          customParameters: -nographics
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.unity-version }}
+          path: ${{ steps.tests.outputs.artifactsPath }}

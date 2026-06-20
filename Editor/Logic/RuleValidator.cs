@@ -5,7 +5,7 @@ using Kodlon.AssetRouter.Data;
 
 namespace Kodlon.AssetRouter.Logic
 {
-    public static class RuleValidator
+    internal static class RuleValidator
     {
         public static BaseImportRule FindMatchingRule(List<BaseImportRule> rules, string assetPath)
         {
@@ -70,7 +70,7 @@ namespace Kodlon.AssetRouter.Logic
 
             for (var i = 0; i < db.ignoredFolders.Count; i++)
             {
-                if (assetPath.StartsWith(db.ignoredFolders[i], StringComparison.OrdinalIgnoreCase))
+                if (PathUtility.IsUnderFolder(assetPath, db.ignoredFolders[i]))
                     return false;
             }
 
