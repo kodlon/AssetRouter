@@ -4,6 +4,10 @@
   "displayName": "Asset Router",
   "description": "Automatically applies import presets and moves assets to target folders based on naming rules (prefix, suffix, extension). Zero setup — works out of the box.",
   "unity": "2022.3",
+  "unityRelease": "0f1",
+  "documentationUrl": "https://github.com/kodlon/AssetRouter/blob/main/Documentation~/DOCUMENTATION.md",
+  "changelogUrl": "https://github.com/kodlon/AssetRouter/releases",
+  "licensesUrl": "https://github.com/kodlon/AssetRouter/blob/main/LICENSE",
   "author": {
     "name": "Ihor Chuchman",
     "url": "https://github.com/kodlon"
@@ -14,6 +18,13 @@
     "organizer",
     "preset",
     "automation"
+  ],
+  "samples": [
+    {
+      "displayName": "Quick Start",
+      "description": "Example scene with sample assets demonstrating the auto-import and routing flow.",
+      "path": "Samples~/QuickStart"
+    }
   ],
   "license": "MIT"
 }
