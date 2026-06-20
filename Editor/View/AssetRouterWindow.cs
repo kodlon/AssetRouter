@@ -302,7 +302,47 @@ namespace Kodlon.AssetRouter.View
             if (GUILayout.Button("Create New", EditorStyles.toolbarButton, GUILayout.Width(82f)))
                 CreateNewDatabase();
 
+            using (new EditorGUI.DisabledScope(_database == null))
+            {
+                if (GUILayout.Button("Export JSON", EditorStyles.toolbarButton, GUILayout.Width(82f)))
+                    ExportDatabaseToJson();
+
+                if (GUILayout.Button("Import JSON", EditorStyles.toolbarButton, GUILayout.Width(82f)))
+                    ImportDatabaseFromJson();
+            }
+
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void ExportDatabaseToJson()
+        {
+            var path = EditorUtility.SaveFilePanel("Export Database as JSON", "", "ImporterSettings", "json");
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                JsonExporter.ExportToFile(_database, path);
+                Debug.Log($"[AssetRouter] Database exported to: {path}");
+            }
+            catch (Exception e)
+            {
+                EditorUtility.DisplayDialog("Export Failed", e.Message, "OK");
+            }
+        }
+
+        private void ImportDatabaseFromJson()
+        {
+            var path = EditorUtility.OpenFilePanel("Import Database from JSON", "", "json");
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                JsonImporter.ImportFromFile(_database, path);
+                LoadDatabase(_database);
+                Debug.Log($"[AssetRouter] Database imported from: {path}");
+            }
+            catch (Exception e)
+            {
+                EditorUtility.DisplayDialog("Import Failed", e.Message, "OK");
+            }
         }
 
         private void DrawGeneralSettings()

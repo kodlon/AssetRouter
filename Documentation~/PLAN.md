@@ -335,17 +335,17 @@ Addressables — опціональна залежність. Виявлення
 
 ---
 
-## ⬜ Epic 7 — Git-friendly persistence
+## ✅ Epic 7 — Git-friendly persistence
 
 **Нотатка автора:** ScriptableObject у бінарі → merge conflicts.
 
-> ⬜ **Заплановано — v0.5.0**
+> ✅ **Виконано — v0.5.0**
 
-- [ ] 7.1 Реальність
-- [ ] 7.2 Що робити — варіант A (JSON export/import) рекомендовано
-- [ ] 7.3 Формат JSON — `$type` discriminator, GUID refs, Newtonsoft.Json
-- [ ] 7.4 Файли — `JsonExporter.cs`, `JsonImporter.cs`, `JsonRoundTripTests.cs`
-- [ ] 7.5 Acceptance
+- [x] 7.1 Реальність
+- [x] 7.2 Що робити — варіант A (JSON export/import) рекомендовано
+- [x] 7.3 Формат JSON — `$type` discriminator, GUID refs, Newtonsoft.Json
+- [x] 7.4 Файли — `JsonExporter.cs`, `JsonImporter.cs`, `JsonRoundTripTests.cs`
+- [x] 7.5 Acceptance
 
 ### 7.1 Реальність
 Unity з 2017+ за замовчуванням Force Text mode (підтверджено: у проєкті `m_SerializationMode: 2`). SO **уже** зберігається як YAML, читабельно. Реальна біль — `[SerializeReference]`-айдішники (`fileID: -8345671234`) зсуваються при reorder, тому diff виглядає більшим ніж насправді. Це знайдено в [Unity docs про SerializeReference](https://docs.unity3d.com/ScriptReference/SerializeReference.html).
@@ -376,17 +376,17 @@ Unity з 2017+ за замовчуванням Force Text mode (підтверд
 
 ---
 
-## ⬜ Epic 8 — Bundled content (presets + actions + sample scene)
+## ✅ Epic 8 — Bundled content (presets + actions + sample scene)
 
 **Нотатка автора:** готовий набір пресетів + готовий набір простих скриптів, разом.
 
-> ⬜ **Заплановано — v0.5.0**
+> ✅ **Виконано — v0.5.0**
 
-- [ ] 8.1 Presets — 6 нових (Sprite, Lightmap, NormalMap, ModelStatic, ModelCharacter, Voice)
-- [ ] 8.2 Actions — built-in actions з Epic 2
-- [ ] 8.3 Sample scene — `Samples~/QuickStart/` з Raw-файлами і README
-- [ ] 8.4 Файли
-- [ ] 8.5 Acceptance
+- [x] 8.1 Presets — 6 нових (Sprite, Lightmap, NormalMap, ModelStatic, ModelCharacter, Voice)
+- [x] 8.2 Actions — built-in actions з Epic 2
+- [x] 8.3 Sample scene — `Samples~/QuickStart/` з Raw-файлами і README
+- [x] 8.4 Файли
+- [x] 8.5 Acceptance
 
 ### 8.1 Presets (уже частково є)
 Доповнити поточні 4 пресети:
@@ -547,7 +547,7 @@ Asset Store пошук по "asset router" / "asset organizer" / "auto importer"
 - [x] **v0.2.0** — Epic 1 (pattern matching) + Epic 5 (conflict detection).
 - [x] **v0.3.0** — Epic 2 (import actions). Перший великий стрибок гнучкості.
 - [x] **v0.4.0** — Epic 3 (dry-run) + Epic 4 (batch re-import) + Epic 6 (undo) — пак "team-safety".
-- [ ] **v0.5.0** — Epic 7 (JSON export) + Epic 8 (bundled content + sample). Готовий до публікації.
+- [x] **v0.5.0** — Epic 7 (JSON export) + Epic 8 (bundled content + sample). Готовий до публікації.
 - [ ] **v1.0.0** — стабілізація, реліз на OpenUPM.
 
 Кожен реліз — тег у git, оновлення `package.json` version, оновлення `CHANGELOG.md`, GitHub Release notes.

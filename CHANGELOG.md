@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] — v0.4.0
+## [Unreleased] — v0.5.0
+
+### Added
+- **Epic 7 — Git-friendly JSON export/import.**
+  - `Export JSON` and `Import JSON` buttons added to the Asset Router window toolbar.
+  - `JsonExporter.ExportToFile` serialises the full database (settings, extensions, ignored folders,
+    all rules with their pattern, target, preset GUID, and postImportActions sub-asset refs) to an
+    indented JSON file. Atomic write via `.tmp` + rename prevents corruption on crash.
+  - `JsonImporter.ImportFromFile` parses the JSON and restores the database in-place, resolving preset
+    and postImportAction GUIDs back to Unity assets via `AssetDatabase`.
+  - Depends on `com.unity.nuget.newtonsoft-json 3.2.1` (added to `package.json` dependencies).
+  - New tests: `JsonRoundTripTests` (7 cases covering general settings, extensions, rule fields,
+    ordering, and Regex mode preservation).
+- **Epic 8 — Bundled presets + sample.**
+  - 6 new import presets (minimal, only override differentiating properties):
+    - `TextureImporter_Sprite` — Sprite type, Single mode, tight mesh, alpha transparency
+    - `TextureImporter_Lightmap` — Lightmap type, linear, 4096 px max
+    - `TextureImporter_NormalMap` — NormalMap type, linear
+    - `ModelImporter_Static` — no rig, no animation, no auto-collider
+    - `ModelImporter_Character` — Humanoid rig, import animations, optimise game objects
+    - `AudioImporter_Voice` — CompressedInMemory, mono, 22 050 Hz, Vorbis
+  - `Samples~/QuickStart/README.md` updated with a complete step-by-step tutorial covering
+    drag-and-drop routing, Dry Run, History/Undo, JSON export, and all 10 bundled presets.
+
+---
+
+## [0.4.0]
 
 ### Added
 - **Epic 3 — Dry-run preview.** New "Dry Run" tab in the Asset Router window.
@@ -33,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] — v0.3.0
+## [0.3.0]
 
 ### Added
 - **Epic 2 — Pluggable Import Actions.** Each `ImportRule` now has a `List<AssetImportActionAsset> postImportActions`
@@ -59,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] — v0.2.0
+## [0.2.0]
 
 ### Added
 - **Epic 1 — Pattern matching.** `BaseImportRule` now has a single `pattern` field (glob or regex)
@@ -87,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] — v0.1.0
+## [0.1.0]
 
 ### Added
 - `PathUtility` static class with `NormalizeAssetPath`, `ToAbsolute`, and `IsUnderFolder` helpers — centralises all path handling.
