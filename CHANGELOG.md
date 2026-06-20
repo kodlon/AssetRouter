@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] — v0.3.0
+
+### Added
+- **Epic 2 — Pluggable Import Actions.** Each `ImportRule` now has a `List<AssetImportActionAsset> postImportActions`
+  that runs after the asset is moved and reimported at its target path.
+  - `IAssetImportAction` interface + `AssetImportActionAsset` abstract ScriptableObject base class.
+  - `AssetImportContext` readonly struct passed to every action (`AssetPath`, `Rule`, `Database`, `Logger`).
+  - `ActionPipeline` internal executor: iterates actions, calls `CanRunOn` → `Execute`, wraps each in
+    `try/catch` so a failing action never blocks the rest of the chain.
+  - Six built-in actions in `Editor/Actions/BuiltIn/`:
+    - `SetPivotAction` — sets sprite pivot via `TextureImporter` and reimports (idempotent).
+    - `GenerateMeshColliderAction` — enables `ModelImporter.addCollider` and reimports (idempotent).
+    - `TrimAudioSilenceAction` — trims leading/trailing silence from 16-bit PCM WAV files via a
+      custom RIFF parser; writes atomically and reimports (idempotent).
+    - `RegisterAddressableAction` — registers the asset in an Addressables group
+      (`#if UNITY_ADDRESSABLES`; compiled only when `com.unity.addressables >= 1.19.0` is installed).
+    - `AppendToCatalogAction` — appends the imported asset to an `AssetCatalog` SO (idempotent).
+    - `RunMenuItemAction` — calls `EditorApplication.ExecuteMenuItem` with a configurable path.
+  - `AssetCatalog` ScriptableObject (`Create > Asset Router > Asset Catalog`).
+  - Actions ReorderableList in the rule detail panel: drag-to-reorder, `+` dropdown (TypeCache),
+    remove button that also cleans up embedded sub-assets.
+  - `AssetRouter.Editor.asmdef` `versionDefines` entry for `com.unity.addressables` → `UNITY_ADDRESSABLES`.
+- New tests: `ActionPipelineTests` (6 cases covering execute, skip, error isolation, null safety).
+
+---
+
 ## [Unreleased] — v0.2.0
 
 ### Added

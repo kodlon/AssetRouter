@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
+using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
 using Kodlon.AssetRouter.Logic;
 using UnityEditor;
@@ -28,6 +30,10 @@ namespace Kodlon.AssetRouter.View
         // Live-preview cache — recomputed only when the selected rule's pattern changes.
         private string _lastPreviewPattern;
         private string _cachedPreview;
+
+        // Actions ReorderableList — rebuilt when the selected rule index changes.
+        private ReorderableList _actionsList;
+        private int _actionsForRuleIndex = -1;
 
         [MenuItem("Tools/Asset Router Settings")]
         public static void OpenWindow()
@@ -96,6 +102,10 @@ namespace Kodlon.AssetRouter.View
 
         private void RefreshConflicts()
         {
+            // Invalidate the actions list — rule reordering changes which rule is at _selectedIndex.
+            _actionsList = null;
+            _actionsForRuleIndex = -1;
+
             _conflicts = _database != null
                 ? ConflictDetector.Detect(_database.rules)
                 : null;
@@ -201,7 +211,9 @@ namespace Kodlon.AssetRouter.View
             _rulesList.onSelectCallback = list =>
             {
                 _selectedIndex = list.index;
-                _lastPreviewPattern = null; // invalidate preview cache on selection change
+                _lastPreviewPattern = null;
+                _actionsList = null; // invalidate actions list on rule selection change
+                _actionsForRuleIndex = -1;
             };
 
             _rulesList.onAddCallback = list => AddRule(list, new ImportRule());
@@ -245,6 +257,8 @@ namespace Kodlon.AssetRouter.View
             _rulesList = null;
             _selectedIndex = -1;
             _lastPreviewPattern = null;
+            _actionsList = null;
+            _actionsForRuleIndex = -1;
 
             if (_serializedDb != null)
                 BuildReorderableList();
@@ -385,8 +399,104 @@ namespace Kodlon.AssetRouter.View
                 SectionLabel("Settings");
                 Field(element, "preset", "Import Preset");
 
+                if (ruleRef is ImportRule)
+                {
+                    SectionLabel("Post-Import Actions");
+                    DrawActionsListFor(element);
+                }
+
                 EditorGUI.indentLevel--;
             }
+        }
+
+        private void DrawActionsListFor(SerializedProperty ruleElement)
+        {
+            var actionsProp = ruleElement.FindPropertyRelative("postImportActions");
+            if (actionsProp == null) return;
+
+            EnsureActionsListBuilt(actionsProp);
+            _actionsList?.DoLayoutList();
+        }
+
+        private void EnsureActionsListBuilt(SerializedProperty actionsProp)
+        {
+            if (_actionsList != null && _actionsForRuleIndex == _selectedIndex)
+                return;
+
+            _actionsForRuleIndex = _selectedIndex;
+            _actionsList = new ReorderableList(_serializedDb, actionsProp, true, true, true, true);
+
+            _actionsList.drawHeaderCallback = rect =>
+                EditorGUI.LabelField(rect, "Post-Import Actions");
+
+            _actionsList.elementHeight = EditorGUIUtility.singleLineHeight + 4f;
+
+            _actionsList.drawElementCallback = (rect, index, isActive, isFocused) =>
+            {
+                var el = actionsProp.GetArrayElementAtIndex(index);
+                rect.y += 2f;
+                rect.height = EditorGUIUtility.singleLineHeight;
+                EditorGUI.ObjectField(rect, el, typeof(AssetImportActionAsset), GUIContent.none);
+            };
+
+            _actionsList.onAddDropdownCallback = (buttonRect, list) =>
+            {
+                var menu = new GenericMenu();
+                var types = TypeCache.GetTypesDerivedFrom<AssetImportActionAsset>();
+
+                foreach (var type in types)
+                {
+                    if (type.IsAbstract) continue;
+                    var capturedType = type;
+                    menu.AddItem(new GUIContent(ObjectNames.NicifyVariableName(type.Name)), false,
+                        () => CreateAndAddAction(capturedType, list));
+                }
+
+                if (menu.GetItemCount() == 0)
+                    menu.AddDisabledItem(new GUIContent("No action types found"));
+
+                menu.ShowAsContext();
+            };
+
+            _actionsList.onRemoveCallback = list =>
+            {
+                var idx = list.index;
+                if (idx < 0 || idx >= actionsProp.arraySize) return;
+
+                var actionProp = actionsProp.GetArrayElementAtIndex(idx);
+                var actionObj  = actionProp.objectReferenceValue;
+
+                // Unity requires nulling the reference before DeleteArrayElementAtIndex for Object refs.
+                actionProp.objectReferenceValue = null;
+                _serializedDb.ApplyModifiedProperties();
+
+                actionsProp.DeleteArrayElementAtIndex(idx);
+                _serializedDb.ApplyModifiedProperties();
+
+                // Remove sub-asset if it was embedded in the DB (created via the + button).
+                if (actionObj != null && AssetDatabase.IsSubAsset(actionObj))
+                {
+                    AssetDatabase.RemoveObjectFromAsset(actionObj);
+                    DestroyImmediate(actionObj, true);
+                    AssetDatabase.SaveAssets();
+                }
+            };
+        }
+
+        private void CreateAndAddAction(Type actionType, ReorderableList list)
+        {
+            var newAction = CreateInstance(actionType) as AssetImportActionAsset;
+            if (newAction == null) return;
+
+            newAction.name = ObjectNames.NicifyVariableName(actionType.Name);
+            AssetDatabase.AddObjectToAsset(newAction, _database);
+            AssetDatabase.SaveAssets();
+
+            _serializedDb.Update();
+            var newIndex = list.serializedProperty.arraySize;
+            list.serializedProperty.arraySize++;
+            list.serializedProperty.GetArrayElementAtIndex(newIndex).objectReferenceValue = newAction;
+            _serializedDb.ApplyModifiedProperties();
         }
 
         private void DrawPatternPreview(BaseImportRule rule)

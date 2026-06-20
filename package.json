@@ -1,6 +1,6 @@
 {
   "name": "com.kodlon.assetrouter",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "displayName": "Asset Router",
   "description": "Automatically applies import presets and moves assets to target folders based on naming rules (prefix, suffix, extension). Zero setup — works out of the box.",
   "unity": "2022.3",

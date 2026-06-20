@@ -11,16 +11,29 @@ namespace Kodlon.AssetRouter.Logic
     {
         private static readonly HashSet<string> AssetsBeingMoved = new(StringComparer.OrdinalIgnoreCase);
 
-        // Clear the re-entry guard on assembly reload and when entering play mode so stale
-        // entries cannot block imports if domain reload is disabled in Enter Play Mode Settings.
+        // Stores the matched rule for an asset that was moved, keyed by its target path.
+        // ActionPipeline runs when the reimport at the target path arrives.
+        private static readonly Dictionary<string, BaseImportRule> _pendingActions =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        // Clear both guards on assembly reload and play-mode entry so stale entries
+        // cannot block imports when domain reload is disabled.
         [InitializeOnLoadMethod]
         private static void RegisterClearHooks()
         {
-            AssemblyReloadEvents.beforeAssemblyReload += AssetsBeingMoved.Clear;
+            AssemblyReloadEvents.beforeAssemblyReload += () =>
+            {
+                AssetsBeingMoved.Clear();
+                _pendingActions.Clear();
+            };
         }
 
         [InitializeOnEnterPlayMode]
-        private static void OnEnterPlayMode() => AssetsBeingMoved.Clear();
+        private static void OnEnterPlayMode()
+        {
+            AssetsBeingMoved.Clear();
+            _pendingActions.Clear();
+        }
 
         private static void OnPostprocessAllAssets(
             string[] importedAssets,
@@ -42,6 +55,13 @@ namespace Kodlon.AssetRouter.Logic
                 {
                     AssetsBeingMoved.Remove(assetPath);
 
+                    // Asset was just moved and reimported at its target path — run pending actions.
+                    if (_pendingActions.TryGetValue(assetPath, out var pendingRule))
+                    {
+                        _pendingActions.Remove(assetPath);
+                        ActionPipeline.Execute(pendingRule, assetPath, db);
+                    }
+
                     continue;
                 }
 
@@ -62,7 +82,11 @@ namespace Kodlon.AssetRouter.Logic
                 var targetFolder = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
 
                 if (string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Already in the correct folder — run actions immediately.
+                    ActionPipeline.Execute(rule, assetPath, db);
                     continue;
+                }
 
                 toMove.Add(new AssetMoveCandidate(assetPath, rule));
             }
@@ -158,12 +182,14 @@ namespace Kodlon.AssetRouter.Logic
             EnsureFolderExists(targetFolder.TrimEnd('/'));
 
             AssetsBeingMoved.Add(targetPath);
+            _pendingActions[targetPath] = rule;
 
             var error = AssetDatabase.MoveAsset(assetPath, targetPath);
 
             if (!string.IsNullOrEmpty(error))
             {
                 AssetsBeingMoved.Remove(targetPath);
+                _pendingActions.Remove(targetPath);
                 Debug.LogWarning($"[AssetRouter] Failed to move {assetPath} -> {targetPath}: {error}");
             }
             else
