@@ -20,14 +20,14 @@ namespace Kodlon.AssetRouter.Logic
                 File.WriteAllText(tmp, json);
 
                 if (File.Exists(path))
-                    File.Delete(path);
-
-                File.Move(tmp, path);
+                    File.Replace(tmp, path, path + ".bak");
+                else
+                    File.Move(tmp, path);
             }
             finally
             {
                 if (File.Exists(tmp))
-                    File.Delete(tmp);
+                    try { File.Delete(tmp); } catch { }
             }
         }
 
@@ -81,8 +81,6 @@ namespace Kodlon.AssetRouter.Logic
             root["rules"] = rulesArr;
             return root.ToString(Formatting.Indented);
         }
-
-        // ── Helpers ───────────────────────────────────────────────────────────────
 
         private static JToken GuidRef(UnityEngine.Object obj)
         {

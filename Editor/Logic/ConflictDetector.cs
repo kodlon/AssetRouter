@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
 using Kodlon.AssetRouter.Data;
+using UnityEditor;
 
 namespace Kodlon.AssetRouter.Logic
 {
     internal enum ConflictType
     {
-        /// <summary>Two rules share the identical pattern, mode, and scope.</summary>
         Duplicate,
-
-        /// <summary>Both rules match at least one of the same sample filenames.</summary>
         Overlap
     }
 
@@ -27,17 +25,9 @@ namespace Kodlon.AssetRouter.Logic
         }
     }
 
-    /// <summary>
-    /// Detects duplicate and overlapping rules in an <see cref="ImporterSettingsDatabase"/>.
-    /// Duplicate detection is exact; overlap detection is a pragmatic heuristic using a fixed
-    /// set of representative asset paths.
-    /// </summary>
     internal static class ConflictDetector
     {
-        // Representative paths used for overlap detection.
-        // Using full paths so both matchAgainstFullPath=false (filename only) and
-        // matchAgainstFullPath=true (full path) are exercised correctly.
-        private static readonly string[] SamplePaths =
+        private static readonly string[] FixedSamplePaths =
         {
             "Assets/T_Rock_D.png",   "Assets/T_Rock_N.png",   "Assets/T_Wall.png",
             "Assets/UI_Button.png",  "Assets/UI_Icon.png",    "Assets/UI_Background.png",
@@ -54,6 +44,8 @@ namespace Kodlon.AssetRouter.Logic
             if (rules == null || rules.Count < 2)
                 return conflicts;
 
+            var samplePaths = BuildSamplePaths();
+
             for (var i = 0; i < rules.Count; i++)
             {
                 if (!IsActive(rules[i])) continue;
@@ -68,7 +60,7 @@ namespace Kodlon.AssetRouter.Logic
                         continue;
                     }
 
-                    if (HasSampleOverlap(rules[i], rules[j]))
+                    if (HasSampleOverlap(rules[i], rules[j], samplePaths))
                         conflicts.Add(new RuleConflict(i, j, ConflictType.Overlap));
                 }
             }
@@ -84,15 +76,34 @@ namespace Kodlon.AssetRouter.Logic
                && a.matchAgainstFullPath == b.matchAgainstFullPath
                && string.Equals(a.pattern, b.pattern, StringComparison.OrdinalIgnoreCase);
 
-        private static bool HasSampleOverlap(BaseImportRule a, BaseImportRule b)
+        private static bool HasSampleOverlap(BaseImportRule a, BaseImportRule b, string[] samplePaths)
         {
-            for (var i = 0; i < SamplePaths.Length; i++)
+            for (var i = 0; i < samplePaths.Length; i++)
             {
-                if (PatternMatcher.Matches(a, SamplePaths[i]) && PatternMatcher.Matches(b, SamplePaths[i]))
+                if (PatternMatcher.Matches(a, samplePaths[i]) && PatternMatcher.Matches(b, samplePaths[i]))
                     return true;
             }
 
             return false;
+        }
+
+        private static string[] BuildSamplePaths()
+        {
+            var paths = new HashSet<string>(FixedSamplePaths, StringComparer.OrdinalIgnoreCase);
+
+            var guids = AssetDatabase.FindAssets("", new[] { "Assets" });
+            var limit = Math.Min(guids.Length, 100);
+
+            for (var i = 0; i < limit; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (!AssetDatabase.IsValidFolder(path))
+                    paths.Add(path);
+            }
+
+            var result = new string[paths.Count];
+            paths.CopyTo(result);
+            return result;
         }
     }
 }

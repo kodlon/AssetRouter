@@ -7,7 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] — v0.5.0
+## [0.6.0] — 2026-06-21
+
+### Changed
+- `PathUtility`: added `EnsureFolderExists` as the single canonical implementation. Removed the three
+  local copies that previously existed in `BatchMover`, `UndoEngine`, and `AssetRouterPostprocessor`.
+- `OperationLog.LogPath`: converted from a side-effecting property (called `Directory.CreateDirectory`
+  on every read) to a pure computed property. `Directory.CreateDirectory` is now called only in
+  `WriteLogFile`, where it is actually needed.
+- `AssetRouterWindow` split into two `partial` files: `AssetRouterWindow.cs` (coordinator — fields,
+  tabs, toolbar, rules list, settings) and `AssetRouterWindow.RuleDetail.cs` (rule detail panel,
+  actions list, pattern preview). No behaviour changes.
+- Removed unnecessary comments across the entire codebase. Names self-document; only genuinely
+  non-obvious Unity quirks and ordering constraints were kept.
+
+### Fixed
+- **Epic 11 — Critical bugs & production hardening.**
+  - `AssetRouterPostprocessor`: `AssemblyReloadEvents.beforeAssemblyReload` lambda accumulated new
+    subscriptions on every reload when Domain Reload is disabled. Replaced with named static
+    `ClearGuards()` method and unsubscribe-first pattern.
+  - `AssetRouterPostprocessor`: moves were executed one-by-one without `StartAssetEditing /
+    StopAssetEditing`, causing O(N²) reimports on large imports. Replaced with `ExecuteMovesBatched`
+    that wraps all moves in a single editing block.
+  - `AssetRouterPostprocessor`: only the target path was added to `AssetsBeingMoved`; source path was
+    unprotected. Both paths are now added before `MoveAsset`. Source paths are removed after the
+    editing block so they do not accumulate with Domain Reload disabled.
+  - `AssetRouterInitializer`: added `EditorApplication.projectChanged` subscription so the migrator
+    also runs when a database is created or modified while the editor is open.
+  - `OperationLog`: write was `File.Delete` + `File.Move` (data-loss window on crash). Replaced with
+    `File.Replace` (atomic on NTFS). Added 500-session cap, `Clear()` method, and corruption recovery
+    (saves `.corrupt` backup and logs a warning instead of silently discarding history).
+  - `JsonExporter`: same non-atomic write pattern fixed with `File.Replace`.
+  - `JsonImporter`: `RuleMigrator.MigrateIfNeeded` now called at the end of `Import()` so
+    legacy-schema JSON is upgraded immediately. Null/empty extension strings are filtered out.
+    Portability note added to XMLDoc (sub-asset `fileId` values are project-local).
+  - `TrimAudioSilenceAction`: `(short)(threshold * short.MaxValue)` + `Math.Abs(sample)` overflowed
+    for `short.MinValue`. Replaced with `int thresholdSample` and `Math.Abs((int)sample)`. RIFF
+    bounds check now uses `(long)` cast to avoid int overflow for large malformed chunks. Added
+    re-entrancy guard (`HashSet<string> _processing`) to prevent infinite reimport loops. WAV write
+    is now atomic (`File.Replace`).
+  - `RegisterAddressableAction`: removed `AssetDatabase.SaveAssets()` after each asset — batch
+    catastrophe. Only `EditorUtility.SetDirty(settings)` is called; save is deferred.
+  - `AssetRouterWindow` (rule removal): rule removal now captures `postImportActions` first, removes
+    the rule from the array and calls `ApplyModifiedProperties`, then destroys orphan sub-assets.
+    Previously `IsReferencedByOtherRule` was called before the rule was removed, so it always
+    returned `true` and no sub-assets were ever cleaned up.
+  - `AssetRouterWindow` (action removal): `DestroyImmediate` on a sub-asset now checks whether any
+    other rule in the database references it before destroying, preventing silent null references.
+  - `AssetRouterWindow`: `AssetDatabase.SaveAssets()` was called after every action addition. Now
+    deferred to the "Save / Apply" button; only `EditorUtility.SetDirty` is called immediately.
+  - `AssetRouterWindow.BuildPatternPreview`: `AssetDatabase.FindAssets` was called synchronously on
+    every keystroke. Added 300 ms debounce via `EditorApplication.timeSinceStartup`.
+  - `UndoEngine`: `EnsureFolderExists` was called inside `StartAssetEditing`, causing `MoveAsset` to
+    fail (folder creation is deferred until `StopAssetEditing`). Moved to a pre-pass. Added
+    `DisplayCancelableProgressBar` and a post-revert summary dialog.
+  - `UndoEngine`: source-path guard removed after fix — folder creation pre-pass refactored cleanly.
+  - `BatchMover`: `EnsureFolderExists` moved before `StartAssetEditing` (same fix as UndoEngine).
+    Separate `Reimported` counter added to `BatchResult` (was folded into `Moved`). Progress
+    increment is now consistent across all branches.
+  - `DryRunPlanner`: added `DisplayCancelableProgressBar` with cancel support and `try/finally`
+    cleanup.
+  - `ConflictDetector`: overlap heuristic now uses up to 100 real project assets in addition to 14
+    fixed sample paths. "Heuristic — false negatives are possible" caveat added to UI banner and
+    XMLDoc.
+
+### Added
+- `HistoryView`: "Clear History" button with confirmation dialog. Calls `OperationLog.Clear()` and
+  resets the session list.
+- `PatternMatcherTests`: `Glob_DoubleStar_Alone_MatchesDirectChildToo` — documents that `Assets/**`
+  with `matchAgainstFullPath=true` matches direct children such as `Assets/x.png`.
+- UI tooltips on the Pattern and Match Full Path fields explain that path-based patterns
+  (e.g. `Assets/**`) require `matchAgainstFullPath` to be enabled.
+
+---
+
+## [0.5.0]
 
 ### Added
 - **Epic 7 — Git-friendly JSON export/import.**

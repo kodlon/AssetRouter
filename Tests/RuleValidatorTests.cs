@@ -38,8 +38,6 @@ namespace Kodlon.AssetRouter.Tests
             Object.DestroyImmediate(_db);
         }
 
-        // ── FindMatchingRule ──────────────────────────────────────────────────────
-
         [Test]
         public void FindMatchingRule_DisabledRule_IsSkipped()
         {
@@ -87,8 +85,6 @@ namespace Kodlon.AssetRouter.Tests
 
             Assert.IsNull(RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/T_Rock.png"));
         }
-
-        // ── ShouldProcess ─────────────────────────────────────────────────────────
 
         [Test]
         public void ShouldProcess_IgnoredFolder_ReturnsFalse()

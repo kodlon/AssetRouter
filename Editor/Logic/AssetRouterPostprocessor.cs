@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Kodlon.AssetRouter.Data;
 using UnityEditor;
 using UnityEngine;
@@ -10,26 +11,20 @@ namespace Kodlon.AssetRouter.Logic
     internal sealed class AssetRouterPostprocessor : AssetPostprocessor
     {
         private static readonly HashSet<string> AssetsBeingMoved = new(StringComparer.OrdinalIgnoreCase);
-
-        // Stores the matched rule for an asset that was moved, keyed by its target path.
-        // ActionPipeline runs when the reimport at the target path arrives.
         private static readonly Dictionary<string, BaseImportRule> _pendingActions =
             new(StringComparer.OrdinalIgnoreCase);
 
-        // Clear both guards on assembly reload and play-mode entry so stale entries
-        // cannot block imports when domain reload is disabled.
         [InitializeOnLoadMethod]
         private static void RegisterClearHooks()
         {
-            AssemblyReloadEvents.beforeAssemblyReload += () =>
-            {
-                AssetsBeingMoved.Clear();
-                _pendingActions.Clear();
-            };
+            AssemblyReloadEvents.beforeAssemblyReload -= ClearGuards;
+            AssemblyReloadEvents.beforeAssemblyReload += ClearGuards;
         }
 
         [InitializeOnEnterPlayMode]
-        private static void OnEnterPlayMode()
+        private static void OnEnterPlayMode() => ClearGuards();
+
+        private static void ClearGuards()
         {
             AssetsBeingMoved.Clear();
             _pendingActions.Clear();
@@ -46,7 +41,7 @@ namespace Kodlon.AssetRouter.Logic
             if (db == null || !db.enableAutoImport)
                 return;
 
-            var toMove = new List<AssetMoveCandidate>();
+            var toMove        = new List<AssetMoveCandidate>();
             var unknownAssets = new List<string>();
 
             foreach (var assetPath in importedAssets)
@@ -55,7 +50,6 @@ namespace Kodlon.AssetRouter.Logic
                 {
                     AssetsBeingMoved.Remove(assetPath);
 
-                    // Asset was just moved and reimported at its target path — run pending actions.
                     if (_pendingActions.TryGetValue(assetPath, out var pendingRule))
                     {
                         _pendingActions.Remove(assetPath);
@@ -79,11 +73,10 @@ namespace Kodlon.AssetRouter.Logic
                 }
 
                 var currentFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(assetPath) ?? "") + "/";
-                var targetFolder = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
+                var targetFolder  = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
 
                 if (string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase))
                 {
-                    // Already in the correct folder — run actions immediately.
                     ActionPipeline.Execute(rule, assetPath, db);
                     continue;
                 }
@@ -91,19 +84,16 @@ namespace Kodlon.AssetRouter.Logic
                 toMove.Add(new AssetMoveCandidate(assetPath, rule));
             }
 
-            var logEntries = new List<OperationLogEntry>();
+            if (toMove.Count > 0)
+                ExecuteMovesBatched(toMove, db);
 
-            foreach (var candidate in toMove)
-                if (MoveToTargetFolder(candidate.Path, candidate.Rule, out var targetPath))
-                    logEntries.Add(new OperationLogEntry(candidate.Path, targetPath, candidate.Rule.ruleName));
-
-            if (logEntries.Count > 0)
-                OperationLog.RecordBatch(logEntries, "AutoImport");
-
-            foreach (var unknownPath in unknownAssets)
+            if (unknownAssets.Count > 0)
             {
-                var captured = unknownPath;
-                EditorApplication.delayCall += () => HandleUnknownAsset(captured);
+                Debug.LogWarning($"[AssetRouter] {unknownAssets.Count} file(s) matched no rule " +
+                                 "— dialog will appear shortly.");
+
+                var captured = new List<string>(unknownAssets);
+                EditorApplication.delayCall += () => HandleUnknownAssets(captured);
             }
         }
 
@@ -121,6 +111,92 @@ namespace Kodlon.AssetRouter.Logic
             ApplyPreset(rule);
         }
 
+        private static void ExecuteMovesBatched(List<AssetMoveCandidate> candidates, ImporterSettingsDatabase db)
+        {
+            foreach (var candidate in candidates)
+                PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(candidate.Rule.targetFolder));
+
+            var logEntries = new List<OperationLogEntry>();
+
+            AssetDatabase.StartAssetEditing();
+            try
+            {
+                foreach (var candidate in candidates)
+                {
+                    if (MoveToTargetFolder(candidate.Path, candidate.Rule, out var targetPath))
+                        logEntries.Add(new OperationLogEntry(candidate.Path, targetPath, candidate.Rule.ruleName));
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+            }
+
+            foreach (var entry in logEntries)
+                AssetsBeingMoved.Remove(entry.from);
+
+            if (logEntries.Count > 0)
+                OperationLog.RecordBatch(logEntries, "AutoImport");
+        }
+
+        private static bool MoveToTargetFolder(string assetPath, BaseImportRule rule, out string targetPath)
+        {
+            var targetFolder = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
+            targetPath = targetFolder + Path.GetFileName(assetPath);
+
+            AssetsBeingMoved.Add(assetPath);
+            AssetsBeingMoved.Add(targetPath);
+            _pendingActions[targetPath] = rule;
+
+            var error = AssetDatabase.MoveAsset(assetPath, targetPath);
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                AssetsBeingMoved.Remove(assetPath);
+                AssetsBeingMoved.Remove(targetPath);
+                _pendingActions.Remove(targetPath);
+                Debug.LogWarning($"[AssetRouter] Failed to move {assetPath} -> {targetPath}: {error}");
+                return false;
+            }
+
+            Debug.Log($"[AssetRouter] Moved: {assetPath} -> {targetPath} ({rule.ruleName})");
+            return true;
+        }
+
+        private static void HandleUnknownAssets(List<string> assetPaths)
+        {
+            var existing = assetPaths
+                .Where(p => File.Exists(PathUtility.ToAbsolute(p)))
+                .ToList();
+
+            if (existing.Count == 0)
+                return;
+
+            var fileList = string.Join("\n", existing.Select(p => $"  • {Path.GetFileName(p)}"));
+
+            var importAll = EditorUtility.DisplayDialog(
+                $"Asset Router — {existing.Count} Unknown File(s)",
+                $"The following files match no import rule:\n{fileList}\n\nWhat would you like to do?",
+                "Import all as-is",
+                "Delete all");
+
+            if (importAll)
+            {
+                foreach (var path in existing)
+                    Debug.LogWarning($"[AssetRouter] \"{Path.GetFileName(path)}\" imported without a matching rule.");
+            }
+            else
+            {
+                foreach (var path in existing)
+                {
+                    if (AssetDatabase.DeleteAsset(path))
+                        Debug.Log($"[AssetRouter] \"{Path.GetFileName(path)}\" deleted.");
+                    else
+                        Debug.LogWarning($"[AssetRouter] Failed to delete \"{path}\".");
+                }
+            }
+        }
+
         private void ApplyPreset(BaseImportRule rule)
         {
             if (rule is not ImportRule importRule || importRule.preset == null)
@@ -132,76 +208,5 @@ namespace Kodlon.AssetRouter.Logic
                 Debug.LogWarning($"[AssetRouter] Preset type mismatch for {assetPath} ({importRule.ruleName})");
         }
 
-        private static void EnsureFolderExists(string folderPath)
-        {
-            if (AssetDatabase.IsValidFolder(folderPath))
-                return;
-
-            var parts = folderPath.Split('/');
-            var current = parts[0];
-
-            for (var i = 1; i < parts.Length; i++)
-            {
-                if (string.IsNullOrEmpty(parts[i]))
-                    continue;
-
-                var next = current + "/" + parts[i];
-
-                if (!AssetDatabase.IsValidFolder(next))
-                    AssetDatabase.CreateFolder(current, parts[i]);
-
-                current = next;
-            }
-        }
-
-        private static void HandleUnknownAsset(string assetPath)
-        {
-            // PathUtility.ToAbsolute uses Path.GetDirectoryName(Application.dataPath) as the
-            // project root — avoids the "Replace("Assets", "")" bug that would corrupt any
-            // path containing the word "Assets" more than once.
-            if (!File.Exists(PathUtility.ToAbsolute(assetPath)))
-                return;
-
-            var fileName = Path.GetFileName(assetPath);
-
-            var importAsIs = EditorUtility.DisplayDialog("Asset Router — Unknown File",
-                $"File \"{fileName}\" does not match any rule.\n\nPath: {assetPath}\n\nWhat to do?",
-                "Import as-is",
-                "Delete file");
-
-            if (importAsIs)
-                Debug.LogWarning($"[AssetRouter] \"{fileName}\" imported without a matching rule. Check the config.");
-            else
-            {
-                if (AssetDatabase.DeleteAsset(assetPath))
-                    Debug.Log($"[AssetRouter] \"{fileName}\" deleted. Rename it and try again.");
-                else
-                    Debug.LogWarning($"[AssetRouter] Failed to delete \"{assetPath}\".");
-            }
-        }
-
-        private static bool MoveToTargetFolder(string assetPath, BaseImportRule rule, out string targetPath)
-        {
-            var targetFolder = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
-            targetPath = targetFolder + Path.GetFileName(assetPath);
-
-            EnsureFolderExists(targetFolder.TrimEnd('/'));
-
-            AssetsBeingMoved.Add(targetPath);
-            _pendingActions[targetPath] = rule;
-
-            var error = AssetDatabase.MoveAsset(assetPath, targetPath);
-
-            if (!string.IsNullOrEmpty(error))
-            {
-                AssetsBeingMoved.Remove(targetPath);
-                _pendingActions.Remove(targetPath);
-                Debug.LogWarning($"[AssetRouter] Failed to move {assetPath} -> {targetPath}: {error}");
-                return false;
-            }
-
-            Debug.Log($"[AssetRouter] Moved: {assetPath} -> {targetPath} ({rule.ruleName})");
-            return true;
-        }
     }
 }

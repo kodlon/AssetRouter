@@ -7,17 +7,12 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal static class OperationLog
     {
-        private static string LogPath
-        {
-            get
-            {
-                var dir = Path.Combine(
-                    Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
-                    "Library", "AssetRouter");
-                Directory.CreateDirectory(dir);
-                return Path.Combine(dir, "log.json");
-            }
-        }
+        private const int MaxSessions = 500;
+
+        private static string LogPath =>
+            Path.Combine(
+                Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
+                "Library", "AssetRouter", "log.json");
 
         public static void RecordBatch(List<OperationLogEntry> entries, string source = "AutoImport")
         {
@@ -32,10 +27,15 @@ namespace Kodlon.AssetRouter.Logic
                 entries   = new List<OperationLogEntry>(entries)
             });
 
+            if (log.sessions.Count > MaxSessions)
+                log.sessions.RemoveRange(0, log.sessions.Count - MaxSessions);
+
             WriteLogFile(log);
         }
 
         public static List<OperationSession> ReadAll() => ReadLogFile().sessions ?? new List<OperationSession>();
+
+        public static void Clear() => WriteLogFile(new OperationLogFile());
 
         private static OperationLogFile ReadLogFile()
         {
@@ -49,8 +49,17 @@ namespace Kodlon.AssetRouter.Logic
                 var json = File.ReadAllText(path);
                 return JsonUtility.FromJson<OperationLogFile>(json) ?? new OperationLogFile();
             }
-            catch
+            catch (Exception e)
             {
+                var corruptPath = path + ".corrupt";
+                var corruptSaved = false;
+                try { File.Copy(path, corruptPath, overwrite: true); corruptSaved = true; } catch { }
+
+                var corruptNote = corruptSaved
+                    ? $"Corrupt copy saved to: {corruptPath}"
+                    : "Could not save corrupt copy (disk full or permissions).";
+                Debug.LogWarning($"[AssetRouter] Operation log was corrupted and has been reset. " +
+                                 $"{corruptNote}\n{e.Message}");
                 return new OperationLogFile();
             }
         }
@@ -58,23 +67,23 @@ namespace Kodlon.AssetRouter.Logic
         private static void WriteLogFile(OperationLogFile log)
         {
             var path = LogPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var tmp  = path + ".tmp";
 
             try
             {
                 File.WriteAllText(tmp, JsonUtility.ToJson(log, true));
-
                 if (File.Exists(path))
-                    File.Delete(path);
-
-                File.Move(tmp, path);
+                    File.Replace(tmp, path, path + ".bak");
+                else
+                    File.Move(tmp, path);
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[AssetRouter] Failed to write operation log: {e.Message}");
 
                 if (File.Exists(tmp))
-                    File.Delete(tmp);
+                    try { File.Delete(tmp); } catch { /* best-effort */ }
             }
         }
     }

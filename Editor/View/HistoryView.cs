@@ -14,7 +14,6 @@ namespace Kodlon.AssetRouter.View
 
         public void Draw()
         {
-            // ── Toolbar ──────────────────────────────────────────────────────────
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Refresh", GUILayout.Width(80f)))
@@ -27,6 +26,11 @@ namespace Kodlon.AssetRouter.View
                     if (GUILayout.Button("Undo Selected Session", GUILayout.Width(165f)))
                         UndoSelected();
                 }
+
+                GUILayout.Space(8f);
+
+                if (GUILayout.Button("Clear History", GUILayout.Width(105f)))
+                    ClearHistory();
             }
 
             GUILayout.Space(4f);
@@ -43,12 +47,10 @@ namespace Kodlon.AssetRouter.View
                 return;
             }
 
-            // ── Split layout: sessions on left, entries on right ─────────────────
             var halfWidth = EditorGUIUtility.currentViewWidth * 0.45f;
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                // Sessions list
                 using (new EditorGUILayout.VerticalScope(GUILayout.Width(halfWidth)))
                 {
                     EditorGUILayout.LabelField("Sessions", EditorStyles.boldLabel);
@@ -71,7 +73,6 @@ namespace Kodlon.AssetRouter.View
 
                 GUILayout.Space(4f);
 
-                // Entries list
                 using (new EditorGUILayout.VerticalScope())
                 {
                     EditorGUILayout.LabelField("Entries", EditorStyles.boldLabel);
@@ -110,6 +111,20 @@ namespace Kodlon.AssetRouter.View
 
             UndoEngine.Revert(_sessions[_selectedIndex]);
             Refresh();
+        }
+
+        private void ClearHistory()
+        {
+            if (!EditorUtility.DisplayDialog(
+                    "Clear History",
+                    "This will permanently delete all operation history.\nThis action cannot be undone.",
+                    "Clear",
+                    "Cancel"))
+                return;
+
+            OperationLog.Clear();
+            _sessions      = null;
+            _selectedIndex = -1;
         }
     }
 }

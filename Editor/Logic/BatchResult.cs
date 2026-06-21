@@ -3,17 +3,20 @@ namespace Kodlon.AssetRouter.Logic
     internal readonly struct BatchResult
     {
         public readonly int Moved;
+        public readonly int Reimported;
         public readonly int Skipped;
         public readonly int Errored;
 
-        public BatchResult(int moved, int skipped, int errored)
+        public BatchResult(int moved, int reimported, int skipped, int errored)
         {
-            Moved   = moved;
-            Skipped = skipped;
-            Errored = errored;
+            Moved      = moved;
+            Reimported = reimported;
+            Skipped    = skipped;
+            Errored    = errored;
         }
 
-        public override string ToString() => $"Moved: {Moved}, Skipped: {Skipped}, Errored: {Errored}";
+        public override string ToString() =>
+            $"Moved: {Moved}, Reimported: {Reimported}, Skipped: {Skipped}, Errored: {Errored}";
     }
 
     internal readonly struct UndoResult

@@ -541,6 +541,447 @@ Asset Store пошук по "asset router" / "asset organizer" / "auto importer"
 
 ---
 
+## ✅ Epic 11 — Critical bugs & production hardening (pre-v1.0.0)
+
+Знайдено під час повного code review v0.5.0. Усе нижче — реальні баги, не nitpicks. Жоден не може зайти в публічний реліз.
+
+> ✅ **Виконано — v0.6.0**
+
+### 11.1 Reentrancy & domain reload
+- [x] `AssetRouterPostprocessor` — `AssemblyReloadEvents.beforeAssemblyReload += лямбда` через `[InitializeOnLoadMethod]` накопичує підписки на кожному reload при disabled Domain Reload. Замінити на named static method + unsubscribe-first.
+- [x] `AssetRouterPostprocessor.OnPostprocessAllAssets` — цикл moves без `AssetDatabase.StartAssetEditing()/StopAssetEditing()`. На 10k+ файлах це O(N²) реімпортів. Загорнути.
+- [x] Reentrancy hole у guard-сетах (`AssetsBeingMoved`, `_pendingActions`): джерельний шлях ассета не захищений, тільки таргет. Додавати обидва шляхи в HashSet до `MoveAsset`.
+- [x] `AssetRouterInitializer` — `delayCall` не реfireиться при play→edit з disabled Domain Reload; мігратор може не запуститись для свіжо-створеного DB. Додатково підписатися на `EditorApplication.projectChanged`.
+
+### 11.2 Atomic file writes — три місця з window'ом втрати даних
+Поточний патерн `File.Delete(path); File.Move(tmp, path);` має вікно де файлу немає взагалі. Crash → втрата.
+
+- [x] `OperationLog.WriteAll` — замінити на `File.Replace(tmp, path, backupFileName: path + ".bak")` (Windows) або `File.Move(tmp, path, overwrite: true)` (.NET Standard 2.1+).
+- [x] `JsonExporter.ExportToFile` — той самий патерн.
+- [x] `TrimAudioSilenceAction.TryTrim` — переписування WAV без atomic guarantee.
+
+### 11.3 Sub-asset lifecycle (orphans + double-references)
+- [x] `AssetRouterWindow.onRemoveCallback` (для правил) — видалення правила залишає сабассети `postImportActions` сиротами в `.asset` файлі бази. Перед `DeleteArrayElementAtIndex` пройти `rule.postImportActions` і прибрати сабассети.
+- [x] `AssetRouterWindow.onRemoveCallback` (для actions) — `DestroyImmediate` сабассета не перевіряє, чи інше правило в БД на нього посилається. Виходить silent null. Скан перед destroy.
+
+### 11.4 Unknown-asset dialog UX bug
+- [x] `AssetRouterPostprocessor` — при множинному імпорті (drag-drop 100 unknown файлів) попап показується **окремо для кожного файлу**. Об'єднати в одну модалку зі списком + per-row дії, або агрегований "Import all / Delete all".
+- [x] `delayCall`-обгортка попапа: при domain reload до виконання — попап не з'явиться, файл сирота без логу. Логувати warning перед `delayCall`.
+
+### 11.5 TrimAudioSilenceAction — integer overflow в WAV-парсері
+- [x] Лінія з `(short)(threshold * short.MaxValue)` + `Math.Abs(sample)` для `short.MinValue` дає overflow. Привести до `int thresholdSample` і порівнювати `Math.Abs((int)sample) > thresholdSample`.
+- [x] RIFF-парсер — нема bounds-checks: `size >= 0`, `pos + 8 + size <= data.Length`. Малформований WAV → IndexOutOfRange.
+- [x] Action працює зсередини post-import chain і робить `ImportAsset(ForceUpdate)` — теоретичний нескінченний цикл, якщо файл матчить власне правило знову. Захист через depth counter або `_pendingActions` extension.
+
+### 11.6 PatternMatcher edge case
+- [x] `Assets/**` НЕ матчить `Assets/x.png` через те, як `**` обробляє trailing slash. Задокументовано в UI-тултипах (Pattern field + Match Full Path) + додано тест `Glob_DoubleStar_Alone_MatchesDirectChildToo` що фіксує поведінку.
+
+### 11.7 UI perf на великих проєктах
+- [x] `AssetRouterWindow.BuildPatternPreview` — `FindAssets("", {"Assets"})` синхронно на кожне натискання клавіши в pattern field. На 50k проєкті фриз на секунди. Debounce 300 ms + `delayCall`.
+- [x] `DryRunPlanner.Scan` — той самий `FindAssets` без progress bar; UI заморожується. Додати `EditorUtility.DisplayCancelableProgressBar` + батчі.
+- [x] `AssetRouterWindow` — `AssetDatabase.SaveAssets()` після кожного додавання action. Відкладати save до Save/Apply.
+
+### 11.8 BatchMover — кілька дрібних
+- [x] `EnsureFolderExists` всередині `StartAssetEditing` — наступний `MoveAsset` падає з "folder does not exist". Створити всі потрібні папки **до** `StartAssetEditing`.
+- [x] Лічильник `moved` для force-reimport in-place вводить в оману. Розділити: `Moved`, `Reimported`, `Skipped`, `Errored`.
+- [x] Логіка `if (cancelled)` має inconsistent `current++` між гілками — рефакторити в одну гілку.
+
+### 11.9 UndoEngine
+- [x] Замінити `DisplayProgressBar` на `DisplayCancelableProgressBar` — на 10k undo нема як вийти.
+- [x] Silent skip коли ассет переміщено далі — показати summary dialog: `Reverted: 142, Skipped: 8 (no longer at target)`.
+
+### 11.10 JSON Importer/Exporter
+- [x] Після `JsonImporter.ImportFromFile` не запускається `RuleMigrator` — імпорт legacy-схеми зламається на v1.x. Викликати мігратор у кінці.
+- [x] `extensions.Add(ext.Value<string>())` додає `null` рядки якщо JSON malformed → NRE далі. Filter null/empty.
+- [x] Sub-asset actions експортуються як `{guid, fileId}` — cross-machine sharing не працює (різні fileId). Явно задокументовано: "JSON export працює тільки в рамках одного проєкту" (portability note у XMLDoc).
+
+### 11.11 OperationLog robustness
+- [x] При corrupted `log.json` `JsonUtility.FromJson` глитає виняток і повертає пустоту — історія "зникає". Зберегти corrupted файл як `log.json.corrupt` + warning.
+- [x] Лог росте без обмежень. Додати size cap (наприклад, останні 500 сесій) + кнопка `Clear History` в `HistoryView`.
+
+### 11.12 ConflictDetector false negatives
+- [x] Overlap-евристика на 14 хардкодних шляхах: правила типу `Char_*` vs `Char_Hero_*` не позначаться, бо `Char_Hero_*` не матчить жодний sample. Додати в UI banner caveat "евристика, можливі пропуски".
+- [x] Розширити sample set реальними ассетами проєкту (top-100 за `AssetDatabase.FindAssets`) — гібридна стратегія.
+
+### 11.13 Built-in actions — perf
+- [x] `AppendToCatalogAction` — `List.Contains` O(N). На каталозі 10k+ помітно. Залишено як є + задокументовано ліміт у коментарі коду.
+- [x] `RegisterAddressableAction` — `AssetDatabase.SaveAssets()` на кожен ассет → батч-катастрофа. Тільки `SetDirty(settings)`, save в кінці post-import.
+
+### 11.14 Acceptance
+- [ ] Прогнати весь postprocessor flow на тестовому проєкті з 10k ассетів — час виконання < 30 с, нема race conditions у Profiler.
+- [ ] Crash-test: kill Unity процес посередині `JsonExporter` — після рестарту або оригінал, або новий файл, ніколи "ні те, ні те".
+- [ ] `OnPostprocessAllAssets` нуль алокацій після прогріву (Profiler Allocator markers).
+
+---
+
+## 📦 Epic 12 — Asset Store / OpenUPM release readiness
+
+Технічні вимоги Unity Asset Store + OpenUPM curation. Усе нижче — обов'язкове для submission.
+
+> ⏳ **Blocker для v1.0.0**
+
+### 12.1 Unity license для CI (перенесено з 9.10)
+- [ ] Згенерувати `.alf` через game-ci activation workflow.
+- [ ] Активувати Unity Personal на `license.unity3d.com`, отримати `.ulf`.
+- [ ] Додати secrets: `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD`.
+- [ ] Видалити тимчасовий activation workflow.
+
+### 12.2 package.json — поля
+- [ ] Прибрати `unityRelease: "0f1"` (вимагає рівно 2022.3.0f1) — лишити лише `unity: "2022.3"`.
+- [ ] Додати `"category": "Tools/Utilities"`.
+- [ ] Додати `"icon"` посилання на icon-файл (UPM 2022+).
+- [ ] Перевірити що `documentationUrl` веде на готову сторінку (`Documentation~/index.md` краще за GitHub link).
+- [ ] Перевірити коректність `samples[0].path` після `package` install.
+
+### 12.3 Іконка + бренд-ассети
+- [ ] Створити `Editor/AssetRouterIcon.png` 64×64 (можна +128 retina) — використати в `EditorWindow.titleContent.image`.
+- [ ] Asset Store банер 1920×1080 (cover image) — окрема папка `BrandAssets/` поза пакетом.
+- [ ] Card-зображення 860×389 (для thumbnail).
+- [ ] 4-секундний GIF drag-and-drop в `README.md` — Asset Store reviewer любить візуал.
+- [ ] Screenshot вікна з 3 правилами і dry-run preview.
+
+### 12.4 XMLDoc на весь public API
+Asset Store reviewer часто блокує за відсутність документації. Зараз без XMLDoc:
+- [ ] `BaseImportRule` — всі поля окрім `pattern`.
+- [ ] `ImportRule.preset`, `ImportRule.postImportActions`.
+- [ ] `AssetCatalog.entries`.
+- [ ] `ImporterSettingsDatabase` — всі поля.
+- [ ] `PatternMode` enum + значення.
+- [ ] Публічні методи `AssetImportContext` ctor (вже задокументовано, перевірити).
+
+### 12.5 Документація
+- [ ] Створити `Documentation~/index.md` як головну entry point (UPM конвенція). Можна симлінк на `DOCUMENTATION.md` або окремий індекс.
+- [ ] Переклад `DOCUMENTATION.md` на англійську (`DOCUMENTATION_EN.md`) — обов'язково для Asset Store (англомовна аудиторія).
+- [ ] Додати `MIGRATION.md` — описати v1→v2 schema migration (автоматична, незворотна).
+- [ ] Розширити `Samples~/QuickStart/README.md` 3-ма use case секціями (mobile team, solo dev, legacy cleanup).
+
+### 12.6 Menu structure
+- [ ] Перенести `[MenuItem("Tools/Asset Router Settings")]` → `Window/Asset Router` (Unity конвенція для editor windows). Або `Tools/Asset Router/Settings` як namespaced submenu.
+- [ ] Додати `Tools/Asset Router/Documentation` що відкриває URL, `Tools/Asset Router/Report Issue` → GitHub Issues.
+
+### 12.7 Sample valid
+- [ ] Перевірити що preset GUID-и в `Samples~/QuickStart/` не stale між версіями.
+- [ ] Sample має включати `Raw/qwerty.png` (unknown file) для демонстрації popup.
+- [ ] Sample database має включати приклад з `postImportActions` (наприклад, AppendToCatalog).
+
+### 12.8 GitHub repo polish
+- [ ] Topics: `unity`, `unity-package`, `upm`, `unity3d`, `unity-editor`, `unity-asset`, `openupm` (для discoverability).
+- [ ] README з badges: build status, OpenUPM version, license, Unity version.
+- [ ] GitHub Pages для documentation (опціонально, але професійніше).
+- [ ] Release Notes у GitHub Releases на кожен тег (паралельно з CHANGELOG).
+
+### 12.9 OpenUPM registration
+- [ ] Перевірити що пакет ще не зайнятий на Unity registry (`com.kodlon.assetrouter` — мабуть унікально).
+- [ ] Опублікувати на OpenUPM через web form або PR в `openupm/openupm`.
+- [ ] Перевірити що `package.json` у корені репозиторію або вказати `subFolder` у OpenUPM YAML.
+
+### 12.10 Asset Store extension license decision
+- [ ] Asset Store вимагає **Extension Asset** license (per-seat) для editor extensions. Це не код — це pricing tier при submission. Дослідити чи OK з безкоштовною ліцензією Asset Store (MIT може йти).
+- [ ] Або: лишити безкоштовним лише на OpenUPM, на Asset Store не публікувати → менше бюрократії.
+
+### 12.11 Acceptance
+- `unity package validator` (UPM CLI) повертає 0 warnings.
+- Імпорт через `Add package from git URL` працює на свіжому 2022.3 проєкті без помилок.
+- OpenUPM CI зелений.
+- Asset Store submission принятий з першої спроби.
+
+---
+
+## 🧪 Epic 13 — Test coverage closure
+
+Виявлені gap'и в покритті критичних модулів. Без них v1.0.0 — гра в рулетку при рефакторингах.
+
+> ⏳ **Bar для v1.0.0**
+
+### 13.1 Покриття за модулями
+- [ ] `BatchMover` — cancel path, force-reimport path, folder creation order, mixed move+reimport, помилки при missing folders.
+- [ ] `UndoEngine` — повний revert, partial revert (deleted target), revert конкретної сесії з кількома записами, прогрес-бар cancel.
+- [ ] `RuleValidator.ShouldProcess` — ignored folder cases, monitored extension cases, null/empty inputs, case sensitivity на Linux.
+- [ ] `TrimAudioSilenceAction.TryTrim` — найризикованіший binary код. Тести: leading silence, trailing silence, both, all-silence file, no-silence file, malformed RIFF, big-endian (RIFX), short.MinValue overflow. `InternalsVisibleTo` вже налаштовано.
+- [ ] `PathUtility` — `NormalizeAssetPath` Windows backslashes, `ToAbsolute` з path that contains "Assets" word twice, `IsUnderFolder` edge cases (self, prefix-collision: `Assets/Foo` vs `Assets/FooBar`).
+- [ ] `AssetRouterPostprocessor` — інтеграційні тести через `Tests/Fixtures~/` з тимчасовими ассетами. Cleanup у `[TearDown]`.
+- [ ] `JsonExporter/JsonImporter` — round-trip з усіма 6 типами built-in actions; corrupted JSON → graceful failure без падіння.
+
+### 13.2 Stress tests
+- [ ] `DryRunPlanner` на згенерованому проєкті з 10k файлів — час < 5 с, cancel працює.
+- [ ] `BatchMover` на 1000 файлів — час < 10 с з batched API.
+
+### 13.3 Acceptance
+- Покриття нової логіки ≥ 80%, критичних модулів (postprocessor, undo, trim audio) — 100%.
+- CI зелений з усім test set.
+
+---
+
+## 📖 Epic 14 — Documentation overhaul (English + per-action docs)
+
+Документація = блокер релізу. Поточна `DOCUMENTATION.md` — українською, що відрізає 95% Asset Store / OpenUPM аудиторії. Документації по individual actions немає взагалі.
+
+> ⏳ **Blocker для v1.0.0 — без цього не релізиться навіть якщо весь код green.**
+
+### 14.1 English baseline
+- [ ] Переклад `DOCUMENTATION.md` → `Documentation~/DOCUMENTATION_EN.md` (англ. — primary), українську лишити як `DOCUMENTATION_UA.md` (secondary, для CIS аудиторії).
+- [ ] `Documentation~/index.md` — UPM конвенційний entry point. Linkує на EN документацію.
+- [ ] `README.md` у корені пакету — англійською (для GitHub + Package Manager Description).
+- [ ] `Samples~/QuickStart/README.md` — англійською.
+- [ ] `CHANGELOG.md` — англійською (поточний теж англ., перевірити консистенцію).
+
+### 14.2 Per-action documentation
+Кожен built-in action (зараз 6, після 14.4 — ~10) має мати окрему сторінку:
+
+- [ ] `Documentation~/actions/SetPivotAction.md`
+- [ ] `Documentation~/actions/GenerateMeshColliderAction.md`
+- [ ] `Documentation~/actions/TrimAudioSilenceAction.md`
+- [ ] `Documentation~/actions/RegisterAddressableAction.md`
+- [ ] `Documentation~/actions/AppendToCatalogAction.md`
+- [ ] `Documentation~/actions/RunMenuItemAction.md`
+- [ ] `Documentation~/actions/README.md` — індекс actions з 1-line description кожного.
+
+Формат сторінки action:
+```
+# <ActionName>
+
+**Purpose:** 1-sentence what it does.
+
+**Applies to:** asset types it can run on.
+
+**Configuration:**
+| Field | Description | Default |
+
+**Behavior:**
+- Idempotent? (yes/no + чому)
+- Side effects (modifies file? creates sub-asset? logs?)
+- Failure modes
+
+**Example use case:** real production scenario.
+
+**Edge cases / limitations.**
+
+**Dependencies:** Unity API or optional packages.
+```
+
+### 14.3 API reference
+- [ ] Згенерувати XMLDoc → markdown через DocFX або власний скрипт. Output у `Documentation~/api/`.
+- [ ] Сторінка `Documentation~/api/extension-points.md` — як написати власний action (контракт `IAssetImportAction`, успадкування від `AssetImportActionAsset`, приклад коду).
+
+### 14.4 Migration guides
+- [ ] `Documentation~/migrations/v1-to-v2-schema.md` — пояснити що legacy prefix/suffix/extension автоматично мігрують у glob pattern, незворотньо.
+- [ ] `Documentation~/migrations/v0.4-to-v0.5.md` — додавання Newtonsoft.Json як dependency, що може зламати у користувача.
+
+### 14.5 Use case docs
+- [ ] `Documentation~/use-cases/mobile-team.md` — як налаштувати для мобільної команди (платформ-специфічні presets, atlas-генерація).
+- [ ] `Documentation~/use-cases/legacy-cleanup.md` — як прибрати порядок в legacy-проєкті (Dry Run + Batch Re-import).
+- [ ] `Documentation~/use-cases/solo-developer.md` — мінімальний setup для соло.
+
+### 14.6 Release blocker rule
+- [ ] У `CONTRIBUTING.md` (створити) — пункт: **жоден PR не мерджиться без оновлення відповідної документації**. PR що додає action — мусить додати `Documentation~/actions/<NewAction>.md`. PR що змінює public API — мусить оновити XMLDoc.
+- [ ] У `RELEASE_CHECKLIST.md` (створити) — пункт: **перед тегом релізу прогнати TEST.md + перевірити що для кожного нового публічного класу / method є XMLDoc**.
+
+### 14.7 Testing guide для extension authors
+Сигналізує "ми очікуємо, що ти тестуєш свої actions". Підвищує quality bar community contributions.
+
+- [ ] `Documentation~/testing-your-actions.md` — туторіал-сторінка з повним прикладом:
+  - Як налаштувати `*.Tests.asmdef` із reference на `AssetRouter.Editor`.
+  - Як інстанціювати action через `ScriptableObject.CreateInstance<T>()`.
+  - Як побудувати `AssetImportContext` для тесту (mock-friendly через `ILogger`).
+  - Як тестувати idempotency (двічі викликати `Execute`, перевірити state).
+  - Як тестувати error isolation (тригерити exception, перевірити що pipeline продовжується).
+- [ ] **Exemplar test** — у `Tests/Actions/` додати показовий тест-файл `_ExampleActionTest.cs` для одного з нових Tier E actions (наприклад `CreateScriptableObjectFromTemplateActionTests.cs`). Тест має бути **навмисно гарно прокоментований** — користувач читає його і копіпейстить як starter. Не просто "робочий тест", а "template-quality" test з пояснювальними comments.
+- [ ] У `Documentation~/actions/<Name>.md` шаблоні сторінки (з 14.2) додати секцію **"Testing example"** — лінк на exemplar test файл або вбудований snippet.
+
+### 14.8 Acceptance
+- Англомовний користувач відкриває GitHub repo і за 5 хв розуміє що це + як поставити + як працює перший use case.
+- Для кожного built-in action є окрема markdown сторінка з прикладом.
+- Не лишилось публічного класу/методу без XMLDoc.
+- Release process включає документаційний gate.
+
+---
+
+## 🧩 Epic 15 — Action library: showcase spectrum (top 10)
+
+> **Філософія:** Solo dev не може покрити ВСІ потреби — це безнадійно. Натомість мета v1.0.0 — **продемонструвати спектр**: 10 actions різних архітектурних патернів, від найпростішого до складного. Програміст дивиться, розуміє, копіпейстить найближчий і пише власний. v1.0.0 ≠ "тут є все" → v1.0.0 = "ось як це робиться, далі сам".
+
+### 15.0 Spectrum coverage — що кожен action демонструє
+
+| # | Action | Tier | Що демонструє |
+|---|---|---|---|
+| 1 | **SetPivotAction** | A | Найпростіший — tweak importer поля. "Hello world" actions. |
+| 2 | **AppendToCatalogAction** | B | Cross-asset registry (SO як база). |
+| 3 | **RegisterAddressableAction** | C | Optional package dependency через `versionDefines`. |
+| 4 | **EmitUnityEventAction** | D | Inspector escape hatch — no-code customization. |
+| 5 | **CreatePrefabFromTemplateAction** ⭐ | E | Factory pattern + user callback interface. |
+| 6 | **CreateScriptableObjectFromTemplateAction** | E | Той самий factory pattern для SO (showcase reusability). |
+| 7 | **CreateMaterialFromTextureAction** | E | Третій factory приклад — material. Робить паттерн "видимим". |
+| 8 | **GenerateSpritePhysicsShapeAction** | F | Smart inference з контенту (polygon outline). |
+| 9 | **GenerateNineSliceBordersAction** | F | Інший стиль inference (transparent edges → 9-slice). |
+| 10 | **CreateTilePaletteEntryAction** | G | Інтеграція з Unity sub-feature (Tilemap). |
+
+**Архітектурні tiers:**
+- **A** — Trivial importer field setter (5 рядків коду)
+- **B** — Aggregation / registry into SO
+- **C** — Optional external package (compile-time gate)
+- **D** — No-code Inspector hook (UnityEvent)
+- **E** — Factory + user-defined callback interface ← **3 приклади тому що це найсильніший паттерн**
+- **F** — Content inference (читай асет → виведи налаштування)
+- **G** — Unity-specific feature integration
+
+Дивлячись на 10, розробник бачить: "Моя задача — між F і E, беру приклади 5 + 8".
+
+---
+
+### 15.1 Deprecation: existing actions що НЕ потрапили у showcase
+
+Поточні actions які або повторюють tier іншого actions, або поза 2D-focus. Не видаляємо — переносимо у `Samples~/LegacyActions/`. Користувач може import-нути sample якщо потрібно. Це не breaking change, бо v0.5.0 на public registries ще не публікувався.
+
+- [ ] **GenerateMeshColliderAction** — 3D + дублює Tier A (SetPivot вже покриває "field setter"). Move to `Samples~/LegacyActions/3D/`.
+- [ ] **TrimAudioSilenceAction** — audio (поза focus) + єдиний "binary file rewrite" приклад, але має критичний bug (overflow, не-atomic write). Move to `Samples~/LegacyActions/Audio/` як "advanced example, requires hardening before production".
+- [ ] **RunMenuItemAction** — замінений `EmitUnityEventAction` (типобезпечний). Move to `Samples~/LegacyActions/`.
+
+**Тести існуючих legacy actions** (`ActionPipelineTests` тощо) — теж переносяться у sample або залишаються як edge-case проби.
+
+---
+
+### 15.2 New actions — v0.8.0 implementation
+
+#### 15.2.1 ⭐⭐⭐ CreatePrefabFromTemplateAction (showpiece)
+
+**Demonstrates: Tier E (factory + user interface callback)**
+
+- [ ] Створити **Runtime asmdef** (`Runtime/AssetRouter.Runtime.asmdef`) — бо user MonoBehaviour живе у runtime коді, потрібен спільний namespace.
+- [ ] Інтерфейс у Runtime:
+  ```csharp
+  public interface IAssetRouterPrefabSetup {
+      void SetupAssetRouter(UnityEngine.Object importedAsset, AssetImportContext ctx);
+  }
+  ```
+- [ ] Action поля у Inspector:
+  - `GameObject templatePrefab`
+  - `string outputFolder` (опц., default = rule.targetFolder)
+  - `string namePattern` — наприклад `"{assetName}_Prefab"`
+  - `bool overwriteExisting`
+- [ ] Execute flow:
+  1. `PrefabUtility.InstantiatePrefab(templatePrefab)` як temporary instance.
+  2. `GetComponentInChildren<IAssetRouterPrefabSetup>` → виклик `SetupAssetRouter`.
+  3. `PrefabUtility.SaveAsPrefabAsset` у outputFolder з derived name.
+  4. `Object.DestroyImmediate` тимчасової.
+- [ ] Sample у `Samples~/PrefabTemplateExample/`: template `BasicSprite.prefab` + `BasicSpriteSetup.cs` що присвоює sprite у `SpriteRenderer.sprite`.
+
+#### 15.2.2 ⭐⭐⭐ CreateScriptableObjectFromTemplateAction (reuses pattern)
+
+**Demonstrates: Tier E — той самий patterning для SO. Підкреслює, що patterns extensible.**
+
+- [ ] Інтерфейс (Runtime):
+  ```csharp
+  public interface IAssetRouterDataSetup {
+      void SetupAssetRouter(UnityEngine.Object importedAsset, AssetImportContext ctx);
+  }
+  ```
+- [ ] Поля:
+  - `ScriptableObject templateInstance` (clone source) АБО `MonoScript soType` (для типобезпечного `CreateInstance<T>`)
+  - `string outputFolder`, `string namePattern`, `bool overwriteExisting`
+- [ ] Execute:
+  1. `ScriptableObject.CreateInstance<T>()` або `Instantiate(templateInstance)`.
+  2. Caster до `IAssetRouterDataSetup` → виклик `SetupAssetRouter`.
+  3. `AssetDatabase.CreateAsset` у outputFolder.
+- [ ] Sample: `ItemData.cs` SO з `SetupAssetRouter` що ставить `icon = (Sprite)importedAsset; itemId = parsed from name`.
+
+#### 15.2.3 ⭐⭐ CreateMaterialFromTextureAction (reuses pattern)
+
+**Demonstrates: Tier E ще раз — щоб патерн "factory + callback" вкорінився як ідея.**
+
+- [ ] Поля: `Material baseMaterial` (template), `string textureProperty = "_MainTex"`, `string outputFolder`, `string namePattern`.
+- [ ] Execute: `new Material(baseMaterial)` → `SetTexture(textureProperty, importedAsset as Texture2D)` → `AssetDatabase.CreateAsset`.
+- [ ] Опціонально: інтерфейс `IAssetRouterMaterialSetup` якщо user хоче кастомізувати призначення (multi-texture mat).
+
+#### 15.2.4 ⭐⭐ EmitUnityEventAction (replaces RunMenuItem)
+
+**Demonstrates: Tier D — як зробити no-code extension через Inspector. Найкращий escape hatch.**
+
+- [ ] Поле: `[SerializeField] UnityEvent<UnityEngine.Object, AssetImportContext> onImport;`
+- [ ] Execute: `onImport?.Invoke(importedAsset, ctx);`
+- [ ] Sample: правило з `EmitUnityEventAction` де `onImport` wired до `DebugLogger.LogImport`. Демонструє що користувач **взагалі без написання action-класу** може повісити логіку через Inspector.
+
+#### 15.2.5 ⭐⭐ GenerateSpritePhysicsShapeAction
+
+**Demonstrates: Tier F — smart inference (читай pixel data → згенеруй outline).**
+
+- [ ] Налаштування: `float detail = 0.5f`, `byte alphaTolerance = 200`, `bool detectHoles = false`.
+- [ ] Використовує `Sprite.OverridePhysicsShape` API + `Texture2D.GetPixels` для генерації outline polygon.
+- [ ] Ідемпотентний — якщо shape уже згенерований і не змінився, skip.
+
+#### 15.2.6 ⭐⭐ GenerateNineSliceBordersAction
+
+**Demonstrates: Tier F — інший стиль content inference (find transparent borders → 9-slice).**
+
+- [ ] Scan pixels: знаходить leftmost/rightmost не-прозорі стовпці і top/bottom не-прозорі рядки → `TextureImporter.spriteBorder = new Vector4(left, bottom, right, top)`.
+- [ ] Threshold pixel alpha (`byte alphaThreshold = 10`) як налаштування.
+- [ ] Корисно для UI panels де вручну набивати 9-slice — нудно.
+
+#### 15.2.7 ⭐⭐ CreateTilePaletteEntryAction
+
+**Demonstrates: Tier G — Unity sub-feature integration (Tilemap).**
+
+- [ ] Поля: `GridPalette targetPalette` (існуюча палітра в проєкті), `TileBase tileTemplate` (опц., якщо нема — створює базовий `Tile`).
+- [ ] Execute: створює Tile asset (`Tile.CreateInstance<Tile>()`), присвоює `tile.sprite = importedAsset as Sprite`, додає у palette через `AssetDatabase.AddObjectToAsset`.
+- [ ] **Опціонально:** `IAssetRouterTileSetup` callback щоб user міг налаштувати `collider`, `colorMul` etc.
+
+---
+
+### 15.3 Final lineup для v0.8.0 (10 actions)
+
+| Tier | Action | Effort | Showcase value |
+|---|---|---|---|
+| A | SetPivot ✅ (kept) | 0 (shipped) | "Найпростіше виглядає так" |
+| B | AppendToCatalog ✅ (kept) | 0 (shipped) | "Cross-asset registry виглядає так" |
+| C | RegisterAddressable ✅ (kept) | 0 (shipped) | "Optional dep виглядає так" |
+| D | **EmitUnityEvent** (new) | S | "No-code extension виглядає так" |
+| E | **CreatePrefabFromTemplate** (new) ⭐ | L | "Factory pattern + interface" |
+| E | **CreateScriptableObjectFromTemplate** (new) | M | "Той самий патерн для SO" |
+| E | **CreateMaterialFromTexture** (new) | S | "Той самий патерн для material" |
+| F | **GenerateSpritePhysicsShape** (new) | M | "Content inference: pixels → outline" |
+| F | **GenerateNineSliceBorders** (new) | S | "Content inference: transparent edges → border" |
+| G | **CreateTilePaletteEntry** (new) | M | "Unity feature integration" |
+
+**Net change:** −3 (deprecated), +7 (new) = 10 в core пакеті + 3 у sample LegacyActions.
+
+### 15.4 Action Scaffolding — "Create New Action" wizard
+
+**Мета:** zero-ceremony створення user action. Замість "почитай docs → створи .cs файл → пам'ятай наслідувати → пам'ятай `[CreateAssetMenu]` → пам'ятай namespace" — натиснув "Create" → отримав готовий шаблон з TODO коментарями.
+
+Реалізація через `[MenuItem("Assets/Create/Asset Router/New Action.../...")]`. У підменю — 4 варіанти що мапляться на архітектурні tier'и з 15.0:
+
+- [ ] **`New Action.../Field Setter (Tier A)`** — найпростіший. Шаблон з `CanRunOn` що перевіряє тип importer + `Execute` що змінює одне поле + `ImportAsset(ForceUpdate)`.
+- [ ] **`New Action.../Factory with Callback (Tier E)`** — найскладніший (і найкорисніший згенерувати).  Шаблон містить:
+  - Інтерфейс `IMyActionSetup` (TODO: перейменуй) у Runtime asmdef (auto-генерується якщо нема)
+  - Action поля `template`, `outputFolder`, `namePattern`, `overwriteExisting`
+  - Execute зі стандартним flow (instantiate → callback → save → cleanup)
+  - TODO коментарі що пояснюють де користувач має змінити
+- [ ] **`New Action.../Content Inference (Tier F)`** — Execute з зразком `Texture2D.GetPixels` + TODO інструкція "тут читай asset, тут виведи property".
+- [ ] **`New Action.../Empty Action`** — мінімальний stub, лише override + namespace + attribute.
+
+**Технічна реалізація:**
+- Шаблони — `.cs.txt` файли у `Editor/ScaffoldTemplates/` (або embedded як `TextAsset`).
+- `[MenuItem]` callback відкриває `EditorUtility.SaveFilePanelInProject` для імені, потім бере вибраний шаблон, замінює `{ACTION_NAME}` / `{NAMESPACE}` placeholder'и, пише файл, тригерить compile.
+- При першому виборі Factory tier — діалог "Створити Runtime asmdef для інтерфейсу? [Yes/No]" (бо більшість проєктів його не мають). Один раз створює інфраструктуру.
+
+**Чому це варто:** головний бар'єр для extension — не "не вмію писати C#", а "не знаю які поля/атрибути/наслідування потрібні". Шаблон знімає цей бар'єр повністю. Це не overengineering — це **30 рядків коду + 4 шаблонні файли** для зняття 90% friction.
+
+**Acceptance:**
+- 4 варіанти у Create menu.
+- Згенерований Factory шаблон компілюється з коробки і його action одразу видно в `+` dropdown списку actions.
+
+### 15.5 Acceptance (overall)
+- 10 actions у `Editor/Actions/BuiltIn/`, кожен має:
+  - XMLDoc на public API
+  - Unit/edit-mode тест
+  - `Documentation~/actions/<Name>.md` сторінка з шаблоном з Epic 14
+  - Згадка у `Samples~/QuickStart` як мінімум одне використання
+- Sample `Samples~/PrefabTemplateExample/` демонструє full flow з custom `IAssetRouterPrefabSetup`.
+- `Documentation~/actions/README.md` — індекс посортований за **tier**, не за категорією ассетів. Це підкреслює архітектурне мислення.
+- Legacy 3 actions у `Samples~/LegacyActions/` з README що пояснює "ці actions перенесено сюди як reference; адаптуйте під свої потреби".
+- Scaffolding wizard 15.4 функціональний, всі 4 шаблони генерують компільований код.
+
+---
+
 ## Suggested release order
 
 - [x] **v0.1.0** — Epic 9 (cleanup + bugfixes + CI). Стабільний фундамент.
@@ -548,7 +989,18 @@ Asset Store пошук по "asset router" / "asset organizer" / "auto importer"
 - [x] **v0.3.0** — Epic 2 (import actions). Перший великий стрибок гнучкості.
 - [x] **v0.4.0** — Epic 3 (dry-run) + Epic 4 (batch re-import) + Epic 6 (undo) — пак "team-safety".
 - [x] **v0.5.0** — Epic 7 (JSON export) + Epic 8 (bundled content + sample). Готовий до публікації.
-- [ ] **v1.0.0** — стабілізація, реліз на OpenUPM.
+- [x] **v0.6.0** — Epic 11 (critical bugs). Production-hardening. (Epic 13 test coverage — наступний пріоритет)
+- [ ] **v0.7.0** — Epic 12 (Asset Store / OpenUPM readiness): license CI, icon, XMLDoc, English docs.
+- [ ] **v0.8.0** — Epic 14 (documentation overhaul, EN + per-action) + Epic 15 (showcase spectrum: 7 нових actions + 3 deprecated → LegacyActions sample). Final lineup — 10 actions у core (по 1-3 на кожен архітектурний tier).
+- [ ] **v1.0.0** — стабілізація + публікація на OpenUPM + (опц.) Asset Store submission.
+- [ ] **v1.1.0+** — Epic 10.1-10.6 (per-folder scope, diagnostic window, statistics, validator, sharing, double-apply protection) + Epic 15.2 (нові actions за feedback).
+
+**Release gate (no exceptions):**
+1. Усі тести зелені на CI.
+2. `TEST.md` прогнано вручну, без блокерів.
+3. Документація актуальна для всіх змін у релізі.
+4. `CHANGELOG.md` оновлений з повним release note.
+5. `package.json` version узгоджена з git tag.
 
 Кожен реліз — тег у git, оновлення `package.json` version, оновлення `CHANGELOG.md`, GitHub Release notes.
 

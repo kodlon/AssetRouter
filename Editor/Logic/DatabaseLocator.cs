@@ -9,8 +9,7 @@ namespace Kodlon.AssetRouter.Logic
         private static bool AlreadySearched;
         private static ImporterSettingsDatabase Cached;
 
-        // Invalidate the cache before assembly reload so a fresh search runs after recompile.
-        // Covers the case where domain reload is disabled and statics are not reset automatically.
+        // Statics are not reset on reload when Domain Reload is disabled — invalidate explicitly.
         [InitializeOnLoadMethod]
         private static void RegisterReloadHook()
         {

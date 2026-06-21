@@ -8,10 +8,6 @@ using UnityEditor.AddressableAssets.Settings;
 
 namespace Kodlon.AssetRouter.Actions
 {
-    /// <summary>
-    /// Registers the imported asset in an Addressables group.
-    /// Only compiled and active when <c>com.unity.addressables &gt;= 1.19.0</c> is installed.
-    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Register Addressable", fileName = "RegisterAddressableAction")]
     public sealed class RegisterAddressableAction : AssetImportActionAsset
     {
@@ -39,8 +35,17 @@ namespace Kodlon.AssetRouter.Actions
             var group = (!string.IsNullOrEmpty(groupName) ? settings.FindGroup(groupName) : null)
                         ?? settings.DefaultGroup;
 
+            if (group == null)
+            {
+                ctx.Logger.LogWarning("AssetRouter",
+                    $"[AssetRouter] RegisterAddressable: no group named '{groupName}' found and DefaultGroup is null. " +
+                    "Configure a Default Group in the Addressables window.");
+                return;
+            }
+
             settings.CreateOrMoveEntry(guid, group);
-            AssetDatabase.SaveAssets();
+
+            EditorUtility.SetDirty(settings);
 
             ctx.Logger.Log($"[AssetRouter] RegisterAddressable → {ctx.AssetPath} in group '{group.Name}'");
 #else

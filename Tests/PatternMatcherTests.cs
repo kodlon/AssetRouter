@@ -6,8 +6,6 @@ namespace Kodlon.AssetRouter.Tests
 {
     public class PatternMatcherTests
     {
-        // ── Glob ─────────────────────────────────────────────────────────────────
-
         [Test]
         public void Glob_Star_MatchesAnyFilename()
         {
@@ -36,11 +34,18 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void Glob_DoubleStar_MatchesAcrossSlashes()
         {
-            // Assets/**/T_*.png with matchFullPath must match paths at any depth.
             var rule = MakeRule(PatternMode.Glob, "Assets/**/T_*.png", matchFullPath: true);
             Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/Textures/T_Rock.png"));
             Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/Art/Textures/Sub/T_Wall.png"));
             Assert.IsFalse(PatternMatcher.Matches(rule, "Assets/Textures/UI_Button.png"));
+        }
+
+        [Test]
+        public void Glob_DoubleStar_Alone_MatchesDirectChildToo()
+        {
+            var rule = MakeRule(PatternMode.Glob, "Assets/**", matchFullPath: true);
+            Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/x.png"));
+            Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/Sub/deep.png"));
         }
 
         [Test]
@@ -54,7 +59,6 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void Glob_SpecialRegexChars_AreEscaped()
         {
-            // A dot in a glob pattern must match a literal dot, not any character.
             var rule = MakeRule(PatternMode.Glob, "file.png");
             Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/file.png"));
             Assert.IsFalse(PatternMatcher.Matches(rule, "Assets/fileXpng"));
@@ -66,8 +70,6 @@ namespace Kodlon.AssetRouter.Tests
             var rule = MakeRule(PatternMode.Glob, "t_*");
             Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/T_Rock.png"));
         }
-
-        // ── Regex ─────────────────────────────────────────────────────────────────
 
         [Test]
         public void Regex_ValidPattern_Matches()
@@ -81,7 +83,6 @@ namespace Kodlon.AssetRouter.Tests
         public void Regex_InvalidPattern_ReturnsFalse()
         {
             var rule = MakeRule(PatternMode.Regex, "[invalid(");
-            // Must not throw — returns false gracefully.
             Assert.IsFalse(PatternMatcher.Matches(rule, "Assets/T_Rock.png"));
         }
 
@@ -98,8 +99,6 @@ namespace Kodlon.AssetRouter.Tests
             Assert.IsNotNull(error);
         }
 
-        // ── matchAgainstFullPath ──────────────────────────────────────────────────
-
         [Test]
         public void MatchFullPath_False_UsesFilenameOnly()
         {
@@ -115,8 +114,6 @@ namespace Kodlon.AssetRouter.Tests
             Assert.IsFalse(PatternMatcher.Matches(rule, "Assets/Other/T_Rock.png"));
         }
 
-        // ── GlobToRegex (internal) ────────────────────────────────────────────────
-
         [Test]
         public void GlobToRegex_Star_ProducesNonSlashWildcard()
         {
@@ -130,8 +127,6 @@ namespace Kodlon.AssetRouter.Tests
             var regex = PatternMatcher.GlobToRegex("T_**");
             Assert.AreEqual("^T_.*$", regex);
         }
-
-        // ── Helpers ───────────────────────────────────────────────────────────────
 
         private static ImportRule MakeRule(PatternMode mode, string pattern, bool matchFullPath = false) =>
             new() { patternMode = mode, pattern = pattern, matchAgainstFullPath = matchFullPath, isEnabled = true };

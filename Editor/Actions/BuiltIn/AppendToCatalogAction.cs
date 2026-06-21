@@ -4,10 +4,6 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
-    /// <summary>
-    /// Appends the imported asset to an <see cref="AssetCatalog"/> ScriptableObject.
-    /// Idempotent — skips if the asset is already in the catalog.
-    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Append to Catalog", fileName = "AppendToCatalogAction")]
     public sealed class AppendToCatalogAction : AssetImportActionAsset
     {

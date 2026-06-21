@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
-    /// <summary>
-    /// Enables collider generation on FBX/model assets via <see cref="ModelImporter.addCollider"/>.
-    /// Idempotent — skips reimport if the flag is already set.
-    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Generate Mesh Collider", fileName = "GenerateMeshColliderAction")]
     public sealed class GenerateMeshColliderAction : AssetImportActionAsset
     {

@@ -16,31 +16,48 @@ namespace Kodlon.AssetRouter.Logic
                 return result;
 
             var guids = AssetDatabase.FindAssets("", new[] { "Assets" });
+            var total = guids.Length;
 
-            foreach (var guid in guids)
+            try
             {
-                var path = AssetDatabase.GUIDToAssetPath(guid);
-
-                if (AssetDatabase.IsValidFolder(path))
-                    continue;
-
-                if (!RuleValidator.ShouldProcess(db, path))
-                    continue;
-
-                var rule = RuleValidator.FindMatchingRule(db.rules, path);
-
-                if (rule == null)
+                for (var i = 0; i < total; i++)
                 {
-                    result.Add(new DryRunEntry(path, null, null, false));
-                    continue;
+                    if (i % 100 == 0)
+                    {
+                        if (EditorUtility.DisplayCancelableProgressBar(
+                                "Asset Router — Scanning",
+                                $"{i} / {total} assets",
+                                (float)i / Math.Max(total, 1)))
+                            break;
+                    }
+
+                    var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+
+                    if (AssetDatabase.IsValidFolder(path))
+                        continue;
+
+                    if (!RuleValidator.ShouldProcess(db, path))
+                        continue;
+
+                    var rule = RuleValidator.FindMatchingRule(db.rules, path);
+
+                    if (rule == null)
+                    {
+                        result.Add(new DryRunEntry(path, null, null, false));
+                        continue;
+                    }
+
+                    var targetFolder  = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
+                    var currentFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(path) ?? "") + "/";
+                    var alreadyInPlace = string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase);
+                    var targetPath = alreadyInPlace ? null : targetFolder + Path.GetFileName(path);
+
+                    result.Add(new DryRunEntry(path, rule, targetPath, alreadyInPlace));
                 }
-
-                var targetFolder  = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
-                var currentFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(path) ?? "") + "/";
-                var alreadyInPlace = string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase);
-                var targetPath = alreadyInPlace ? null : targetFolder + Path.GetFileName(path);
-
-                result.Add(new DryRunEntry(path, rule, targetPath, alreadyInPlace));
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
             }
 
             return result;

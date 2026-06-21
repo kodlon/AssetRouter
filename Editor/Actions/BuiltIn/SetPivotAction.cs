@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
-    /// <summary>
-    /// Sets the sprite pivot on a Sprite-type texture and reimports.
-    /// Idempotent — skips reimport if the pivot is already at the target value.
-    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Set Pivot", fileName = "SetPivotAction")]
     public sealed class SetPivotAction : AssetImportActionAsset
     {

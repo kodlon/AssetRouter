@@ -31,14 +31,22 @@ namespace Kodlon.AssetRouter.Logic
             {
                 db.monitoredExtensions.Clear();
                 foreach (var ext in extensions)
-                    db.monitoredExtensions.Add(ext.Value<string>());
+                {
+                    var val = ext.Value<string>();
+                    if (!string.IsNullOrEmpty(val))
+                        db.monitoredExtensions.Add(val);
+                }
             }
 
             if (root["ignoredFolders"] is JArray ignored)
             {
                 db.ignoredFolders.Clear();
                 foreach (var folder in ignored)
-                    db.ignoredFolders.Add(folder.Value<string>());
+                {
+                    var val = folder.Value<string>();
+                    if (!string.IsNullOrEmpty(val))
+                        db.ignoredFolders.Add(val);
+                }
             }
 
             if (root["rules"] is JArray rulesArr)
@@ -54,9 +62,9 @@ namespace Kodlon.AssetRouter.Logic
             }
 
             EditorUtility.SetDirty(db);
-        }
 
-        // ── Helpers ───────────────────────────────────────────────────────────────
+            RuleMigrator.MigrateIfNeeded(db);
+        }
 
         private static ImportRule ParseRule(JObject rObj)
         {

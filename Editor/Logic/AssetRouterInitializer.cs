@@ -10,12 +10,27 @@ namespace Kodlon.AssetRouter.Logic
         private const string AssetFolder = "Assets/AssetRouter";
         private const string AssetPath = "Assets/AssetRouter/ImporterSettingsDatabase.asset";
 
-        static AssetRouterInitializer() => EditorApplication.delayCall += Initialize;
+        static AssetRouterInitializer()
+        {
+            EditorApplication.delayCall += Initialize;
+            // Also run the migrator when the project changes (e.g. a new DB is created
+            // while Domain Reload is disabled and the static constructor doesn't re-fire).
+            EditorApplication.projectChanged += RunMigratorIfNeeded;
+        }
 
         private static void Initialize()
         {
             CreateDefaultDatabaseIfMissing();
 
+            var db = DatabaseLocator.FindDatabase();
+
+            if (db != null)
+                RuleMigrator.MigrateIfNeeded(db);
+        }
+
+        private static void RunMigratorIfNeeded()
+        {
+            DatabaseLocator.InvalidateCache();
             var db = DatabaseLocator.FindDatabase();
 
             if (db != null)

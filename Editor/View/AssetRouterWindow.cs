@@ -10,10 +10,11 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.View
 {
-    internal sealed class AssetRouterWindow : EditorWindow
+    internal sealed partial class AssetRouterWindow : EditorWindow
     {
         private const float ListElementHeight = 22f;
         private const float SectionSpacing = 6f;
+        private const double PreviewDebounceSeconds = 0.3;
 
         private ImporterSettingsDatabase _database;
         private bool _isFilterFoldoutOpen;
@@ -23,19 +24,16 @@ namespace Kodlon.AssetRouter.View
         private int _selectedIndex = -1;
         private SerializedObject _serializedDb;
 
-        // Conflict state — refreshed whenever rules change.
         private List<RuleConflict> _conflicts;
         private HashSet<int> _conflictedIndices;
 
-        // Live-preview cache — recomputed only when the selected rule's pattern changes.
         private string _lastPreviewPattern;
         private string _cachedPreview;
+        private double _previewRebuildTime = -1;
 
-        // Actions ReorderableList — rebuilt when the selected rule index changes.
         private ReorderableList _actionsList;
         private int _actionsForRuleIndex = -1;
 
-        // Tab state.
         private static readonly string[] TabLabels = { "Settings", "Dry Run", "History" };
         private int _activeTab;
         private readonly DryRunView _dryRunView = new DryRunView();
@@ -96,6 +94,9 @@ namespace Kodlon.AssetRouter.View
                 DatabaseLocator.InvalidateCache();
                 RefreshConflicts();
             }
+
+            if (_previewRebuildTime > 0 && EditorApplication.timeSinceStartup < _previewRebuildTime)
+                Repaint();
         }
 
         private void DrawSettingsTab()
@@ -117,11 +118,8 @@ namespace Kodlon.AssetRouter.View
             DrawSaveButton();
         }
 
-        // ── Conflict detection ────────────────────────────────────────────────────
-
         private void RefreshConflicts()
         {
-            // Invalidate the actions list — rule reordering changes which rule is at _selectedIndex.
             _actionsList = null;
             _actionsForRuleIndex = -1;
 
@@ -160,11 +158,10 @@ namespace Kodlon.AssetRouter.View
             if (overlaps > 0) parts.Add($"{overlaps} overlap(s)");
 
             EditorGUILayout.HelpBox(
-                $"Rule conflicts detected: {string.Join(", ", parts)}. Rules marked ⚠ may route the same file.",
+                $"Rule conflicts detected: {string.Join(", ", parts)}. Rules marked ⚠ may route the same file.\n" +
+                "Note: overlap detection is heuristic — false negatives are possible for uncommon patterns.",
                 MessageType.Warning);
         }
-
-        // ── Rule list ─────────────────────────────────────────────────────────────
 
         private void AddRule(ReorderableList list, BaseImportRule newRule)
         {
@@ -204,9 +201,9 @@ namespace Kodlon.AssetRouter.View
                     return;
 
                 var enabledProp = element.FindPropertyRelative("isEnabled");
-                var nameProp = element.FindPropertyRelative("ruleName");
+                var nameProp    = element.FindPropertyRelative("ruleName");
                 var patternProp = element.FindPropertyRelative("pattern");
-                var targetProp = element.FindPropertyRelative("targetFolder");
+                var targetProp  = element.FindPropertyRelative("targetFolder");
 
                 rect.y += (ListElementHeight - EditorGUIUtility.singleLineHeight) * 0.5f;
                 rect.height = EditorGUIUtility.singleLineHeight;
@@ -221,7 +218,7 @@ namespace Kodlon.AssetRouter.View
                     : EditorStyles.label;
 
                 var hasConflict = _conflictedIndices != null && _conflictedIndices.Contains(index);
-                var nameText = hasConflict ? $"⚠ {nameProp.stringValue}" : nameProp.stringValue;
+                var nameText    = hasConflict ? $"⚠ {nameProp.stringValue}" : nameProp.stringValue;
                 var patternText = string.IsNullOrEmpty(patternProp.stringValue) ? "*" : patternProp.stringValue;
 
                 EditorGUI.LabelField(labelRect, $"{nameText}   [{patternText}]   -> {targetProp.stringValue}", labelStyle);
@@ -231,7 +228,9 @@ namespace Kodlon.AssetRouter.View
             {
                 _selectedIndex = list.index;
                 _lastPreviewPattern = null;
-                _actionsList = null; // invalidate actions list on rule selection change
+                _cachedPreview = null;
+                _previewRebuildTime = -1;
+                _actionsList = null;
                 _actionsForRuleIndex = -1;
             };
 
@@ -239,13 +238,28 @@ namespace Kodlon.AssetRouter.View
 
             _rulesList.onRemoveCallback = list =>
             {
+                var idx = list.index;
+
+                // Remove rule first, apply, then clean actions — otherwise IsReferencedByOtherRule still sees the deleted rule and all sub-assets become orphans.
+                List<AssetImportActionAsset> actionsToClean = null;
+                if (idx >= 0 && idx < rulesProp.arraySize)
+                {
+                    var element = rulesProp.GetArrayElementAtIndex(idx);
+                    if (element.managedReferenceValue is ImportRule importRule
+                        && importRule.postImportActions != null)
+                        actionsToClean = new List<AssetImportActionAsset>(importRule.postImportActions);
+                }
+
                 ReorderableList.defaultBehaviours.DoRemoveButton(list);
+                _serializedDb.ApplyModifiedProperties();
+
+                if (actionsToClean != null)
+                    CleanUpActionSubAssets(actionsToClean);
+
                 _selectedIndex = -1;
                 RefreshConflicts();
             };
         }
-
-        // ── Database management ───────────────────────────────────────────────────
 
         private void CreateNewDatabase()
         {
@@ -256,8 +270,6 @@ namespace Kodlon.AssetRouter.View
                 return;
 
             var db = CreateInstance<ImporterSettingsDatabase>();
-
-            // CreateInstance does not invoke Reset(), so populate defaults explicitly.
             DefaultDatabaseFactory.PopulateDefaults(db);
 
             AssetDatabase.CreateAsset(db, path);
@@ -276,6 +288,8 @@ namespace Kodlon.AssetRouter.View
             _rulesList = null;
             _selectedIndex = -1;
             _lastPreviewPattern = null;
+            _cachedPreview = null;
+            _previewRebuildTime = -1;
             _actionsList = null;
             _actionsForRuleIndex = -1;
 
@@ -284,8 +298,6 @@ namespace Kodlon.AssetRouter.View
 
             RefreshConflicts();
         }
-
-        // ── Drawing ───────────────────────────────────────────────────────────────
 
         private void DrawDatabaseToolbar()
         {
@@ -416,210 +428,6 @@ namespace Kodlon.AssetRouter.View
             }
 
             GUILayout.Space(4f);
-        }
-
-        private void DrawSelectedRuleDetails()
-        {
-            if (_rulesList == null)
-                return;
-
-            _selectedIndex = _rulesList.index;
-
-            var rulesProp = _serializedDb.FindProperty("rules");
-
-            if (_selectedIndex < 0 || _selectedIndex >= rulesProp.arraySize)
-                return;
-
-            var element = rulesProp.GetArrayElementAtIndex(_selectedIndex);
-            var ruleRef = element.managedReferenceValue as BaseImportRule;
-
-            if (ruleRef == null)
-                return;
-
-            EditorGUILayout.LabelField(ruleRef.ruleName, EditorStyles.boldLabel);
-
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUI.indentLevel++;
-
-                SectionLabel("Identification");
-                Field(element, "ruleName", "Rule Name");
-
-                SectionLabel("Pattern");
-                Field(element, "patternMode", "Mode");
-                Field(element, "pattern", "Pattern");
-                Field(element, "matchAgainstFullPath", "Match Full Path");
-
-                DrawPatternPreview(ruleRef);
-
-                SectionLabel("Target");
-                Field(element, "targetFolder", "Target Folder");
-
-                SectionLabel("Settings");
-                Field(element, "preset", "Import Preset");
-
-                if (ruleRef is ImportRule)
-                {
-                    SectionLabel("Post-Import Actions");
-                    DrawActionsListFor(element);
-                }
-
-                EditorGUI.indentLevel--;
-            }
-        }
-
-        private void DrawActionsListFor(SerializedProperty ruleElement)
-        {
-            var actionsProp = ruleElement.FindPropertyRelative("postImportActions");
-            if (actionsProp == null) return;
-
-            EnsureActionsListBuilt(actionsProp);
-            _actionsList?.DoLayoutList();
-        }
-
-        private void EnsureActionsListBuilt(SerializedProperty actionsProp)
-        {
-            if (_actionsList != null && _actionsForRuleIndex == _selectedIndex)
-                return;
-
-            _actionsForRuleIndex = _selectedIndex;
-            _actionsList = new ReorderableList(_serializedDb, actionsProp, true, true, true, true);
-
-            _actionsList.drawHeaderCallback = rect =>
-                EditorGUI.LabelField(rect, "Post-Import Actions");
-
-            _actionsList.elementHeight = EditorGUIUtility.singleLineHeight + 4f;
-
-            _actionsList.drawElementCallback = (rect, index, isActive, isFocused) =>
-            {
-                var el = actionsProp.GetArrayElementAtIndex(index);
-                rect.y += 2f;
-                rect.height = EditorGUIUtility.singleLineHeight;
-                EditorGUI.ObjectField(rect, el, typeof(AssetImportActionAsset), GUIContent.none);
-            };
-
-            _actionsList.onAddDropdownCallback = (buttonRect, list) =>
-            {
-                var menu = new GenericMenu();
-                var types = TypeCache.GetTypesDerivedFrom<AssetImportActionAsset>();
-
-                foreach (var type in types)
-                {
-                    if (type.IsAbstract) continue;
-                    var capturedType = type;
-                    menu.AddItem(new GUIContent(ObjectNames.NicifyVariableName(type.Name)), false,
-                        () => CreateAndAddAction(capturedType, list));
-                }
-
-                if (menu.GetItemCount() == 0)
-                    menu.AddDisabledItem(new GUIContent("No action types found"));
-
-                menu.ShowAsContext();
-            };
-
-            _actionsList.onRemoveCallback = list =>
-            {
-                var idx = list.index;
-                if (idx < 0 || idx >= actionsProp.arraySize) return;
-
-                var actionProp = actionsProp.GetArrayElementAtIndex(idx);
-                var actionObj  = actionProp.objectReferenceValue;
-
-                // Unity requires nulling the reference before DeleteArrayElementAtIndex for Object refs.
-                actionProp.objectReferenceValue = null;
-                _serializedDb.ApplyModifiedProperties();
-
-                actionsProp.DeleteArrayElementAtIndex(idx);
-                _serializedDb.ApplyModifiedProperties();
-
-                // Remove sub-asset if it was embedded in the DB (created via the + button).
-                if (actionObj != null && AssetDatabase.IsSubAsset(actionObj))
-                {
-                    AssetDatabase.RemoveObjectFromAsset(actionObj);
-                    DestroyImmediate(actionObj, true);
-                    AssetDatabase.SaveAssets();
-                }
-            };
-        }
-
-        private void CreateAndAddAction(Type actionType, ReorderableList list)
-        {
-            var newAction = CreateInstance(actionType) as AssetImportActionAsset;
-            if (newAction == null) return;
-
-            newAction.name = ObjectNames.NicifyVariableName(actionType.Name);
-            AssetDatabase.AddObjectToAsset(newAction, _database);
-            AssetDatabase.SaveAssets();
-
-            _serializedDb.Update();
-            var newIndex = list.serializedProperty.arraySize;
-            list.serializedProperty.arraySize++;
-            list.serializedProperty.GetArrayElementAtIndex(newIndex).objectReferenceValue = newAction;
-            _serializedDb.ApplyModifiedProperties();
-        }
-
-        private void DrawPatternPreview(BaseImportRule rule)
-        {
-            if (string.IsNullOrEmpty(rule.pattern))
-                return;
-
-            // Recompute only when the pattern string has changed.
-            if (rule.pattern != _lastPreviewPattern)
-            {
-                _lastPreviewPattern = rule.pattern;
-                _cachedPreview = BuildPatternPreview(rule);
-            }
-
-            if (string.IsNullOrEmpty(_cachedPreview))
-                return;
-
-            var isError = _cachedPreview.StartsWith("⚠");
-            var style = new GUIStyle(EditorStyles.miniLabel)
-            {
-                normal = { textColor = isError ? new Color(0.9f, 0.3f, 0.3f) : new Color(0.4f, 0.8f, 0.4f) },
-                wordWrap = true
-            };
-
-            EditorGUI.indentLevel++;
-            EditorGUILayout.LabelField(_cachedPreview, style);
-            EditorGUI.indentLevel--;
-        }
-
-        private static string BuildPatternPreview(BaseImportRule rule)
-        {
-            // Validate regex syntax first.
-            if (rule.patternMode == PatternMode.Regex
-                && PatternMatcher.TryGetRegexError(rule.pattern, out var error))
-                return $"⚠ {error}";
-
-            // Find up to 3 matching examples from the project (capped to avoid stalling large projects).
-            var matches = new List<string>(3);
-            var guids = AssetDatabase.FindAssets("", new[] { "Assets" });
-            var limit = Mathf.Min(guids.Length, 500);
-
-            for (var i = 0; i < limit && matches.Count < 3; i++)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                if (PatternMatcher.Matches(rule, path))
-                    matches.Add(Path.GetFileName(path));
-            }
-
-            return matches.Count > 0
-                ? $"✓ e.g. {string.Join(", ", matches)}"
-                : "— no matches found in project";
-        }
-
-        // ── Helpers ───────────────────────────────────────────────────────────────
-
-        private static void Field(SerializedProperty parent, string propName, string label)
-        {
-            EditorGUILayout.PropertyField(parent.FindPropertyRelative(propName), new GUIContent(label));
-        }
-
-        private static void SectionLabel(string text)
-        {
-            GUILayout.Space(SectionSpacing);
-            EditorGUILayout.LabelField(text, EditorStyles.miniBoldLabel);
         }
     }
 }

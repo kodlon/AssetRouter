@@ -5,10 +5,6 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Logic
 {
-    /// <summary>
-    /// One-shot migration that upgrades an <see cref="ImporterSettingsDatabase"/> from an older
-    /// schema version to the current one.
-    /// </summary>
     internal static class RuleMigrator
     {
         public static void MigrateIfNeeded(ImporterSettingsDatabase db)
@@ -35,11 +31,6 @@ namespace Kodlon.AssetRouter.Logic
             Debug.Log($"[AssetRouter][Migration] Database migrated to schema v{ImporterSettingsDatabase.LatestSchemaVersion}.");
         }
 
-        // ── v1 → v2 ──────────────────────────────────────────────────────────────
-        // Combines the old prefix / suffix / extensionFilter fields into a single
-        // glob pattern: prefix + "*" + suffix + extensionFilter.
-        // Example: prefix="T_", suffix="", extensionFilter=".png" → "T_*.png"
-
         private static void MigrateToV2(ImporterSettingsDatabase db)
         {
             if (db.rules == null)
@@ -54,7 +45,6 @@ namespace Kodlon.AssetRouter.Logic
                 if (rule == null)
                     continue;
 
-                // Skip rules that already have a pattern (created under the new schema).
                 if (!string.IsNullOrEmpty(rule.pattern))
                     continue;
 

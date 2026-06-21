@@ -15,17 +15,27 @@ namespace Kodlon.AssetRouter.Logic
             var failed   = 0;
             var entries  = session.entries;
             var total    = entries.Count;
+            var cancelled = false;
+
+            for (var i = entries.Count - 1; i >= 0; i--)
+                PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(Path.GetDirectoryName(entries[i].from) ?? ""));
 
             AssetDatabase.StartAssetEditing();
             try
             {
-                // Reverse order so later moves don't conflict with earlier ones.
                 for (var i = entries.Count - 1; i >= 0; i--)
                 {
-                    EditorUtility.DisplayProgressBar(
-                        "Asset Router — Undoing",
-                        entries[i].to,
-                        (float)(total - i) / total);
+                    var progress = (float)(total - i) / total;
+
+                    if (EditorUtility.DisplayCancelableProgressBar(
+                            "Asset Router — Undoing",
+                            entries[i].to,
+                            progress))
+                    {
+                        cancelled = true;
+                        failed += i + 1;
+                        break;
+                    }
 
                     var entry = entries[i];
 
@@ -35,9 +45,6 @@ namespace Kodlon.AssetRouter.Logic
                         failed++;
                         continue;
                     }
-
-                    var fromFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(entry.from) ?? "");
-                    EnsureFolderExists(fromFolder);
 
                     var error = AssetDatabase.MoveAsset(entry.to, entry.from);
 
@@ -56,30 +63,16 @@ namespace Kodlon.AssetRouter.Logic
                 EditorUtility.ClearProgressBar();
             }
 
-            Debug.Log($"[AssetRouter] Undo complete. Reverted: {reverted}, Failed: {failed}");
+            var summary = cancelled
+                ? $"Undo cancelled. Reverted: {reverted}, Skipped/Failed: {failed}"
+                : $"Undo complete. Reverted: {reverted}, Failed: {failed}";
+
+            Debug.Log($"[AssetRouter] {summary}");
+
+            if (failed > 0)
+                EditorUtility.DisplayDialog("Asset Router — Undo Summary", summary, "OK");
+
             return new UndoResult(reverted, failed);
-        }
-
-        private static void EnsureFolderExists(string folderPath)
-        {
-            if (string.IsNullOrEmpty(folderPath) || AssetDatabase.IsValidFolder(folderPath))
-                return;
-
-            var parts   = folderPath.Split('/');
-            var current = parts[0];
-
-            for (var i = 1; i < parts.Length; i++)
-            {
-                if (string.IsNullOrEmpty(parts[i]))
-                    continue;
-
-                var next = current + "/" + parts[i];
-
-                if (!AssetDatabase.IsValidFolder(next))
-                    AssetDatabase.CreateFolder(current, parts[i]);
-
-                current = next;
-            }
         }
     }
 }

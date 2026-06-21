@@ -7,10 +7,6 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal static class RuleValidator
     {
-        /// <summary>
-        /// Returns the first enabled rule whose pattern matches <paramref name="assetPath"/>,
-        /// or <c>null</c> if none match.
-        /// </summary>
         public static BaseImportRule FindMatchingRule(List<BaseImportRule> rules, string assetPath)
         {
             if (rules == null || rules.Count == 0)
@@ -30,10 +26,6 @@ namespace Kodlon.AssetRouter.Logic
             return null;
         }
 
-        /// <summary>
-        /// Returns <c>true</c> when <paramref name="assetPath"/> should be processed:
-        /// its extension is monitored and its path is not under any ignored folder.
-        /// </summary>
         public static bool ShouldProcess(ImporterSettingsDatabase db, string assetPath)
         {
             if (db == null || string.IsNullOrEmpty(assetPath))

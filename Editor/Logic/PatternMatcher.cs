@@ -7,20 +7,10 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Logic
 {
-    /// <summary>
-    /// Matches an asset path against a rule's glob or regex pattern.
-    /// Compiled <see cref="Regex"/> instances are cached on each rule and invalidated
-    /// automatically when the pattern string changes.
-    /// </summary>
     internal static class PatternMatcher
     {
         private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(50);
 
-        /// <summary>
-        /// Returns <c>true</c> when <paramref name="assetPath"/> satisfies the rule's pattern.
-        /// Matching target is the filename (default) or the full normalised path
-        /// when <see cref="BaseImportRule.matchAgainstFullPath"/> is <c>true</c>.
-        /// </summary>
         public static bool Matches(BaseImportRule rule, string assetPath)
         {
             if (string.IsNullOrEmpty(rule?.pattern))
@@ -46,11 +36,6 @@ namespace Kodlon.AssetRouter.Logic
             }
         }
 
-        /// <summary>
-        /// Validates a Regex-mode pattern. Returns <c>false</c> (and sets <paramref name="error"/>
-        /// to <c>null</c>) when the pattern is valid. Returns <c>true</c> with the parse error
-        /// message when invalid.
-        /// </summary>
         public static bool TryGetRegexError(string pattern, out string error)
         {
             try
@@ -66,11 +51,10 @@ namespace Kodlon.AssetRouter.Logic
             }
         }
 
-        // ── Internal helpers ──────────────────────────────────────────────────────
-
         private static Regex GetOrCompile(BaseImportRule rule)
         {
-            if (rule._compiledPattern != null && rule._compiledFor == rule.pattern)
+            // null _compiledPattern + matching _compiledFor = previously failed; avoid re-logging.
+            if (rule._compiledFor == rule.pattern)
                 return rule._compiledPattern;
 
             var regexSource = rule.patternMode == PatternMode.Glob
@@ -94,15 +78,6 @@ namespace Kodlon.AssetRouter.Logic
             return rule._compiledPattern;
         }
 
-        /// <summary>
-        /// Converts a glob pattern to an anchored regex string.
-        /// <list type="bullet">
-        ///   <item><c>**</c> → <c>.*</c> (any sequence including <c>/</c>)</item>
-        ///   <item><c>*</c>  → <c>[^/]*</c></item>
-        ///   <item><c>?</c>  → <c>[^/]</c></item>
-        ///   <item>all other characters are escaped</item>
-        /// </list>
-        /// </summary>
         internal static string GlobToRegex(string glob)
         {
             var sb = new StringBuilder("^");

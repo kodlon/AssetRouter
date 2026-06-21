@@ -10,22 +10,31 @@ namespace Kodlon.AssetRouter.Logic
         public static BatchResult Move(List<DryRunEntry> entries, bool forceReimportInPlace = false)
         {
             if (entries == null || entries.Count == 0)
-                return new BatchResult(0, 0, 0);
+                return new BatchResult(0, 0, 0, 0);
 
-            var moved   = 0;
-            var skipped = 0;
-            var errored = 0;
-            var logEntries      = new List<OperationLogEntry>();
-            var forceReimports  = new List<string>();
+            var moved       = 0;
+            var reimported  = 0;
+            var skipped     = 0;
+            var errored     = 0;
+            var logEntries     = new List<OperationLogEntry>();
+            var forceReimports = new List<string>();
             var total   = entries.Count;
             var current = 0;
-            var cancelled = false;
+
+            foreach (var entry in entries)
+            {
+                if (entry.Selected && entry.MatchedRule != null && !entry.AlreadyInPlace)
+                    PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(entry.MatchedRule.targetFolder));
+            }
 
             AssetDatabase.StartAssetEditing();
+            var cancelled = false;
             try
             {
                 foreach (var entry in entries)
                 {
+                    current++;
+
                     if (cancelled)
                     {
                         skipped++;
@@ -35,7 +44,6 @@ namespace Kodlon.AssetRouter.Logic
                     if (!entry.Selected || entry.MatchedRule == null)
                     {
                         skipped++;
-                        current++;
                         continue;
                     }
 
@@ -46,7 +54,6 @@ namespace Kodlon.AssetRouter.Logic
                     {
                         cancelled = true;
                         skipped++;
-                        current++;
                         continue;
                     }
 
@@ -57,13 +64,11 @@ namespace Kodlon.AssetRouter.Logic
                         else
                             skipped++;
 
-                        current++;
                         continue;
                     }
 
                     var targetFolder = PathUtility.NormalizeAssetPath(entry.MatchedRule.targetFolder);
-                    EnsureFolderExists(targetFolder);
-                    var targetPath = targetFolder + "/" + Path.GetFileName(entry.AssetPath);
+                    var targetPath   = targetFolder + "/" + Path.GetFileName(entry.AssetPath);
 
                     var error = AssetDatabase.MoveAsset(entry.AssetPath, targetPath);
 
@@ -77,8 +82,6 @@ namespace Kodlon.AssetRouter.Logic
                         Debug.LogWarning($"[AssetRouter] Failed to move {entry.AssetPath} -> {targetPath}: {error}");
                         errored++;
                     }
-
-                    current++;
                 }
             }
             finally
@@ -87,40 +90,18 @@ namespace Kodlon.AssetRouter.Logic
                 EditorUtility.ClearProgressBar();
             }
 
-            // Force-reimport in-place assets after the batch (outside StartAssetEditing).
             foreach (var path in forceReimports)
             {
                 AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-                moved++;
+                reimported++;
             }
 
             if (logEntries.Count > 0)
                 OperationLog.RecordBatch(logEntries, "BatchMover");
 
-            Debug.Log($"[AssetRouter] Batch complete. {new BatchResult(moved, skipped, errored)}");
-            return new BatchResult(moved, skipped, errored);
-        }
-
-        private static void EnsureFolderExists(string folderPath)
-        {
-            if (AssetDatabase.IsValidFolder(folderPath))
-                return;
-
-            var parts   = folderPath.Split('/');
-            var current = parts[0];
-
-            for (var i = 1; i < parts.Length; i++)
-            {
-                if (string.IsNullOrEmpty(parts[i]))
-                    continue;
-
-                var next = current + "/" + parts[i];
-
-                if (!AssetDatabase.IsValidFolder(next))
-                    AssetDatabase.CreateFolder(current, parts[i]);
-
-                current = next;
-            }
+            var result = new BatchResult(moved, reimported, skipped, errored);
+            Debug.Log($"[AssetRouter] Batch complete. {result}");
+            return result;
         }
     }
 }

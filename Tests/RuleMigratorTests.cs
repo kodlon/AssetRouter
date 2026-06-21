@@ -76,7 +76,6 @@ namespace Kodlon.AssetRouter.Tests
 
             RuleMigrator.MigrateIfNeeded(_db);
 
-            // Pattern must remain empty — migration was skipped.
             Assert.IsEmpty(rule.pattern);
         }
 
@@ -88,7 +87,6 @@ namespace Kodlon.AssetRouter.Tests
 
             RuleMigrator.MigrateIfNeeded(_db);
 
-            // Pre-existing pattern must not be overwritten.
             Assert.AreEqual("UI_*", rule.pattern);
         }
 

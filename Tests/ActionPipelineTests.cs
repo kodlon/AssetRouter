@@ -8,7 +8,6 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using Object = UnityEngine.Object;
 
-// ── Test-only action helpers ──────────────────────────────────────────────────
 // Defined at namespace level (not nested) so Unity can create ScriptableObject instances.
 
 namespace Kodlon.AssetRouter.Tests
@@ -35,8 +34,6 @@ namespace Kodlon.AssetRouter.Tests
         public override void Execute(Object importedAsset, AssetImportContext ctx)
             => throw new InvalidOperationException("test exception from ThrowingAction");
     }
-
-    // ── Tests ─────────────────────────────────────────────────────────────────
 
     public class ActionPipelineTests
     {
@@ -89,13 +86,10 @@ namespace Kodlon.AssetRouter.Tests
         {
             var rule = MakeRule(_thrower, _counter);
 
-            // Tell Unity's test runner to expect the exception log — otherwise it fails the test.
+            // LogAssert.Expect prevents the test runner from failing on the expected exception log.
             LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("InvalidOperationException"));
 
-            // Must not throw — exception is caught internally.
             Assert.DoesNotThrow(() => ActionPipeline.Execute(rule, null, "Assets/fake.png", _db));
-
-            // CountingAction must still have been called despite ThrowingAction failing.
             Assert.AreEqual(1, _counter.ExecuteCount);
         }
 
@@ -111,7 +105,6 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void Execute_NoOp_WhenRuleIsNotImportRule()
         {
-            // BaseImportRule (not ImportRule) — pipeline must silently return.
             var baseRule = new DummyBaseRule();
             Assert.DoesNotThrow(() => ActionPipeline.Execute(baseRule, null, "Assets/fake.png", _db));
         }
@@ -124,8 +117,6 @@ namespace Kodlon.AssetRouter.Tests
             Assert.DoesNotThrow(() => ActionPipeline.Execute(rule, null, "Assets/fake.png", _db));
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────
-
         private static ImportRule MakeRule(params AssetImportActionAsset[] actions)
         {
             var rule = new ImportRule();
@@ -134,7 +125,6 @@ namespace Kodlon.AssetRouter.Tests
         }
     }
 
-    /// <summary>Minimal concrete subclass of <see cref="BaseImportRule"/> for testing.</summary>
     [Serializable]
     internal sealed class DummyBaseRule : BaseImportRule { }
 }

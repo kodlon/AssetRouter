@@ -56,7 +56,6 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void Detect_OverlappingPatterns_ReportsOverlap()
         {
-            // Both match "T_Rock_D.png" from the sample set.
             var rules = new List<BaseImportRule>
             {
                 MakeRule("T_*"),

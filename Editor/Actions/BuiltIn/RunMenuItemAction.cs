@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
-    /// <summary>
-    /// Calls <see cref="EditorApplication.ExecuteMenuItem"/> with a configurable menu path.
-    /// Useful as a general escape-hatch to trigger any registered menu action after import.
-    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Run Menu Item", fileName = "RunMenuItemAction")]
     public sealed class RunMenuItemAction : AssetImportActionAsset
     {

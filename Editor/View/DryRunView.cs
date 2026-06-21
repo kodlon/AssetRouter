@@ -21,7 +21,6 @@ namespace Kodlon.AssetRouter.View
                 return;
             }
 
-            // ── Toolbar ──────────────────────────────────────────────────────────
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (GUILayout.Button("Scan Project", GUILayout.Width(110f)))
@@ -53,7 +52,6 @@ namespace Kodlon.AssetRouter.View
                 return;
             }
 
-            // ── Stats ─────────────────────────────────────────────────────────────
             var toMove = 0; var inPlace = 0; var noMatch = 0;
             var selected = 0;
 
@@ -71,7 +69,6 @@ namespace Kodlon.AssetRouter.View
 
             GUILayout.Space(2f);
 
-            // ── Header row ────────────────────────────────────────────────────────
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 GUILayout.Label("",       GUILayout.Width(20f));
@@ -81,7 +78,6 @@ namespace Kodlon.AssetRouter.View
                 GUILayout.Label("Rule",   GUILayout.ExpandWidth(true));
             }
 
-            // ── Rows ──────────────────────────────────────────────────────────────
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
 
             foreach (var entry in _entries)
@@ -120,7 +116,6 @@ namespace Kodlon.AssetRouter.View
 
             GUILayout.Space(4f);
 
-            // ── Action bar ────────────────────────────────────────────────────────
             using (new EditorGUILayout.HorizontalScope())
             {
                 using (new EditorGUI.DisabledScope(selected == 0))
@@ -139,8 +134,6 @@ namespace Kodlon.AssetRouter.View
             if (GUILayout.Button("Re-import All Matched", GUILayout.Height(28f)))
                 ReimportAll(db);
         }
-
-        // ── Helpers ───────────────────────────────────────────────────────────────
 
         private void SetSelection(bool value)
         {

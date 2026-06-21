@@ -6,14 +6,8 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Data
 {
-    /// <summary>
-    /// Single source of truth for the default contents of an <see cref="ImporterSettingsDatabase"/>.
-    /// Both <see cref="ImporterSettingsDatabase.Reset"/> and <see cref="Logic.AssetRouterInitializer"/>
-    /// delegate here so the defaults are never duplicated.
-    /// </summary>
     internal static class DefaultDatabaseFactory
     {
-        /// <summary>Fills <paramref name="db"/> with standard defaults and marks it as current schema.</summary>
         public static void PopulateDefaults(ImporterSettingsDatabase db)
         {
             db.schemaVersion = ImporterSettingsDatabase.LatestSchemaVersion;
