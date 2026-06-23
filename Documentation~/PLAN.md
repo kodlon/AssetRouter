@@ -425,7 +425,7 @@ Unity з 2017+ за замовчуванням Force Text mode (підтверд
 
 Чисто інженерні борги, не feature-roadmap, але без них senior-bar не пройти.
 
-> ⚠️ **Майже виконано — v0.1.0** (залишився пункт 9.10)
+> ✅ **Виконано повністю — v0.6.0** (9.10 закритий 2026-06-23)
 
 - [x] 9.1 Path normalization audit — `PathUtility` (NormalizeAssetPath, ToAbsolute, IsUnderFolder)
 - [x] 9.2 `CreateNewDatabase()` bug — явний виклик `DefaultDatabaseFactory.PopulateDefaults(db)`
@@ -436,7 +436,7 @@ Unity з 2017+ за замовчуванням Force Text mode (підтверд
 - [x] 9.7 Runtime folder — не створювати (немає runtime features)
 - [x] 9.8 SmartAssetImporter naming — залишаємо `Asset Router` (питання відкрите)
 - [x] 9.9 Acceptance
-- [ ] 9.10 Unity license activation для CI — **обов'язково перед релізом**
+- [x] 9.10 Unity license activation для CI — Personal license, GitHub Secrets, `permissions:` block
 
 ### 9.1 Path normalization audit
 Пройти grep по всьому коду:
@@ -486,20 +486,35 @@ Editor/
 - CI зелений на main.
 - CHANGELOG актуальний.
 
-### 9.10 Unity license activation для CI
-CI workflow (`game-ci/unity-test-runner@v4`) потребує Unity ліцензії для запуску тестів. Без неї крок "Run edit-mode tests" падає миттєво. Потрібно зробити один раз перед релізом на OpenUPM.
+### 9.10 Unity license activation для CI ✅
+CI workflow (`game-ci/unity-test-runner@v4`) потребує Unity ліцензії для запуску тестів. Без неї крок "Run edit-mode tests" падає миттєво.
 
-**Кроки:**
-1. Додати у репо activation workflow з [game-ci docs](https://game.ci/docs/github/activation) — він згенерує `.alf` файл (license request).
-2. Завантажити `.alf`, зайти на `license.unity3d.com`, активувати **Unity Personal** (безкоштовно).
-3. Завантажити `.ulf` файл (активована ліцензія).
-4. Додати в репо → Settings → Secrets → Actions:
-   - `UNITY_LICENSE` — вміст `.ulf` файлу
-   - `UNITY_EMAIL` — email Unity акаунту
-   - `UNITY_PASSWORD` — пароль Unity акаунту
-5. Видалити тимчасовий activation workflow.
+**Актуальний flow (GameCI v4, 2026):** `.alf → .ulf` через activation workflow більше не потрібен. Hub генерує `.ulf` локально.
 
-**Вартість:** безкоштовно (Unity Personal + GitHub Actions для public repo).
+**Кроки (виконано 2026-06-23):**
+1. Unity Hub → `Preferences` → `Licenses` → `Add` → **Get a free personal license**. Тицяти саме `Add` (навіть якщо ліцензія вже в списку) — інакше `.ulf` файл фізично не створиться.
+2. Знайти `.ulf` файл:
+   - Windows: `C:\ProgramData\Unity\Unity_lic.ulf`
+   - macOS: `/Library/Application Support/Unity/Unity_lic.ulf`
+   - Linux: `~/.local/share/unity3d/Unity/Unity_lic.ulf`
+3. Додати у репо → `Settings` → `Secrets and variables` → `Actions` → `New repository secret`:
+   - `UNITY_LICENSE` — вміст `.ulf` файлу (повний XML)
+   - `UNITY_EMAIL` — email Unity-акаунту
+   - `UNITY_PASSWORD` — пароль Unity-акаунту
+4. Додати `permissions:` блок у `.github/workflows/test.yml` (інакше `Resource not accessible by integration` на пості результатів):
+   ```yaml
+   permissions:
+     contents: read
+     checks: write
+     pull-requests: write
+   ```
+
+**Підводні камені:**
+- **Google SSO у Unity** — game-ci не вміє OAuth-flow. Треба встановити окремий пароль через `id.unity.com` → Security → Set password (або через "Forgot password" якщо поле відсутнє). Це не ламає SSO — обидва способи входу живуть паралельно.
+- **2FA на Unity-акаунті** залишається увімкненим; game-ci не запускає повний login, валідується через `.ulf`.
+- **Personal license прив'язана до Unity-версії** — при апгрейді workflow на нову мінорну версію треба реактивувати ліцензію локально і оновити `UNITY_LICENSE` secret.
+
+**Вартість:** безкоштовно — Unity Personal + GitHub Actions для public repo (unlimited standard runner minutes, не торкає новий $0.002/min charge з 2026-01-01).
 
 ---
 
@@ -620,11 +635,11 @@ Asset Store пошук по "asset router" / "asset organizer" / "auto importer"
 
 > ⏳ **Blocker для v1.0.0**
 
-### 12.1 Unity license для CI (перенесено з 9.10)
-- [ ] Згенерувати `.alf` через game-ci activation workflow.
-- [ ] Активувати Unity Personal на `license.unity3d.com`, отримати `.ulf`.
-- [ ] Додати secrets: `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD`.
-- [ ] Видалити тимчасовий activation workflow.
+### 12.1 Unity license для CI ✅ (закрито у 9.10 — 2026-06-23)
+- [x] Activate Personal license через Unity Hub (`.ulf` згенеровано локально).
+- [x] Додано secrets: `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD`.
+- [x] Додано `permissions: checks/pull-requests: write` у `test.yml`.
+- [x] CI зеленіє end-to-end (65/65 тестів пройдено, Check Run публікується).
 
 ### 12.2 package.json — поля
 - [ ] Прибрати `unityRelease: "0f1"` (вимагає рівно 2022.3.0f1) — лишити лише `unity: "2022.3"`.
