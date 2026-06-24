@@ -1,10 +1,10 @@
 {
   "name": "com.kodlon.assetrouter",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "displayName": "Asset Router",
-  "description": "Automatically applies import presets and moves assets to target folders based on naming rules (prefix, suffix, extension). Zero setup — works out of the box.",
+  "description": "Automatically applies import presets and moves assets to target folders based on naming rules. Zero setup — works out of the box.",
   "unity": "2022.3",
-  "unityRelease": "0f1",
+  "category": "Tools/Utilities",
   "documentationUrl": "https://github.com/kodlon/AssetRouter/blob/main/Documentation~/DOCUMENTATION.md",
   "changelogUrl": "https://github.com/kodlon/AssetRouter/releases",
   "licensesUrl": "https://github.com/kodlon/AssetRouter/blob/main/LICENSE",
@@ -24,6 +24,11 @@
       "displayName": "Quick Start",
       "description": "Example scene with sample assets demonstrating the auto-import and routing flow.",
       "path": "Samples~/QuickStart"
+    },
+    {
+      "displayName": "Legacy Actions",
+      "description": "Actions removed from the core package (GenerateMeshCollider, RunMenuItem). Provided as reference examples.",
+      "path": "Samples~/LegacyActions"
     }
   ],
   "dependencies": {

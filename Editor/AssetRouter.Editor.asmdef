@@ -1,7 +1,7 @@
 {
     "name": "AssetRouter.Editor",
     "rootNamespace": "Kodlon.AssetRouter",
-    "references": [],
+    "references": ["AssetRouter.Runtime"],
     "includePlatforms": [
         "Editor"
     ],

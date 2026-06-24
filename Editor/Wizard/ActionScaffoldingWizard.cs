@@ -1,0 +1,181 @@
+using System.IO;
+using Kodlon.AssetRouter.Logic;
+using UnityEditor;
+using UnityEngine;
+
+namespace Kodlon.AssetRouter.Editor
+{
+    internal static class ActionScaffoldingWizard
+    {
+        [MenuItem("Assets/Create/Asset Router/New Action.../Basic Action")]
+        private static void CreateBasicAction()
+            => Scaffold("NewBasicAction", BasicActionTemplate);
+
+        [MenuItem("Assets/Create/Asset Router/New Action.../Texture Filter Action")]
+        private static void CreateTextureFilterAction()
+            => Scaffold("NewTextureFilterAction", TextureFilterActionTemplate);
+
+        [MenuItem("Assets/Create/Asset Router/New Action.../Sprite Factory Action")]
+        private static void CreateSpriteFactoryAction()
+            => Scaffold("NewSpriteFactoryAction", SpriteFactoryActionTemplate);
+
+        [MenuItem("Assets/Create/Asset Router/New Action.../Prefab Factory Action")]
+        private static void CreatePrefabFactoryAction()
+            => Scaffold("NewPrefabFactoryAction", PrefabFactoryActionTemplate);
+
+        private static void Scaffold(string defaultName, string template)
+        {
+            var savePath = EditorUtility.SaveFilePanelInProject(
+                "Save new action",
+                defaultName,
+                "cs",
+                "Choose where to save the new action script.");
+
+            if (string.IsNullOrEmpty(savePath))
+                return;
+
+            var className  = Path.GetFileNameWithoutExtension(savePath);
+            var ns         = PlayerSettings.productName.Replace(" ", string.Empty) + ".AssetRouter";
+            var content    = template
+                .Replace("{{ACTION_NAME}}", className)
+                .Replace("{{NAMESPACE}}", ns);
+
+            File.WriteAllText(PathUtility.ToAbsolute(savePath), content);
+            AssetDatabase.Refresh();
+        }
+
+        // ── Templates ─────────────────────────────────────────────────────────────
+
+        private const string BasicActionTemplate =
+@"using UnityEditor;
+using UnityEngine;
+using Kodlon.AssetRouter.Actions;
+
+namespace {{NAMESPACE}}
+{
+    [CreateAssetMenu(menuName = ""Asset Router/Actions/{{ACTION_NAME}}"", fileName = ""{{ACTION_NAME}}"")]
+    public sealed class {{ACTION_NAME}} : AssetImportActionAsset
+    {
+        public override bool CanRunOn(Object importedAsset, AssetImportContext ctx) => true;
+
+        public override void Execute(Object importedAsset, AssetImportContext ctx)
+        {
+            // TODO: implement
+        }
+    }
+}
+";
+
+        private const string TextureFilterActionTemplate =
+@"using UnityEditor;
+using UnityEngine;
+using Kodlon.AssetRouter.Actions;
+
+namespace {{NAMESPACE}}
+{
+    [CreateAssetMenu(menuName = ""Asset Router/Actions/{{ACTION_NAME}}"", fileName = ""{{ACTION_NAME}}"")]
+    public sealed class {{ACTION_NAME}} : AssetImportActionAsset
+    {
+        public override bool CanRunOn(Object importedAsset, AssetImportContext ctx)
+            => AssetImporter.GetAtPath(ctx.AssetPath) is TextureImporter;
+
+        public override void Execute(Object importedAsset, AssetImportContext ctx)
+        {
+            if (AssetImporter.GetAtPath(ctx.AssetPath) is not TextureImporter importer)
+                return;
+
+            // TODO: modify importer settings
+            AssetDatabase.ImportAsset(ctx.AssetPath, ImportAssetOptions.ForceUpdate);
+        }
+    }
+}
+";
+
+        private const string SpriteFactoryActionTemplate =
+@"using System.IO;
+using UnityEditor;
+using UnityEngine;
+using Kodlon.AssetRouter.Actions;
+
+namespace {{NAMESPACE}}
+{
+    [CreateAssetMenu(menuName = ""Asset Router/Actions/{{ACTION_NAME}}"", fileName = ""{{ACTION_NAME}}"")]
+    public sealed class {{ACTION_NAME}} : AssetImportActionAsset
+    {
+        public string outputFolder = """";
+        public string namePattern  = ""{assetName}_Output"";
+        public bool overwriteExisting = false;
+
+        public override bool CanRunOn(Object importedAsset, AssetImportContext ctx)
+            => AssetImporter.GetAtPath(ctx.AssetPath) is TextureImporter ti
+               && ti.textureType == TextureImporterType.Sprite;
+
+        public override void Execute(Object importedAsset, AssetImportContext ctx)
+        {
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(ctx.AssetPath);
+            if (sprite == null) return;
+
+            var folder   = (string.IsNullOrEmpty(outputFolder) ? ctx.Rule.targetFolder : outputFolder).Replace('\\', '/').TrimEnd('/');
+            var baseName = Path.GetFileNameWithoutExtension(ctx.AssetPath);
+            var outName  = namePattern.Replace(""{assetName}"", baseName);
+            var outPath  = folder + ""/"" + outName + "".asset"";
+
+            if (!overwriteExisting && AssetDatabase.LoadAssetAtPath<Object>(outPath) != null)
+                return;
+
+            // TODO: create output asset using sprite, then call AssetDatabase.CreateAsset(myAsset, outPath)
+
+            ctx.Logger.Log($""[AssetRouter] {{ACTION_NAME}} → {outPath}"");
+        }
+    }
+}
+";
+
+        private const string PrefabFactoryActionTemplate =
+@"using System.IO;
+using UnityEditor;
+using UnityEngine;
+using Kodlon.AssetRouter.Actions;
+
+namespace {{NAMESPACE}}
+{
+    [CreateAssetMenu(menuName = ""Asset Router/Actions/{{ACTION_NAME}}"", fileName = ""{{ACTION_NAME}}"")]
+    public sealed class {{ACTION_NAME}} : AssetImportActionAsset
+    {
+        public GameObject templatePrefab;
+        public string outputFolder  = """";
+        public string namePattern   = ""{assetName}_Prefab"";
+        public bool overwriteExisting = false;
+
+        public override bool CanRunOn(Object importedAsset, AssetImportContext ctx)
+            => templatePrefab != null;
+
+        public override void Execute(Object importedAsset, AssetImportContext ctx)
+        {
+            var folder     = (string.IsNullOrEmpty(outputFolder) ? ctx.Rule.targetFolder : outputFolder).Replace('\\', '/').TrimEnd('/');
+            var baseName   = System.IO.Path.GetFileNameWithoutExtension(ctx.AssetPath);
+            var prefabName = namePattern.Replace(""{assetName}"", baseName);
+            var prefabPath = folder + ""/"" + prefabName + "".prefab"";
+
+            if (!overwriteExisting && AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) != null)
+                return;
+
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(templatePrefab);
+
+            try
+            {
+                // TODO: configure instance using importedAsset before saving
+                PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
+            }
+
+            ctx.Logger.Log($""[AssetRouter] {{ACTION_NAME}} → {prefabPath}"");
+        }
+    }
+}
+";
+    }
+}

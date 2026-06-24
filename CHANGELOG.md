@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] — 2026-06-24
+
+### Added
+- **Epic 15 — Action library showcase spectrum.**
+  - `Runtime/AssetRouter.Runtime.asmdef` — new Runtime assembly (no Editor constraint, `autoReferenced: true`). User MonoBehaviours and ScriptableObjects can now implement callback interfaces from outside the Editor assembly.
+  - `IAssetRouterPrefabSetup` (Runtime) — `void SetupAssetRouter(Object importedAsset, string assetPath)` callback invoked by `CreatePrefabFromTemplateAction` after the prefab instance is created.
+  - `IAssetRouterDataSetup` (Runtime) — same pattern for `CreateScriptableObjectFromTemplateAction`.
+  - `Editor/AssetRouter.Editor.asmdef` now references `AssetRouter.Runtime`.
+  - **Seven new built-in actions** covering architectural tiers D–G:
+    - `EmitUnityEventAction` (Tier D) — fires a serialized `UnityEvent<Object>` (Inspector-configurable, no code required).
+    - `CreatePrefabFromTemplateAction` (Tier E ⭐) — instantiates a template prefab, calls `IAssetRouterPrefabSetup.SetupAssetRouter` on any component that implements it, then saves the result as a new prefab asset.
+    - `CreateScriptableObjectFromTemplateAction` (Tier E) — clones a template ScriptableObject, calls `IAssetRouterDataSetup.SetupAssetRouter`, then saves as a new `.asset`.
+    - `CreateMaterialFromTextureAction` (Tier E) — creates a new Material from a base material, assigns the imported texture to a configurable property, saves as `.mat`.
+    - `GenerateNineSliceBordersAction` (Tier F) — scans transparent borders of the sprite texture and writes `TextureImporter.spriteBorder` automatically. Requires Read/Write enabled.
+    - `GenerateSpritePhysicsShapeAction` (Tier F) — derives a tight bounding polygon from pixel alpha and applies it via `Sprite.OverridePhysicsShape`. Requires Read/Write enabled.
+    - `CreateTilePaletteEntryAction` (Tier G) — creates a `UnityEngine.Tilemaps.Tile` asset from an imported sprite and saves it to the configured output folder.
+  - `Editor/Wizard/ActionScaffoldingWizard.cs` — four `Assets/Create/Asset Router/New Action.../` menu items that generate ready-to-compile action templates (Basic, Texture Filter, Sprite Factory, Prefab Factory) using `EditorUtility.SaveFilePanelInProject`.
+  - `Samples~/LegacyActions/` — new sample containing `GenerateMeshColliderAction` and `RunMenuItemAction`, removed from the core package (see below). Includes `README.md` explaining the rationale and a standalone `LegacyActions.asmdef`.
+  - `NewActionsTests.cs` — 15 new edit-mode tests: `CanRunOn` null-guard tests for all five new CanRunOn-testable actions + six pixel-analysis unit tests for `GenerateNineSliceBordersAction.ComputeBorder` (extracted as `internal static` for testability).
+  - `package.json` `samples` array updated with the new "Legacy Actions" entry.
+- **Epic 13 — Test coverage closure** (uncommitted from v0.6.0).
+  - `PathUtilityTests.cs` — 9 tests: `NormalizeAssetPath` (null, backslashes, trailing slash), `IsUnderFolder` (prefix-collision regression for `Plugins` vs `PluginsCustom`, case-insensitive), `ToAbsolute` (double-"Assets" regression).
+  - `TrimAudioSilenceActionTests.cs` — 14 tests: leading silence, trailing silence, both ends, all-silence, no-silence, malformed RIFF, RIFX big-endian rejection, `short.MinValue` overflow guard, output RIFF integrity.
+  - `RuleValidatorTests.cs` — 7 additional tests: `ShouldProcess` with null db, null path, empty path, no extension, `PluginsCustom` prefix-collision; `FindMatchingRule` with null list, empty list, null entry in list.
+- `Documentation~/TEST.md` — manual smoke-test checklist (~90 min) covering install, routing, dry-run, history/undo, JSON, and all new actions.
+
+### Removed
+- `GenerateMeshColliderAction` — moved to `Samples~/LegacyActions/` (3D-only; replaced by the Tier E factory actions for the target 2D use case).
+- `RunMenuItemAction` — moved to `Samples~/LegacyActions/` (superseded by `EmitUnityEventAction`).
+
+---
+
 ## [0.6.0] — 2026-06-21
 
 ### Changed

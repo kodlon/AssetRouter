@@ -103,5 +103,57 @@ namespace Kodlon.AssetRouter.Tests
         {
             Assert.IsTrue(RuleValidator.ShouldProcess(_db, "Assets/T_Rock.png"));
         }
+
+        [Test]
+        public void ShouldProcess_NullDatabase_ReturnsFalse()
+        {
+            Assert.IsFalse(RuleValidator.ShouldProcess(null, "Assets/T_Rock.png"));
+        }
+
+        [Test]
+        public void ShouldProcess_NullPath_ReturnsFalse()
+        {
+            Assert.IsFalse(RuleValidator.ShouldProcess(_db, null));
+        }
+
+        [Test]
+        public void ShouldProcess_EmptyPath_ReturnsFalse()
+        {
+            Assert.IsFalse(RuleValidator.ShouldProcess(_db, ""));
+        }
+
+        [Test]
+        public void ShouldProcess_NoExtension_ReturnsFalse()
+        {
+            Assert.IsFalse(RuleValidator.ShouldProcess(_db, "Assets/FileWithoutExtension"));
+        }
+
+        [Test]
+        public void ShouldProcess_IgnoredFolderPrefixCollision_ReturnsTrue()
+        {
+            // "Assets/Plugins" is ignored, but "Assets/PluginsCustom" must NOT be.
+            Assert.IsTrue(RuleValidator.ShouldProcess(_db, "Assets/PluginsCustom/T_Rock.png"));
+        }
+
+        [Test]
+        public void FindMatchingRule_NullRuleList_ReturnsNull()
+        {
+            Assert.IsNull(RuleValidator.FindMatchingRule(null, "Assets/T_Rock.png"));
+        }
+
+        [Test]
+        public void FindMatchingRule_EmptyRuleList_ReturnsNull()
+        {
+            Assert.IsNull(RuleValidator.FindMatchingRule(new List<BaseImportRule>(), "Assets/T_Rock.png"));
+        }
+
+        [Test]
+        public void FindMatchingRule_NullRuleInList_IsSkipped()
+        {
+            var rule  = new ImportRule { ruleName = "Textures", pattern = "T_*", patternMode = PatternMode.Glob, isEnabled = true };
+            var rules = new List<BaseImportRule> { null, rule };
+
+            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(rules, "Assets/T_Rock.png"));
+        }
     }
 }
