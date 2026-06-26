@@ -20,11 +20,10 @@ namespace Kodlon.AssetRouter.Logic
                 migrated = true;
             }
 
-            db.schemaVersion = ImporterSettingsDatabase.LatestSchemaVersion;
-
             if (!migrated)
                 return;
 
+            db.schemaVersion = ImporterSettingsDatabase.LatestSchemaVersion;
             EditorUtility.SetDirty(db);
             AssetDatabase.SaveAssets();
 

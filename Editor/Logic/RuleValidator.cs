@@ -19,6 +19,10 @@ namespace Kodlon.AssetRouter.Logic
                 if (rule == null || !rule.isEnabled || string.IsNullOrEmpty(rule.pattern))
                     continue;
 
+                if (!string.IsNullOrEmpty(rule.scopeFolder) &&
+                    !PathUtility.IsUnderFolder(assetPath, rule.scopeFolder))
+                    continue;
+
                 if (PatternMatcher.Matches(rule, assetPath))
                     return rule;
             }
@@ -38,22 +42,29 @@ namespace Kodlon.AssetRouter.Logic
 
             var monitored = false;
 
-            for (var i = 0; i < db.monitoredExtensions.Count; i++)
+            if (db.monitoredExtensions != null)
             {
-                if (db.monitoredExtensions[i].Equals(extension, StringComparison.OrdinalIgnoreCase))
+                for (var i = 0; i < db.monitoredExtensions.Count; i++)
                 {
-                    monitored = true;
-                    break;
+                    if (db.monitoredExtensions[i] == null) continue;
+                    if (db.monitoredExtensions[i].Equals(extension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        monitored = true;
+                        break;
+                    }
                 }
             }
 
             if (!monitored)
                 return false;
 
-            for (var i = 0; i < db.ignoredFolders.Count; i++)
+            if (db.ignoredFolders != null)
             {
-                if (PathUtility.IsUnderFolder(assetPath, db.ignoredFolders[i]))
-                    return false;
+                for (var i = 0; i < db.ignoredFolders.Count; i++)
+                {
+                    if (PathUtility.IsUnderFolder(assetPath, db.ignoredFolders[i]))
+                        return false;
+                }
             }
 
             return true;

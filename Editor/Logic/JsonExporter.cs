@@ -54,7 +54,10 @@ namespace Kodlon.AssetRouter.Logic
             foreach (var rule in db.rules)
             {
                 if (rule is not ImportRule importRule)
+                {
+                    Debug.LogWarning($"[AssetRouter] Rule \"{rule?.ruleName}\" ({rule?.GetType().Name}) is not an ImportRule and will be skipped during JSON export.");
                     continue;
+                }
 
                 var rObj = new JObject
                 {
@@ -64,6 +67,7 @@ namespace Kodlon.AssetRouter.Logic
                     ["pattern"]             = importRule.pattern,
                     ["patternMode"]         = importRule.patternMode.ToString(),
                     ["matchAgainstFullPath"] = importRule.matchAgainstFullPath,
+                    ["scopeFolder"]         = importRule.scopeFolder,
                     ["targetFolder"]        = importRule.targetFolder
                 };
 

@@ -29,7 +29,7 @@ namespace Kodlon.AssetRouter.Actions
                 return;
             }
 
-            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? ctx.Rule.targetFolder : outputFolder);
+            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (ctx.Rule?.targetFolder ?? string.Empty) : outputFolder);
             var baseName = Path.GetFileNameWithoutExtension(ctx.AssetPath);
             var tileName = namePattern.Replace("{assetName}", baseName);
             var tilePath = folder + "/" + tileName + ".asset";

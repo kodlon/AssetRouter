@@ -21,7 +21,7 @@ namespace Kodlon.AssetRouter.Actions
 
         public override void Execute(Object importedAsset, AssetImportContext ctx)
         {
-            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? ctx.Rule.targetFolder : outputFolder);
+            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (ctx.Rule?.targetFolder ?? string.Empty) : outputFolder);
             var baseName = Path.GetFileNameWithoutExtension(ctx.AssetPath);
             var soName   = namePattern.Replace("{assetName}", baseName);
             var soPath   = folder + "/" + soName + ".asset";

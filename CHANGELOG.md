@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0] — 2026-06-26
+
+### Added
+- **Epic 10 — Quality-of-life & observability.**
+  - **10.1 Per-folder rule scope.** `BaseImportRule` gains a `scopeFolder` field (default `""`).
+    When non-empty, `RuleValidator.FindMatchingRule` skips the rule if the asset is not inside that
+    folder (via `PathUtility.IsUnderFolder`). Allows the same file-name pattern to route differently
+    depending on which source folder an asset was dropped into. UI: "Scope Folder" field in the Pattern
+    section of the rule detail panel. Three new tests in `RuleValidatorTests`.
+  - **10.2 Diagnostic Window.** `Tools > Asset Router > Diagnostic Window` — a live table of every
+    monitored asset processed by the postprocessor. Columns: timestamp, filename, matched rule, and
+    action (no match / in place / moved / queued). The window registers with `DiagnosticLog.IsEnabled`
+    on open and unregisters on close, so zero overhead when unused.
+    - `Editor/Logic/DiagnosticLog.cs` — in-memory ring buffer (max 500 entries), cleared on assembly
+      reload via `AssemblyReloadEvents.beforeAssemblyReload`.
+    - `Editor/View/DiagnosticWindow.cs` — `EditorWindow` with auto-scroll toggle and Clear button.
+  - **10.3 Per-rule statistics.** How many times each rule matched since first use.
+    - `Editor/Logic/RuleStatsStore.cs` — persists counts to `Library/AssetRouter/stats.json` (atomic
+      write via `File.Replace`). `IncrementBatch(List<string>)` does a single read + single write per
+      import batch regardless of how many assets matched. `ReadAll()` returns a
+      `Dictionary<string, int>`.
+    - `BaseImportRule._sessionMatchCount` (`[NonSerialized]`) — in-memory per-session counter
+      incremented in `OnPostprocessAllAssets`.
+    - Asset Router window rule list shows `(N✓)` next to rules that have matched at least once.
+    - Four new tests in `RuleStatsStoreTests.cs`.
+  - **10.4 Naming convention validator.** New "Validate" tab in the Asset Router window.
+    - Scans all monitored project assets via `DryRunPlanner.Scan` and lists those with no matching
+      rule — read-only, no asset moves performed.
+    - "Copy to Clipboard" button exports the violation list as newline-separated paths.
+    - `Editor/View/NamingValidatorView.cs`.
+  - **10.6 Double-apply protection.** `OnPreprocessAsset` now checks `AssetsBeingMoved.Contains(assetPath)`
+    and returns early if the asset is currently being moved by the postprocessor. Prevents the preset
+    from being applied a second time on the re-import that Unity triggers after `MoveAsset`.
+
+### Changed
+- `AssetRouterPostprocessor.OnPostprocessAllAssets`: collected rule-name list is flushed to
+  `RuleStatsStore.IncrementBatch` once per import batch (not per asset). Emits to `DiagnosticLog`
+  when the window is open.
+- Asset Router window: `TabLabels` extended from 3 to 4 entries ("Validate" added). Stats cache
+  loaded from `RuleStatsStore` when a database is loaded.
+- `package.json` version bumped to `0.8.0`.
+
+---
+
 ## [0.7.0] — 2026-06-24
 
 ### Added

@@ -29,6 +29,7 @@ namespace Kodlon.AssetRouter.Logic
 
             if (root["monitoredExtensions"] is JArray extensions)
             {
+                db.monitoredExtensions ??= new List<string>();
                 db.monitoredExtensions.Clear();
                 foreach (var ext in extensions)
                 {
@@ -40,6 +41,7 @@ namespace Kodlon.AssetRouter.Logic
 
             if (root["ignoredFolders"] is JArray ignored)
             {
+                db.ignoredFolders ??= new List<string>();
                 db.ignoredFolders.Clear();
                 foreach (var folder in ignored)
                 {
@@ -51,6 +53,7 @@ namespace Kodlon.AssetRouter.Logic
 
             if (root["rules"] is JArray rulesArr)
             {
+                db.rules ??= new List<BaseImportRule>();
                 db.rules.Clear();
                 foreach (var rToken in rulesArr)
                 {
@@ -74,6 +77,7 @@ namespace Kodlon.AssetRouter.Logic
                 isEnabled            = rObj["isEnabled"]?.Value<bool>()              ?? true,
                 pattern              = rObj["pattern"]?.Value<string>()              ?? "",
                 matchAgainstFullPath = rObj["matchAgainstFullPath"]?.Value<bool>()   ?? false,
+                scopeFolder          = rObj["scopeFolder"]?.Value<string>()          ?? "",
                 targetFolder         = rObj["targetFolder"]?.Value<string>()         ?? ""
             };
 

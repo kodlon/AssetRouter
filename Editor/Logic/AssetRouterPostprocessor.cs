@@ -41,8 +41,9 @@ namespace Kodlon.AssetRouter.Logic
             if (db == null || !db.enableAutoImport)
                 return;
 
-            var toMove        = new List<AssetMoveCandidate>();
-            var unknownAssets = new List<string>();
+            var toMove            = new List<AssetMoveCandidate>();
+            var unknownAssets     = new List<string>();
+            var batchMatchedRules = new List<string>();
 
             foreach (var assetPath in importedAssets)
             {
@@ -69,13 +70,23 @@ namespace Kodlon.AssetRouter.Logic
                     if (db.showPopupForUnknownFiles)
                         unknownAssets.Add(assetPath);
 
+                    if (DiagnosticLog.IsEnabled)
+                        DiagnosticLog.Add(assetPath, null, false, false);
+
                     continue;
                 }
 
-                var currentFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(assetPath) ?? "") + "/";
-                var targetFolder  = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
+                rule._sessionMatchCount++;
+                batchMatchedRules.Add(rule.ruleName);
 
-                if (string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase))
+                var currentFolder  = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(assetPath) ?? "") + "/";
+                var targetFolder   = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
+                var alreadyInPlace = string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase);
+
+                if (DiagnosticLog.IsEnabled)
+                    DiagnosticLog.Add(assetPath, rule.ruleName, !alreadyInPlace, alreadyInPlace);
+
+                if (alreadyInPlace)
                 {
                     ActionPipeline.Execute(rule, assetPath, db);
                     continue;
@@ -86,6 +97,9 @@ namespace Kodlon.AssetRouter.Logic
 
             if (toMove.Count > 0)
                 ExecuteMovesBatched(toMove, db);
+
+            if (batchMatchedRules.Count > 0)
+                RuleStatsStore.IncrementBatch(batchMatchedRules);
 
             if (unknownAssets.Count > 0)
             {
@@ -102,6 +116,9 @@ namespace Kodlon.AssetRouter.Logic
             var db = DatabaseLocator.FindDatabase();
 
             if (db == null || !db.enableAutoImport)
+                return;
+
+            if (AssetsBeingMoved.Contains(assetPath))
                 return;
 
             if (!RuleValidator.ShouldProcess(db, assetPath))

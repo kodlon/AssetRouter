@@ -12,6 +12,7 @@ namespace Kodlon.AssetRouter.Logic
 
         public static string ToAbsolute(string assetPath)
         {
+            if (assetPath == null) return string.Empty;
             var projectRoot = Path.GetDirectoryName(Application.dataPath) ?? string.Empty;
             return Path.Combine(projectRoot, assetPath.Replace('/', Path.DirectorySeparatorChar));
         }

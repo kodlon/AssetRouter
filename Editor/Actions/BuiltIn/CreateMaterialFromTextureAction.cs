@@ -25,7 +25,7 @@ namespace Kodlon.AssetRouter.Actions
             if (importedAsset is not Texture2D texture)
                 return;
 
-            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? ctx.Rule.targetFolder : outputFolder);
+            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (ctx.Rule?.targetFolder ?? string.Empty) : outputFolder);
             var baseName = Path.GetFileNameWithoutExtension(ctx.AssetPath);
             var matName  = namePattern.Replace("{assetName}", baseName);
             var matPath  = folder + "/" + matName + ".mat";

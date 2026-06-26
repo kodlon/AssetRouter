@@ -48,6 +48,9 @@ namespace Kodlon.AssetRouter.View
                     tooltip: "When enabled, the pattern is compared against the full asset path " +
                              "(e.g. Assets/Art/T_Rock.png) instead of just the filename (T_Rock.png). " +
                              "Required for path-based patterns such as Assets/**.");
+                Field(element, "scopeFolder", "Scope Folder",
+                    tooltip: "When set, this rule only applies to assets inside this folder. " +
+                             "Leave empty to match in all monitored folders. E.g. Assets/Art/Raw/");
 
                 DrawPatternPreview(ruleRef);
 
@@ -199,10 +202,13 @@ namespace Kodlon.AssetRouter.View
             var matches = new List<string>(3);
             var guids   = AssetDatabase.FindAssets("", new[] { "Assets" });
             var limit   = Mathf.Min(guids.Length, 500);
+            var hasScope = !string.IsNullOrEmpty(rule.scopeFolder);
 
             for (var i = 0; i < limit && matches.Count < 3; i++)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+                if (hasScope && !PathUtility.IsUnderFolder(path, rule.scopeFolder))
+                    continue;
                 if (PatternMatcher.Matches(rule, path))
                     matches.Add(Path.GetFileName(path));
             }
@@ -252,8 +258,10 @@ namespace Kodlon.AssetRouter.View
 
         private static void Field(SerializedProperty parent, string propName, string label, string tooltip = null)
         {
+            var prop = parent.FindPropertyRelative(propName);
+            if (prop == null) return;
             var content = tooltip != null ? new GUIContent(label, tooltip) : new GUIContent(label);
-            EditorGUILayout.PropertyField(parent.FindPropertyRelative(propName), content);
+            EditorGUILayout.PropertyField(prop, content);
         }
 
         private static void SectionLabel(string text)

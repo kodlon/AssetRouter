@@ -74,17 +74,25 @@ namespace Kodlon.AssetRouter.Logic
         private static bool IsStrictDuplicate(BaseImportRule a, BaseImportRule b)
             => a.patternMode == b.patternMode
                && a.matchAgainstFullPath == b.matchAgainstFullPath
-               && string.Equals(a.pattern, b.pattern, StringComparison.OrdinalIgnoreCase);
+               && string.Equals(a.pattern, b.pattern, StringComparison.OrdinalIgnoreCase)
+               && string.Equals(a.scopeFolder, b.scopeFolder, StringComparison.OrdinalIgnoreCase);
 
         private static bool HasSampleOverlap(BaseImportRule a, BaseImportRule b, string[] samplePaths)
         {
             for (var i = 0; i < samplePaths.Length; i++)
             {
-                if (PatternMatcher.Matches(a, samplePaths[i]) && PatternMatcher.Matches(b, samplePaths[i]))
+                if (MatchesWithScope(a, samplePaths[i]) && MatchesWithScope(b, samplePaths[i]))
                     return true;
             }
 
             return false;
+        }
+
+        private static bool MatchesWithScope(BaseImportRule rule, string path)
+        {
+            if (!string.IsNullOrEmpty(rule.scopeFolder) && !PathUtility.IsUnderFolder(path, rule.scopeFolder))
+                return false;
+            return PatternMatcher.Matches(rule, path);
         }
 
         private static string[] BuildSamplePaths()

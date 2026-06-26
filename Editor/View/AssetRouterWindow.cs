@@ -34,10 +34,12 @@ namespace Kodlon.AssetRouter.View
         private ReorderableList _actionsList;
         private int _actionsForRuleIndex = -1;
 
-        private static readonly string[] TabLabels = { "Settings", "Dry Run", "History" };
+        private static readonly string[] TabLabels = { "Settings", "Dry Run", "History", "Validate" };
         private int _activeTab;
         private readonly DryRunView _dryRunView = new DryRunView();
         private readonly HistoryView _historyView = new HistoryView();
+        private readonly NamingValidatorView _validatorView = new NamingValidatorView();
+        private Dictionary<string, int> _statsCache;
 
         [MenuItem("Tools/Asset Router Settings")]
         public static void OpenWindow()
@@ -87,6 +89,7 @@ namespace Kodlon.AssetRouter.View
                 case 0: DrawSettingsTab(); break;
                 case 1: _dryRunView.Draw(_database); break;
                 case 2: _historyView.Draw(); break;
+                case 3: _validatorView.Draw(_database); break;
             }
 
             if (_serializedDb.ApplyModifiedProperties())
@@ -95,7 +98,7 @@ namespace Kodlon.AssetRouter.View
                 RefreshConflicts();
             }
 
-            if (_previewRebuildTime > 0 && EditorApplication.timeSinceStartup < _previewRebuildTime)
+            if (_activeTab == 0 && _previewRebuildTime > 0 && EditorApplication.timeSinceStartup < _previewRebuildTime)
                 Repaint();
         }
 
@@ -220,8 +223,11 @@ namespace Kodlon.AssetRouter.View
                 var hasConflict = _conflictedIndices != null && _conflictedIndices.Contains(index);
                 var nameText    = hasConflict ? $"⚠ {nameProp.stringValue}" : nameProp.stringValue;
                 var patternText = string.IsNullOrEmpty(patternProp.stringValue) ? "*" : patternProp.stringValue;
+                var statCount   = _statsCache != null && _statsCache.TryGetValue(nameProp.stringValue, out var sc) && sc > 0
+                    ? $"  ({sc}✓)"
+                    : "";
 
-                EditorGUI.LabelField(labelRect, $"{nameText}   [{patternText}]   -> {targetProp.stringValue}", labelStyle);
+                EditorGUI.LabelField(labelRect, $"{nameText}   [{patternText}]   -> {targetProp.stringValue}{statCount}", labelStyle);
             };
 
             _rulesList.onSelectCallback = list =>
@@ -292,6 +298,7 @@ namespace Kodlon.AssetRouter.View
             _previewRebuildTime = -1;
             _actionsList = null;
             _actionsForRuleIndex = -1;
+            _statsCache = RuleStatsStore.ReadAll();
 
             if (_serializedDb != null)
                 BuildReorderableList();

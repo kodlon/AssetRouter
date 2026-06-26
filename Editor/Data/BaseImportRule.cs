@@ -21,6 +21,8 @@ namespace Kodlon.AssetRouter.Data
         [Space]
         public string targetFolder = "Assets/";
 
+        public string scopeFolder = "";
+
         [SerializeField, HideInInspector, FormerlySerializedAs("prefix")]
         internal string _legacyPrefix = "";
 
@@ -32,5 +34,6 @@ namespace Kodlon.AssetRouter.Data
 
         [NonSerialized] internal Regex _compiledPattern;
         [NonSerialized] internal string _compiledFor;
+        [NonSerialized] internal int _sessionMatchCount;
     }
 }

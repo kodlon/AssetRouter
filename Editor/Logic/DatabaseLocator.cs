@@ -13,6 +13,7 @@ namespace Kodlon.AssetRouter.Logic
         [InitializeOnLoadMethod]
         private static void RegisterReloadHook()
         {
+            AssemblyReloadEvents.beforeAssemblyReload -= InvalidateCache;
             AssemblyReloadEvents.beforeAssemblyReload += InvalidateCache;
         }
 
