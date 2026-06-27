@@ -3,9 +3,13 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
+    /// <summary>
+    /// Sets the sprite pivot on a texture asset and re-imports it. Only runs on Sprite-type textures.
+    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Set Pivot", fileName = "SetPivotAction")]
     public sealed class SetPivotAction : AssetImportActionAsset
     {
+        /// <summary>Pivot point in normalized coordinates. (0.5, 0.5) is center. (0, 0) is bottom-left.</summary>
         public Vector2 pivot = new Vector2(0.5f, 0.5f);
 
         public override bool CanRunOn(Object importedAsset, AssetImportContext ctx)

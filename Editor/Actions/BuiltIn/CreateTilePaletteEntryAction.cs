@@ -6,14 +6,25 @@ using UnityEngine.Tilemaps;
 
 namespace Kodlon.AssetRouter.Actions
 {
+    /// <summary>
+    /// Creates a <c>UnityEngine.Tilemaps.Tile</c> asset from the first Sprite sub-asset of the imported texture.
+    /// Only runs on Sprite-type textures. Logs a warning and skips if no Sprite sub-asset is found.
+    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Create Tile Palette Entry", fileName = "CreateTilePaletteEntryAction")]
     public sealed class CreateTilePaletteEntryAction : AssetImportActionAsset
     {
+        /// <summary>Folder where the output .asset tile is saved. Falls back to the rule's target folder when empty.</summary>
         [Tooltip("Output folder. Empty = rule's target folder.")]
         public string outputFolder = "";
+
+        /// <summary>File name for the output tile without extension. <c>{assetName}</c> is replaced with the imported file name.</summary>
         [Tooltip("{assetName} is replaced with the imported file name (no extension).")]
         public string namePattern = "{assetName}_Tile";
+
+        /// <summary>When false, the action is skipped if a tile asset already exists at the output path.</summary>
         public bool overwriteExisting = false;
+
+        /// <summary>Tint color applied to the tile. White means no tint.</summary>
         public Color tileColor = Color.white;
 
         public override bool CanRunOn(Object importedAsset, AssetImportContext ctx)

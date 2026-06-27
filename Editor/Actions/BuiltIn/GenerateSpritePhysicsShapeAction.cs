@@ -4,9 +4,17 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
+    /// <summary>
+    /// Derives a bounding rectangle from the sprite's opaque pixels and applies it as the physics shape
+    /// via <c>Sprite.OverridePhysicsShape</c>. Requires Read/Write enabled on the texture.
+    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Generate Sprite Physics Shape", fileName = "GenerateSpritePhysicsShapeAction")]
     public sealed class GenerateSpritePhysicsShapeAction : AssetImportActionAsset
     {
+        /// <summary>
+        /// Pixels with alpha below this value are treated as transparent and excluded from the bounding box.
+        /// Range: 0 to 1.
+        /// </summary>
         [Range(0f, 1f)]
         [Tooltip("Alpha below this value is treated as transparent.")]
         public float alphaThreshold = 0.1f;

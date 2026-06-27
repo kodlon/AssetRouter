@@ -8,9 +8,17 @@ using UnityEditor.AddressableAssets.Settings;
 
 namespace Kodlon.AssetRouter.Actions
 {
+    /// <summary>
+    /// Registers the imported asset in an Addressables group via <c>AddressableAssetSettings.CreateOrMoveEntry</c>.
+    /// Compiled only when <c>com.unity.addressables &gt;= 1.19.0</c> is installed (<c>UNITY_ADDRESSABLES</c> define).
+    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Register Addressable", fileName = "RegisterAddressableAction")]
     public sealed class RegisterAddressableAction : AssetImportActionAsset
     {
+        /// <summary>
+        /// Name of the Addressables group to register the asset in.
+        /// Falls back to the Default Group when empty or when no group with this name exists.
+        /// </summary>
         [Tooltip("Name of the Addressables group to add the asset to. Uses the Default group if empty or not found.")]
         public string groupName = "";
 

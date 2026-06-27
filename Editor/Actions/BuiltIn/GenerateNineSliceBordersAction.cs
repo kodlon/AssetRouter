@@ -3,9 +3,19 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
+    /// <summary>
+    /// Scans the sprite texture for transparent border regions and writes the result to
+    /// <c>TextureImporter.spriteBorder</c>. Requires Read/Write enabled on the texture.
+    /// Only runs on Sprite-type textures.
+    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Generate Nine Slice Borders", fileName = "GenerateNineSliceBordersAction")]
     public sealed class GenerateNineSliceBordersAction : AssetImportActionAsset
     {
+        /// <summary>
+        /// Pixels with alpha below this value are treated as transparent.
+        /// The action scans from each edge inward until it finds a pixel at or above this threshold.
+        /// Range: 0 to 1.
+        /// </summary>
         [Range(0f, 1f)]
         [Tooltip("Alpha below this value is treated as transparent.")]
         public float alphaThreshold = 0.1f;

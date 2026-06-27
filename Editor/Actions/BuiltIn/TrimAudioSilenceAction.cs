@@ -8,9 +8,21 @@ using Object = UnityEngine.Object;
 
 namespace Kodlon.AssetRouter.Actions
 {
+    /// <summary>
+    /// Trims leading and trailing silence from WAV files. Works only on 16-bit PCM WAV (RIFF little-endian).
+    /// Replaces the file atomically via <c>File.Replace</c> and triggers a re-import.
+    /// </summary>
+    /// <remarks>
+    /// Files in RIFX (big-endian), non-PCM, or non-16-bit format are left untouched.
+    /// A re-entry guard prevents the re-import from triggering the action a second time.
+    /// </remarks>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Trim Audio Silence", fileName = "TrimAudioSilenceAction")]
     public sealed class TrimAudioSilenceAction : AssetImportActionAsset
     {
+        /// <summary>
+        /// Fraction of <c>short.MaxValue</c> below which a sample is considered silent. Range: 0 to 0.1.
+        /// A value of 0.01 means samples with amplitude below 327 (out of 32767) are treated as silence.
+        /// </summary>
         [Range(0f, 0.1f), Tooltip("Samples with absolute amplitude below this fraction of max are considered silent.")]
         public float silenceThreshold = 0.01f;
 

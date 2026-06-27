@@ -86,13 +86,43 @@ Settings tab via the **Import Preset** field.
 
 ## Adding post-import actions
 
-Select a rule in the Settings tab and scroll to **Post-Import Actions**.  
+Select a rule in the Settings tab and scroll to **Post-Import Actions**.
 Click **+** to choose a built-in action:
 
-- **Set Pivot Action** — centers the sprite pivot after import
-- **Generate Mesh Collider Action** — enables `addCollider` on FBX models
-- **Trim Audio Silence Action** — strips leading/trailing silence from 16-bit PCM WAV files
-- **Append To Catalog Action** — adds the asset to an `AssetCatalog` ScriptableObject
-- **Run Menu Item Action** — calls any editor menu item after import
+| Action | What it does |
+|--------|-------------|
+| Set Pivot Action | Sets sprite pivot and re-imports |
+| Trim Audio Silence Action | Strips leading/trailing silence from 16-bit PCM WAV files |
+| Append To Catalog Action | Adds the asset to an AssetCatalog ScriptableObject |
+| Register Addressable Action | Adds the asset to an Addressables group |
+| Emit Unity Event Action | Fires a serialized UnityEvent configured in the Inspector |
+| Create Prefab From Template Action | Instantiates a template prefab, calls setup callback, saves as new prefab |
+| Create ScriptableObject From Template Action | Clones a template SO, calls setup callback, saves as new .asset |
+| Create Material From Texture Action | Creates a material from a base material and assigns the texture |
+| Generate Sprite Physics Shape Action | Derives physics outline from pixel alpha |
+| Generate Nine Slice Borders Action | Detects transparent edges and sets spriteBorder |
+| Create Tile Palette Entry Action | Creates a Tile asset for use in Tilemap |
 
-Actions run in order. A failing action never blocks the ones after it.
+Actions run in order. A failing action does not stop the ones after it.
+
+See [Documentation~/actions/README.md](../../Documentation~/actions/README.md) for full details
+on each action.
+
+---
+
+## Use cases
+
+**For a solo developer**
+Start by changing only the target folders in the four default rules to match your project structure.
+Add actions only when you notice you are doing the same manual step after every import.
+See [solo-developer.md](../../Documentation~/use-cases/solo-developer.md).
+
+**For a small team**
+Use Scope Folder on rules to route the same file name differently depending on which artist's
+folder it came from. Use JSON export to keep the database in version control.
+See [mobile-team.md](../../Documentation~/use-cases/mobile-team.md).
+
+**For cleaning up a legacy project**
+Use the Dry Run tab to preview all moves before applying them. Work in small batches and use
+History to undo if anything goes wrong.
+See [legacy-cleanup.md](../../Documentation~/use-cases/legacy-cleanup.md).

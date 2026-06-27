@@ -6,14 +6,28 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
+    /// <summary>
+    /// Clones a template ScriptableObject via <c>Instantiate</c>, calls <see cref="IAssetRouterDataSetup.SetupAssetRouter"/>
+    /// if the clone implements it, then saves the result as a new .asset file.
+    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Create ScriptableObject From Template", fileName = "CreateScriptableObjectFromTemplateAction")]
     public sealed class CreateScriptableObjectFromTemplateAction : AssetImportActionAsset
     {
+        /// <summary>ScriptableObject to clone. All serialized fields are copied to the new instance.</summary>
         public ScriptableObject template;
+
+        /// <summary>Folder where the output .asset is saved. Falls back to the rule's target folder when empty.</summary>
         [Tooltip("Output folder. Empty = rule's target folder.")]
         public string outputFolder = "";
+
+        /// <summary>
+        /// File name for the output asset without extension. <c>{assetName}</c> is replaced with the imported file
+        /// name (without extension).
+        /// </summary>
         [Tooltip("{assetName} is replaced with the imported file name (no extension).")]
         public string namePattern = "{assetName}_Data";
+
+        /// <summary>When false, the action is skipped if an asset already exists at the output path.</summary>
         public bool overwriteExisting = false;
 
         public override bool CanRunOn(Object importedAsset, AssetImportContext ctx)
