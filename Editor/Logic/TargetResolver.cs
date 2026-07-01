@@ -15,7 +15,7 @@ namespace Kodlon.AssetRouter.Logic
         /// </summary>
         public static string Resolve(string template, Match match)
         {
-            if (string.IsNullOrEmpty(template) || !template.Contains('{'))
+            if (string.IsNullOrEmpty(template) || (!template.Contains('{') && !template.Contains('}')))
                 return template;
 
             if (match == null || !match.Success)

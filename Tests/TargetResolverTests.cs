@@ -64,9 +64,11 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void Resolve_EmptyCapture_GroupNotParticipated_KeepsTokenLiterally()
         {
-            // Optional group that did not participate — group exists but Success = false
+            // Optional group that did not participate — group exists but Success = false.
+            // .NET quirk: named groups are numbered AFTER unnamed groups, so in
+            // ^(?<x>foo)?(Hello)$ the (Hello) group is {1} and (?<x>foo)? is {2}/{x}.
             var m = Regex.Match("Hello", @"^(?<x>foo)?(Hello)$");
-            var result = TargetResolver.Resolve("Assets/{x}/{2}/", m);
+            var result = TargetResolver.Resolve("Assets/{x}/{1}/", m);
             Assert.AreEqual("Assets/{x}/Hello/", result);
         }
 

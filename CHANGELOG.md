@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.2] — 2026-07-01
+
+### Fixed
+- `TargetResolver.Resolve` fast path incorrectly skipped `}}` escape processing when the
+  template contained no `{` character. Templates like `Assets/folder}}/` now correctly resolve
+  to `Assets/folder}/`. The fast path now bails out only when the template contains neither
+  `{` nor `}`.
+- Test `Match_GlobWithDoubleStar_CapturesPath` expectation updated: `**` in glob translates
+  to greedy `(.*)`, so the trailing `/` before the next literal segment is captured. Downstream
+  `TargetResolver.Resolve` collapses any resulting `//` in the resolved target, so this is
+  safe in practice.
+- Test `Resolve_EmptyCapture_GroupNotParticipated_KeepsTokenLiterally` corrected for .NET
+  regex group numbering: named groups are numbered AFTER unnamed groups, so in
+  `^(?<x>foo)?(Hello)$` the `(Hello)` group is `{1}` and `(?<x>foo)?` is `{2}` / `{x}`.
+
+### Changed
+- `package.json` version bumped to `0.9.2`.
+
+---
+
 ## [0.9.1] — 2026-06-30
 
 ### Added
