@@ -55,7 +55,14 @@ namespace Kodlon.AssetRouter.View
                 DrawPatternPreview(ruleRef);
 
                 SectionLabel("Target");
-                Field(element, "targetFolder", "Target Folder");
+                Field(element, "targetFolder", "Target Folder",
+                    tooltip: "Destination folder for matched assets. Supports capture group tokens:\n" +
+                             "  {1}, {2}, … — positional (Glob: each * is a capture group, left-to-right)\n" +
+                             "  {name}      — named  (Regex: use (?<name>…) syntax)\n" +
+                             "  {{ / }}     — literal brace escapes\n" +
+                             "  ?           — single-char wildcard, NOT a capture (does not produce {n})\n" +
+                             "Example: pattern T_Char_*_* with target Assets/Art/Characters/{1}/ routes\n" +
+                             "T_Char_Hero_D.png → Assets/Art/Characters/Hero/");
 
                 SectionLabel("Settings");
                 Field(element, "preset", "Import Preset");
@@ -199,23 +206,44 @@ namespace Kodlon.AssetRouter.View
                 && PatternMatcher.TryGetRegexError(rule.pattern, out var error))
                 return $"⚠ {error}";
 
-            var matches = new List<string>(3);
-            var guids   = AssetDatabase.FindAssets("", new[] { "Assets" });
-            var limit   = Mathf.Min(guids.Length, 500);
-            var hasScope = !string.IsNullOrEmpty(rule.scopeFolder);
+            var hasTokens = !string.IsNullOrEmpty(rule.targetFolder) && rule.targetFolder.Contains('{');
+            var lines     = new List<string>(3);
+            var guids     = AssetDatabase.FindAssets("", new[] { "Assets" });
+            var limit     = Mathf.Min(guids.Length, 500);
+            var hasScope  = !string.IsNullOrEmpty(rule.scopeFolder);
 
-            for (var i = 0; i < limit && matches.Count < 3; i++)
+            for (var i = 0; i < limit && lines.Count < 3; i++)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);
                 if (hasScope && !PathUtility.IsUnderFolder(path, rule.scopeFolder))
                     continue;
-                if (PatternMatcher.Matches(rule, path))
-                    matches.Add(Path.GetFileName(path));
+
+                var m = PatternMatcher.Match(rule, path);
+                if (m == null)
+                    continue;
+
+                var fileName = Path.GetFileName(path);
+
+                if (hasTokens)
+                {
+                    if (!TargetResolver.TryValidate(rule.targetFolder, m, out var tokenErr) && lines.Count == 0)
+                        return $"⚠ {tokenErr}";
+
+                    var resolved = TargetResolver.Resolve(rule.targetFolder, m);
+                    lines.Add($"{fileName}  →  {resolved}");
+                }
+                else
+                {
+                    lines.Add(fileName);
+                }
             }
 
-            return matches.Count > 0
-                ? $"✓ e.g. {string.Join(", ", matches)}"
-                : "— no matches found in project";
+            if (lines.Count == 0)
+                return "— no matches found in project";
+
+            return hasTokens
+                ? "✓ e.g.\n" + string.Join("\n", lines)
+                : "✓ e.g. " + string.Join(", ", lines);
         }
 
         private void CleanUpActionSubAssets(IList<AssetImportActionAsset> actions)

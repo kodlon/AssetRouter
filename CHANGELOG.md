@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.1] — 2026-06-30
+
+### Added
+- **Epic 16 — Path Templating.**
+  Capture group tokens in `targetFolder` let a single rule route assets to different
+  subdirectories based on their name without writing N×M rules.
+  - **Token syntax in `targetFolder`:**
+    - `{1}`, `{2}`, … — positional captures (Glob: each `*` or `**` becomes capture group 1, 2, …)
+    - `{name}` — named captures (Regex: `(?<name>…)` syntax)
+    - `{{` / `}}` — literal brace escapes (mirrors .NET `string.Format`)
+  - `GlobToRegex` updated: `*` → `([^/]*)`, `**` → `(.*)` (both now capture groups). `?` unchanged.
+  - `PatternMatcher.Match(rule, path)` — new method returning the `System.Text.RegularExpressions.Match`
+    object for downstream token resolution. `Matches` is now a thin wrapper (`Match != null`).
+  - `RuleValidator.FindMatchingRule` return type changed from `BaseImportRule` to `RuleMatch?`
+    (internal readonly struct `{ BaseImportRule Rule; Match Match }`). All call sites updated.
+  - `Editor/Logic/TargetResolver.cs` — new class. `Resolve(template, match)` performs a single
+    left-to-right pass substituting positional and named tokens, handling `{{`/`}}` escapes.
+    Captured values are sanitised: `..` and `.` path segments are rejected (warning + literal token
+    fallback); backslashes are normalised to forward slashes.
+  - `AssetRouterPostprocessor`: `MoveToTargetFolder` and the `alreadyInPlace` check now resolve the
+    target folder through `TargetResolver` before computing paths.
+  - `DryRunPlanner.Scan` resolves `targetFolder` via `TargetResolver` at scan time so the Dry Run
+    preview shows real resolved paths.
+  - `BatchMover.Move` uses the pre-resolved `DryRunEntry.TargetPath` instead of recomputing from
+    `MatchedRule.targetFolder`.
+  - `AssetMoveCandidate` gains a `Match` field to carry the regex match through to `MoveToTargetFolder`.
+  - **Two new default rules** inserted before "General Textures" in `DefaultDatabaseFactory`:
+    - *Character Textures* (Glob `T_Char_*_*`, target `Assets/Art/Characters/{1}/`) — positional
+      capture demo: `T_Char_Hero_Diffuse.png` → `Assets/Art/Characters/Hero/`.
+    - *Location Textures* (Regex `^T_Loc_(?<loc>\w+)_.*`, target `Assets/Art/Locations/{loc}/`) —
+      named capture demo: `T_Loc_Forest_Rock.png` → `Assets/Art/Locations/Forest/`.
+    New databases (or Inspector Reset) get these rules; existing databases are unaffected.
+  - **UI:** Target Folder field gains a multi-line tooltip explaining the token syntax with an example.
+  - **Live Preview** in Rule Detail panel: when `targetFolder` contains tokens, the preview shows
+    resolved paths (`T_Char_Hero_D.png  →  Assets/Art/Characters/Hero/`) instead of bare filenames.
+  - **Tests:**
+    - `PatternMatcherTests` +5 tests: `Match_GlobWithStar_CapturesPositionalValue`,
+      `Match_GlobWithDoubleStar_CapturesPath`, `Match_RegexNamedGroup_CapturesByName`,
+      `Match_NoMatch_ReturnsNull`, `Matches_LegacyWrapper_StillReturnsBool`.
+    - `TargetResolverTests` (new) — 10 tests: no-tokens fast path, positional/named substitution,
+      missing token literal fallback, `{{`/`}}` escapes, empty capture, `.` traversal sanitisation,
+      backslash normalisation, multi-token substitution, null match.
+    - `DefaultDatabaseFactoryTests` (new) — 3 tests verifying presence and insertion order of new rules.
+    - `RuleValidatorTests` updated: `FindMatchingRule` result assertions now use `?.Value.Rule`.
+    - `PatternMatcherTests`: `GlobToRegex_Star_ProducesNonSlashWildcard` and
+      `GlobToRegex_DoubleStar_ProducesAnyWildcard` updated to expect capturing groups.
+
+### Changed
+- `package.json` version bumped to `0.9.1`.
+- `DefaultDatabaseFactory.CreateDefaultRules` now returns 6 rules (up from 4); only fresh databases
+  and Inspector Reset receive the two new rules.
+- `BatchMover` now reads the pre-resolved `DryRunEntry.TargetPath` for moves (no behaviour change for
+  rules without tokens; required for templated rules).
+
+---
+
+## [0.9.0] — 2026-06-27
+
+### Added
+- **Epic 14 — Documentation overhaul (English + per-action docs).**
+  - `DOCUMENTATION_UA.md` — the original Ukrainian documentation (renamed from `DOCUMENTATION.md`).
+  - `DOCUMENTATION_EN.md` — new primary English documentation (~500 lines): flow explanation,
+    Settings window, all four tabs, pattern syntax (glob/regex with tables), JSON export/import,
+    troubleshooting.
+  - `Documentation~/index.md` — UPM entry point linking all sections.
+  - `README.md` rewritten: updated from prefix/suffix to glob patterns, current action table (10
+    actions), links to documentation.
+  - `Samples~/QuickStart/README.md` updated: current action table, three use-case sections with links.
+  - Per-action documentation (12 pages in `Documentation~/actions/`): `README.md` index, one page
+    per built-in action, `LegacySamples.md`.
+  - `Documentation~/api/extension-points.md` — full guide for extension authors.
+  - `Documentation~/migrations/v1-to-v2-schema.md` — before/after table for the v1 → v2 schema migration.
+  - `Documentation~/use-cases/` — three use-case guides: `mobile-team.md`, `legacy-cleanup.md`,
+    `solo-developer.md`.
+  - `Documentation~/testing-your-actions.md` — testing guide with asmdef setup and NUnit template.
+  - `Tests/Actions/_ExampleActionTest.cs` — exemplar test for `AppendToCatalogAction` (6 tests),
+    intentionally commented as a template for extension authors.
+  - XMLDoc added to all public types: `IAssetImportAction`, `AssetImportActionAsset`,
+    `AssetImportContext`, `PatternMode`, `BaseImportRule`, `ImportRule`, `ImporterSettingsDatabase`,
+    `AssetCatalog`, `IAssetRouterPrefabSetup`, `IAssetRouterDataSetup`, and all 10 built-in actions.
+  - `CONTRIBUTING.md` — PR requirements: action without docs, API change without XMLDoc, and
+    CHANGELOG entry are all blockers. Serialization rules and atomic write rule documented.
+  - `RELEASE_CHECKLIST.md` — 12-item checklist across Code/Tests, Documentation, Version/Release.
+
+### Changed
+- `package.json` version bumped to `0.9.0`.
+
+---
+
 ## [0.8.0] — 2026-06-26
 
 ### Added

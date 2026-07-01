@@ -65,3 +65,16 @@ to re-apply the rules from scratch.
 
 Skip `scopeFolder` until you have multiple "input" folders for the same file type. For a solo
 developer with one asset drop location, it is not needed.
+
+## Path Templating
+
+When file names encode the destination folder — for example `T_Char_Hero_D.png` where `Hero` is
+the character name — use Path Templating instead of creating one rule per character.
+
+Pattern `T_Char_*_*`, target `Assets/Art/Characters/{1}/` routes every character texture to its
+own subfolder with one rule. `{1}` is replaced by the first `*` capture at import time.
+
+Add this only when you have enough assets in a structured naming convention that a flat target
+folder becomes inconvenient. For most solo projects with a few dozen assets, a flat folder is fine.
+
+See [api/path-templating.md](../api/path-templating.md) for the full token reference.

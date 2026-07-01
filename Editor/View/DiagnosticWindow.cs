@@ -45,8 +45,9 @@ namespace Kodlon.AssetRouter.View
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 GUILayout.Label("Time",    GUILayout.Width(80f));
-                GUILayout.Label("Asset",   GUILayout.Width(220f));
-                GUILayout.Label("Rule",    GUILayout.Width(150f));
+                GUILayout.Label("Asset",   GUILayout.Width(200f));
+                GUILayout.Label("Rule",    GUILayout.Width(130f));
+                GUILayout.Label("Target",  GUILayout.Width(170f));
                 GUILayout.Label("Action",  GUILayout.ExpandWidth(true));
             }
 
@@ -64,8 +65,9 @@ namespace Kodlon.AssetRouter.View
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     GUILayout.Label(e.Timestamp,                              EditorStyles.miniLabel, GUILayout.Width(80f));
-                    GUILayout.Label(Path.GetFileName(e.AssetPath),            EditorStyles.miniLabel, GUILayout.Width(220f));
-                    GUILayout.Label(e.MatchedRule ?? "—",                     EditorStyles.miniLabel, GUILayout.Width(150f));
+                    GUILayout.Label(Path.GetFileName(e.AssetPath),            EditorStyles.miniLabel, GUILayout.Width(200f));
+                    GUILayout.Label(e.MatchedRule ?? "—",                     EditorStyles.miniLabel, GUILayout.Width(130f));
+                    GUILayout.Label(e.TargetPath  ?? "—",                     EditorStyles.miniLabel, GUILayout.Width(170f));
                     GUILayout.Label(action,                                   EditorStyles.miniLabel);
                 }
             }

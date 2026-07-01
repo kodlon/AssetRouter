@@ -10,7 +10,7 @@ Creates a `UnityEngine.Tilemaps.Tile` asset from the first Sprite sub-asset of t
 
 | Field | Type | What it controls | Default |
 |-------|------|-----------------|---------|
-| Output Folder | string | Where to save the .asset tile. Falls back to the rule's target folder when empty. | "" |
+| Output Folder | string | Where to save the .asset tile. Falls back to the imported asset's folder when empty. | "" |
 | Name Pattern | string | File name without extension. `{assetName}` is replaced with the imported file name (no extension). | `{assetName}_Tile` |
 | Overwrite Existing | bool | When false, the action is skipped if a tile asset already exists at the output path. | false |
 | Tile Color | Color | Tint color applied to the tile. White means no tint. | White |

@@ -4,7 +4,7 @@ This sample demonstrates Asset Router's auto-import and routing flow.
 
 ## What's included
 
-- Pre-configured `ImporterSettingsDatabase.asset` with 4 default rules
+- Pre-configured `ImporterSettingsDatabase.asset` with 6 default rules
 - `Raw/` folder with example files: `T_Rock_D.png`, `UI_Button.png`, `SFX_Click.wav`, `Mus_Loop.ogg`, `qwerty.png`
 - Links to the 10 bundled presets in `Packages/com.kodlon.assetrouter/Presets/`
 
@@ -24,14 +24,16 @@ Unity copies the sample into `Assets/Samples/Asset Router/<version>/Quick Start/
 ### Step 1 — Open the settings window
 
 Go to **Tools → Asset Router Settings**.  
-The window shows the pre-configured database with four rules:
+The window shows the pre-configured database with six rules:
 
 | Rule | Pattern | Target folder |
 |------|---------|---------------|
-| General Textures | `T_*` | `Assets/Art/Textures` |
-| UI Textures | `UI_*` | `Assets/Art/UI` |
-| Sound Effects | `SFX_*` | `Assets/Audio/SFX` |
-| Music | `Mus_*` | `Assets/Audio/Music` |
+| UI Textures | `UI_*` | `Assets/Art/UI/` |
+| Character Textures | `T_Char_*_*` | `Assets/Art/Characters/{1}/` |
+| Location Textures | `^T_Loc_(?<loc>\w+)_.*` | `Assets/Art/Locations/{loc}/` |
+| General Textures | `T_*` | `Assets/Art/Textures/` |
+| Sound Effects | `SFX_*` | `Assets/Audio/SFX/` |
+| Music | `Mus_*` | `Assets/Audio/Music/` |
 
 ### Step 2 — Drop a file
 
@@ -113,9 +115,15 @@ on each action.
 ## Use cases
 
 **For a solo developer**
-Start by changing only the target folders in the four default rules to match your project structure.
+Start by changing only the target folders in the default rules to match your project structure.
 Add actions only when you notice you are doing the same manual step after every import.
 See [solo-developer.md](../../Documentation~/use-cases/solo-developer.md).
+
+**Path Templating**
+Target folders can contain `{1}`, `{2}`, `{name}` tokens that expand to capture group values.
+`T_Char_Hero_D.png` with pattern `T_Char_*_*` and target `Assets/Art/Characters/{1}/` lands in
+`Assets/Art/Characters/Hero/`. One rule replaces one rule per character.
+See [path-templating.md](../../Documentation~/api/path-templating.md).
 
 **For a small team**
 Use Scope Folder on rules to route the same file name differently depending on which artist's

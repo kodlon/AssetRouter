@@ -16,8 +16,8 @@ namespace Kodlon.AssetRouter.Actions
         /// <summary>ScriptableObject to clone. All serialized fields are copied to the new instance.</summary>
         public ScriptableObject template;
 
-        /// <summary>Folder where the output .asset is saved. Falls back to the rule's target folder when empty.</summary>
-        [Tooltip("Output folder. Empty = rule's target folder.")]
+        /// <summary>Folder where the output .asset is saved. Falls back to the imported asset's folder when empty.</summary>
+        [Tooltip("Output folder. Empty = the imported asset's folder.")]
         public string outputFolder = "";
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace Kodlon.AssetRouter.Actions
 
         public override void Execute(Object importedAsset, AssetImportContext ctx)
         {
-            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (ctx.Rule?.targetFolder ?? string.Empty) : outputFolder);
+            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (Path.GetDirectoryName(ctx.AssetPath) ?? string.Empty) : outputFolder);
             var baseName = Path.GetFileNameWithoutExtension(ctx.AssetPath);
             var soName   = namePattern.Replace("{assetName}", baseName);
             var soPath   = folder + "/" + soName + ".asset";

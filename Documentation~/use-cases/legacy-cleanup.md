@@ -85,3 +85,21 @@ Once the project is sorted, the rules continue working for new imports. The on-i
 runs automatically; new artists drop files in the project and they land in the right folder.
 
 Keep the database JSON in version control so the rules are shared across the team.
+
+## Use Path Templating when files have structured naming
+
+If the legacy naming convention encodes category information — for example `T_Char_Hero_D.png`
+where the second segment is the character name — a single templated rule can route each asset to
+its own subfolder without a rule per character.
+
+Pattern `T_Char_*_*` (Glob), target `Assets/Art/Characters/{1}/`:
+
+| Imported file | Resolved target |
+|---------------|-----------------|
+| `T_Char_Hero_D.png` | `Assets/Art/Characters/Hero/` |
+| `T_Char_Boss_N.png` | `Assets/Art/Characters/Boss/` |
+
+Discover the naming pattern in the Validate tab first, then write the templated rule and preview
+it in Dry Run before applying.
+
+See [api/path-templating.md](../api/path-templating.md) for the full token reference.

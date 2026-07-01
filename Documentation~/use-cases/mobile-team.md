@@ -83,3 +83,23 @@ The default list covers `.png`, `.jpg`, `.tga`, `.psd`, `.wav`, `.ogg`, `.mp3`.
 Keep `Assets/Import/` out of ignored folders. If it was added there, Asset Router would skip
 all dropped files. The ignored folders list is for folders that should never be touched:
 `Assets/Plugins/`, `Assets/Editor/`, `Assets/AssetRouter/`.
+
+## Path Templating as an alternative to Scope Folder
+
+When file names encode the destination — for example the character name or level area as a
+name segment — a single templated rule can replace a stack of scoped rules.
+
+Example: if character sprites follow the convention `Char_Hero_Idle.png` (character name as
+the second segment), one rule replaces three scoped ones:
+
+- Pattern `Char_*_*` (Glob), target `Assets/Art/Characters/{1}/`
+
+| Imported file | Resolved target |
+|---------------|-----------------|
+| `Char_Hero_Idle.png` | `Assets/Art/Characters/Hero/` |
+| `Char_Boss_Attack.png` | `Assets/Art/Characters/Boss/` |
+
+Use Scope Folder when the destination depends on *who dropped the file*, not on the file name.
+Use Path Templating when the destination is already encoded in the file name.
+
+See [api/path-templating.md](../api/path-templating.md) for the full token reference.

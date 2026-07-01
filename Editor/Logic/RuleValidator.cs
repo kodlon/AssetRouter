@@ -1,13 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using Kodlon.AssetRouter.Data;
 
 namespace Kodlon.AssetRouter.Logic
 {
+    internal readonly struct RuleMatch
+    {
+        public readonly BaseImportRule Rule;
+        public readonly Match Match;
+
+        public RuleMatch(BaseImportRule rule, Match match)
+        {
+            Rule = rule;
+            Match = match;
+        }
+    }
+
     internal static class RuleValidator
     {
-        public static BaseImportRule FindMatchingRule(List<BaseImportRule> rules, string assetPath)
+        public static RuleMatch? FindMatchingRule(List<BaseImportRule> rules, string assetPath)
         {
             if (rules == null || rules.Count == 0)
                 return null;
@@ -23,8 +36,9 @@ namespace Kodlon.AssetRouter.Logic
                     !PathUtility.IsUnderFolder(assetPath, rule.scopeFolder))
                     continue;
 
-                if (PatternMatcher.Matches(rule, assetPath))
-                    return rule;
+                var m = PatternMatcher.Match(rule, assetPath);
+                if (m != null)
+                    return new RuleMatch(rule, m);
             }
 
             return null;

@@ -13,7 +13,7 @@ and saves the result as a `.mat` file.
 |-------|------|-----------------|---------|
 | Base Material | Material | Material to copy shader and all property values from. Required. | None |
 | Texture Property | string | Shader property name to assign the texture to. | `_MainTex` |
-| Output Folder | string | Where to save the .mat file. Falls back to the rule's target folder when empty. | "" |
+| Output Folder | string | Where to save the .mat file. Falls back to the imported asset's folder when empty. | "" |
 | Name Pattern | string | File name without extension. `{assetName}` is replaced with the texture file name (no extension). | `{assetName}_Mat` |
 | Overwrite Existing | bool | When false, the action is skipped if a material already exists at the output path. | false |
 

@@ -13,8 +13,8 @@ namespace Kodlon.AssetRouter.Actions
     [CreateAssetMenu(menuName = "Asset Router/Actions/Create Tile Palette Entry", fileName = "CreateTilePaletteEntryAction")]
     public sealed class CreateTilePaletteEntryAction : AssetImportActionAsset
     {
-        /// <summary>Folder where the output .asset tile is saved. Falls back to the rule's target folder when empty.</summary>
-        [Tooltip("Output folder. Empty = rule's target folder.")]
+        /// <summary>Folder where the output .asset tile is saved. Falls back to the imported asset's folder when empty.</summary>
+        [Tooltip("Output folder. Empty = the imported asset's folder.")]
         public string outputFolder = "";
 
         /// <summary>File name for the output tile without extension. <c>{assetName}</c> is replaced with the imported file name.</summary>
@@ -40,7 +40,7 @@ namespace Kodlon.AssetRouter.Actions
                 return;
             }
 
-            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (ctx.Rule?.targetFolder ?? string.Empty) : outputFolder);
+            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (Path.GetDirectoryName(ctx.AssetPath) ?? string.Empty) : outputFolder);
             var baseName = Path.GetFileNameWithoutExtension(ctx.AssetPath);
             var tileName = namePattern.Replace("{assetName}", baseName);
             var tilePath = folder + "/" + tileName + ".asset";

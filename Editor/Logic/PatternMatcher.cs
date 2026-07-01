@@ -11,10 +11,11 @@ namespace Kodlon.AssetRouter.Logic
     {
         private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(50);
 
-        public static bool Matches(BaseImportRule rule, string assetPath)
+        /// <summary>Returns the regex Match for capture group access, or null on no match / error.</summary>
+        public static Match Match(BaseImportRule rule, string assetPath)
         {
             if (string.IsNullOrEmpty(rule?.pattern))
-                return false;
+                return null;
 
             var target = rule.matchAgainstFullPath
                 ? PathUtility.NormalizeAssetPath(assetPath)
@@ -23,18 +24,22 @@ namespace Kodlon.AssetRouter.Logic
             var regex = GetOrCompile(rule);
 
             if (regex == null)
-                return false;
+                return null;
 
             try
             {
-                return regex.IsMatch(target);
+                var m = regex.Match(target);
+                return m.Success ? m : null;
             }
             catch (RegexMatchTimeoutException)
             {
                 Debug.LogWarning($"[AssetRouter] Pattern '{rule.pattern}' timed out matching '{target}'. Simplify the pattern.");
-                return false;
+                return null;
             }
         }
+
+        public static bool Matches(BaseImportRule rule, string assetPath)
+            => Match(rule, assetPath) != null;
 
         public static bool TryGetRegexError(string pattern, out string error)
         {
@@ -53,7 +58,6 @@ namespace Kodlon.AssetRouter.Logic
 
         private static Regex GetOrCompile(BaseImportRule rule)
         {
-            // null _compiledPattern + matching _compiledFor = previously failed; avoid re-logging.
             if (rule._compiledFor == rule.pattern)
                 return rule._compiledPattern;
 
@@ -87,13 +91,13 @@ namespace Kodlon.AssetRouter.Logic
             {
                 if (glob[i] == '*' && i + 1 < glob.Length && glob[i + 1] == '*')
                 {
-                    sb.Append(".*");
+                    sb.Append("(.*)");
                     i += 2;
                     if (i < glob.Length && glob[i] == '/') i++;
                 }
                 else if (glob[i] == '*')
                 {
-                    sb.Append("[^/]*");
+                    sb.Append("([^/]*)");
                     i++;
                 }
                 else if (glob[i] == '?')

@@ -63,28 +63,30 @@ namespace Kodlon.AssetRouter.Logic
                 if (!RuleValidator.ShouldProcess(db, assetPath))
                     continue;
 
-                var rule = RuleValidator.FindMatchingRule(db.rules, assetPath);
+                var ruleMatch = RuleValidator.FindMatchingRule(db.rules, assetPath);
 
-                if (rule == null)
+                if (ruleMatch == null)
                 {
                     if (db.showPopupForUnknownFiles)
                         unknownAssets.Add(assetPath);
 
                     if (DiagnosticLog.IsEnabled)
-                        DiagnosticLog.Add(assetPath, null, false, false);
+                        DiagnosticLog.Add(assetPath, null, null, false, false);
 
                     continue;
                 }
 
+                var rule = ruleMatch.Value.Rule;
                 rule._sessionMatchCount++;
                 batchMatchedRules.Add(rule.ruleName);
 
+                var resolvedTarget = TargetResolver.Resolve(rule.targetFolder, ruleMatch.Value.Match);
                 var currentFolder  = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(assetPath) ?? "") + "/";
-                var targetFolder   = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
+                var targetFolder   = PathUtility.NormalizeAssetPath(resolvedTarget) + "/";
                 var alreadyInPlace = string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase);
 
                 if (DiagnosticLog.IsEnabled)
-                    DiagnosticLog.Add(assetPath, rule.ruleName, !alreadyInPlace, alreadyInPlace);
+                    DiagnosticLog.Add(assetPath, rule.ruleName, resolvedTarget, !alreadyInPlace, alreadyInPlace);
 
                 if (alreadyInPlace)
                 {
@@ -92,7 +94,7 @@ namespace Kodlon.AssetRouter.Logic
                     continue;
                 }
 
-                toMove.Add(new AssetMoveCandidate(assetPath, rule));
+                toMove.Add(new AssetMoveCandidate(assetPath, rule, ruleMatch.Value.Match));
             }
 
             if (toMove.Count > 0)
@@ -124,14 +126,17 @@ namespace Kodlon.AssetRouter.Logic
             if (!RuleValidator.ShouldProcess(db, assetPath))
                 return;
 
-            var rule = RuleValidator.FindMatchingRule(db.rules, assetPath);
-            ApplyPreset(rule);
+            var ruleMatch = RuleValidator.FindMatchingRule(db.rules, assetPath);
+            ApplyPreset(ruleMatch?.Rule);
         }
 
         private static void ExecuteMovesBatched(List<AssetMoveCandidate> candidates, ImporterSettingsDatabase db)
         {
             foreach (var candidate in candidates)
-                PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(candidate.Rule.targetFolder));
+            {
+                var resolved = TargetResolver.Resolve(candidate.Rule.targetFolder, candidate.Match);
+                PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(resolved));
+            }
 
             var logEntries = new List<OperationLogEntry>();
 
@@ -140,7 +145,7 @@ namespace Kodlon.AssetRouter.Logic
             {
                 foreach (var candidate in candidates)
                 {
-                    if (MoveToTargetFolder(candidate.Path, candidate.Rule, out var targetPath))
+                    if (MoveToTargetFolder(candidate.Path, candidate.Rule, candidate.Match, out var targetPath))
                         logEntries.Add(new OperationLogEntry(candidate.Path, targetPath, candidate.Rule.ruleName));
                 }
             }
@@ -156,9 +161,10 @@ namespace Kodlon.AssetRouter.Logic
                 OperationLog.RecordBatch(logEntries, "AutoImport");
         }
 
-        private static bool MoveToTargetFolder(string assetPath, BaseImportRule rule, out string targetPath)
+        private static bool MoveToTargetFolder(string assetPath, BaseImportRule rule, System.Text.RegularExpressions.Match match, out string targetPath)
         {
-            var targetFolder = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
+            var resolvedFolder = TargetResolver.Resolve(rule.targetFolder, match);
+            var targetFolder = PathUtility.NormalizeAssetPath(resolvedFolder) + "/";
             targetPath = targetFolder + Path.GetFileName(assetPath);
 
             AssetsBeingMoved.Add(assetPath);
@@ -224,6 +230,5 @@ namespace Kodlon.AssetRouter.Logic
             else
                 Debug.LogWarning($"[AssetRouter] Preset type mismatch for {assetPath} ({importRule.ruleName})");
         }
-
     }
 }

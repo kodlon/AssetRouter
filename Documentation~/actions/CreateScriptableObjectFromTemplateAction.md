@@ -12,7 +12,7 @@ if the clone implements it, then saves the result as a new `.asset` file.
 | Field | Type | What it controls | Default |
 |-------|------|-----------------|---------|
 | Template | ScriptableObject | SO to clone. All serialized fields are copied to the new instance. Required; action is skipped when null. | None |
-| Output Folder | string | Where to save the new .asset. Falls back to the rule's target folder when empty. | "" |
+| Output Folder | string | Where to save the new .asset. Falls back to the imported asset's folder when empty. | "" |
 | Name Pattern | string | File name without extension. `{assetName}` is replaced with the imported file name (no extension). | `{assetName}_Data` |
 | Overwrite Existing | bool | When false, the action is skipped if an asset already exists at the output path. | false |
 

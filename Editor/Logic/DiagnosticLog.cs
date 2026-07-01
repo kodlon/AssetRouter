@@ -9,14 +9,16 @@ namespace Kodlon.AssetRouter.Logic
         public readonly string Timestamp;
         public readonly string AssetPath;
         public readonly string MatchedRule;
+        public readonly string TargetPath;
         public readonly bool Moved;
         public readonly bool AlreadyInPlace;
 
-        public DiagnosticEntry(string timestamp, string assetPath, string matchedRule, bool moved, bool alreadyInPlace)
+        public DiagnosticEntry(string timestamp, string assetPath, string matchedRule, string targetPath, bool moved, bool alreadyInPlace)
         {
             Timestamp      = timestamp;
             AssetPath      = assetPath;
             MatchedRule    = matchedRule;
+            TargetPath     = targetPath;
             Moved          = moved;
             AlreadyInPlace = alreadyInPlace;
         }
@@ -38,14 +40,14 @@ namespace Kodlon.AssetRouter.Logic
             AssemblyReloadEvents.beforeAssemblyReload += Clear;
         }
 
-        public static void Add(string assetPath, string matchedRule, bool moved, bool alreadyInPlace)
+        public static void Add(string assetPath, string matchedRule, string targetPath, bool moved, bool alreadyInPlace)
         {
             if (_entries.Count >= MaxEntries)
                 _entries.RemoveAt(0);
 
             _entries.Add(new DiagnosticEntry(
                 DateTime.Now.ToString("HH:mm:ss.fff"),
-                assetPath, matchedRule, moved, alreadyInPlace));
+                assetPath, matchedRule, targetPath, moved, alreadyInPlace));
         }
 
         public static void Clear() => _entries.Clear();

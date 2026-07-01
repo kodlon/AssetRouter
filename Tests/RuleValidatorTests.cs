@@ -46,7 +46,7 @@ namespace Kodlon.AssetRouter.Tests
 
             var result = RuleValidator.FindMatchingRule(new List<BaseImportRule> { disabled, enabled }, "Assets/T_Rock.png");
 
-            Assert.AreEqual(enabled, result);
+            Assert.AreEqual(enabled, result?.Rule);
         }
 
         [Test]
@@ -57,7 +57,7 @@ namespace Kodlon.AssetRouter.Tests
 
             var result = RuleValidator.FindMatchingRule(new List<BaseImportRule> { first, second }, "Assets/T_Rock.png");
 
-            Assert.AreEqual(first, result);
+            Assert.AreEqual(first, result?.Rule);
         }
 
         [Test]
@@ -65,7 +65,7 @@ namespace Kodlon.AssetRouter.Tests
         {
             var rule = new ImportRule { ruleName = "Textures", pattern = "T_*", patternMode = PatternMode.Glob, isEnabled = true };
 
-            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/T_Rock.png"));
+            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/T_Rock.png")?.Rule);
         }
 
         [Test]
@@ -75,7 +75,7 @@ namespace Kodlon.AssetRouter.Tests
             var rules = new List<BaseImportRule> { rule };
 
             Assert.IsNull(RuleValidator.FindMatchingRule(rules, "Assets/Env_Rock.png"));
-            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(rules, "Assets/Env_Rock.fbx"));
+            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(rules, "Assets/Env_Rock.fbx")?.Rule);
         }
 
         [Test]
@@ -153,7 +153,7 @@ namespace Kodlon.AssetRouter.Tests
             var rule  = new ImportRule { ruleName = "Textures", pattern = "T_*", patternMode = PatternMode.Glob, isEnabled = true };
             var rules = new List<BaseImportRule> { null, rule };
 
-            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(rules, "Assets/T_Rock.png"));
+            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(rules, "Assets/T_Rock.png")?.Rule);
         }
 
         [Test]
@@ -168,7 +168,7 @@ namespace Kodlon.AssetRouter.Tests
                 scopeFolder = "Assets/Art/"
             };
 
-            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/Art/T_Rock.png"));
+            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/Art/T_Rock.png")?.Rule);
         }
 
         [Test]
@@ -198,7 +198,7 @@ namespace Kodlon.AssetRouter.Tests
                 scopeFolder = ""
             };
 
-            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/UI/T_Icon.png"));
+            Assert.AreEqual(rule, RuleValidator.FindMatchingRule(new List<BaseImportRule> { rule }, "Assets/UI/T_Icon.png")?.Rule);
         }
     }
 }

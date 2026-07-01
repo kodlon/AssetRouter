@@ -115,7 +115,7 @@ namespace {{NAMESPACE}}
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(ctx.AssetPath);
             if (sprite == null) return;
 
-            var folder   = (string.IsNullOrEmpty(outputFolder) ? ctx.Rule.targetFolder : outputFolder).Replace('\\', '/').TrimEnd('/');
+            var folder   = (string.IsNullOrEmpty(outputFolder) ? (Path.GetDirectoryName(ctx.AssetPath) ?? string.Empty) : outputFolder).Replace('\\', '/').TrimEnd('/');
             var baseName = Path.GetFileNameWithoutExtension(ctx.AssetPath);
             var outName  = namePattern.Replace(""{assetName}"", baseName);
             var outPath  = folder + ""/"" + outName + "".asset"";
@@ -152,7 +152,7 @@ namespace {{NAMESPACE}}
 
         public override void Execute(Object importedAsset, AssetImportContext ctx)
         {
-            var folder     = (string.IsNullOrEmpty(outputFolder) ? ctx.Rule.targetFolder : outputFolder).Replace('\\', '/').TrimEnd('/');
+            var folder     = (string.IsNullOrEmpty(outputFolder) ? (Path.GetDirectoryName(ctx.AssetPath) ?? string.Empty) : outputFolder).Replace('\\', '/').TrimEnd('/');
             var baseName   = System.IO.Path.GetFileNameWithoutExtension(ctx.AssetPath);
             var prefabName = namePattern.Replace(""{assetName}"", baseName);
             var prefabPath = folder + ""/"" + prefabName + "".prefab"";

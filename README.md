@@ -29,7 +29,7 @@ Copy the package folder into your project's `Packages/` directory.
 ## Quick start
 
 1. On first Editor load, Asset Router creates `Assets/AssetRouter/ImporterSettingsDatabase.asset`
-   with four default rules.
+   with six default rules.
 2. Open **Tools > Asset Router Settings** to view and edit rules.
 3. Drop an asset into the project. If the file name matches a rule pattern, the preset is applied
    and the file is moved to the target folder automatically.
@@ -40,7 +40,7 @@ Copy the package folder into your project's `Packages/` directory.
 
 Each rule defines:
 - **Pattern** (glob or regex) — matched against the file name or full asset path
-- **Target Folder** — where to move the file
+- **Target Folder** — where to move the file. Supports `{1}`, `{name}` tokens that expand to capture group values (see [Path Templating](Documentation~/api/path-templating.md)).
 - **Import Preset** — Unity `.preset` file applied on import
 - **Post-Import Actions** — optional chain of actions that run after the move
 
@@ -50,12 +50,14 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 
 ## Default rules
 
-| Pattern (Glob) | Target folder | Preset |
-|----------------|--------------|--------|
-| `UI_*` | `Assets/Art/UI/` | TextureImporter_UI |
-| `T_*` | `Assets/Art/Textures/` | TextureImporter |
-| `SFX_*` | `Assets/Audio/SFX/` | AudioImporter |
-| `Mus_*` | `Assets/Audio/Music/` | AudioImporter_Music |
+| Pattern | Mode | Target folder | Preset |
+|---------|------|--------------|--------|
+| `UI_*` | Glob | `Assets/Art/UI/` | TextureImporter_UI |
+| `T_Char_*_*` | Glob | `Assets/Art/Characters/{1}/` | TextureImporter |
+| `^T_Loc_(?<loc>\w+)_.*` | Regex | `Assets/Art/Locations/{loc}/` | TextureImporter |
+| `T_*` | Glob | `Assets/Art/Textures/` | TextureImporter |
+| `SFX_*` | Glob | `Assets/Audio/SFX/` | AudioImporter |
+| `Mus_*` | Glob | `Assets/Audio/Music/` | AudioImporter_Music |
 
 ---
 

@@ -12,10 +12,10 @@ namespace Kodlon.AssetRouter.Logic
             if (entries == null || entries.Count == 0)
                 return new BatchResult(0, 0, 0, 0);
 
-            var moved       = 0;
-            var reimported  = 0;
-            var skipped     = 0;
-            var errored     = 0;
+            var moved          = 0;
+            var reimported     = 0;
+            var skipped        = 0;
+            var errored        = 0;
             var logEntries     = new List<OperationLogEntry>();
             var forceReimports = new List<string>();
             var total   = entries.Count;
@@ -23,8 +23,8 @@ namespace Kodlon.AssetRouter.Logic
 
             foreach (var entry in entries)
             {
-                if (entry.Selected && entry.MatchedRule != null && !entry.AlreadyInPlace)
-                    PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(entry.MatchedRule.targetFolder));
+                if (entry.Selected && entry.MatchedRule != null && !entry.AlreadyInPlace && entry.TargetPath != null)
+                    PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(Path.GetDirectoryName(entry.TargetPath) ?? ""));
             }
 
             AssetDatabase.StartAssetEditing();
@@ -67,8 +67,13 @@ namespace Kodlon.AssetRouter.Logic
                         continue;
                     }
 
-                    var targetFolder = PathUtility.NormalizeAssetPath(entry.MatchedRule.targetFolder);
-                    var targetPath   = targetFolder + "/" + Path.GetFileName(entry.AssetPath);
+                    var targetPath = entry.TargetPath;
+
+                    if (string.IsNullOrEmpty(targetPath))
+                    {
+                        skipped++;
+                        continue;
+                    }
 
                     var error = AssetDatabase.MoveAsset(entry.AssetPath, targetPath);
 

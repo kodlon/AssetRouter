@@ -22,8 +22,8 @@ namespace Kodlon.AssetRouter.Actions
         [Tooltip("Shader property to assign the texture to.")]
         public string textureProperty = "_MainTex";
 
-        /// <summary>Folder where the output .mat is saved. Falls back to the rule's target folder when empty.</summary>
-        [Tooltip("Output folder. Empty = rule's target folder.")]
+        /// <summary>Folder where the output .mat is saved. Falls back to the imported asset's folder when empty.</summary>
+        [Tooltip("Output folder. Empty = the imported asset's folder.")]
         public string outputFolder = "";
 
         /// <summary>File name for the output material without extension. <c>{assetName}</c> is replaced with the texture file name.</summary>
@@ -41,7 +41,7 @@ namespace Kodlon.AssetRouter.Actions
             if (importedAsset is not Texture2D texture)
                 return;
 
-            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (ctx.Rule?.targetFolder ?? string.Empty) : outputFolder);
+            var folder   = PathUtility.NormalizeAssetPath(string.IsNullOrEmpty(outputFolder) ? (Path.GetDirectoryName(ctx.AssetPath) ?? string.Empty) : outputFolder);
             var baseName = Path.GetFileNameWithoutExtension(ctx.AssetPath);
             var matName  = namePattern.Replace("{assetName}", baseName);
             var matPath  = folder + "/" + matName + ".mat";

@@ -46,6 +46,22 @@ namespace Kodlon.AssetRouter.Data
             },
             new ImportRule
             {
+                ruleName = "Character Textures",
+                patternMode = PatternMode.Glob,
+                pattern = "T_Char_*_*",
+                targetFolder = "Assets/Art/Characters/{1}/",
+                preset = LoadPreset("TextureImporter")
+            },
+            new ImportRule
+            {
+                ruleName = "Location Textures",
+                patternMode = PatternMode.Regex,
+                pattern = @"^T_Loc_(?<loc>\w+)_.*",
+                targetFolder = "Assets/Art/Locations/{loc}/",
+                preset = LoadPreset("TextureImporter")
+            },
+            new ImportRule
+            {
                 ruleName = "General Textures",
                 patternMode = PatternMode.Glob,
                 pattern = "T_*",

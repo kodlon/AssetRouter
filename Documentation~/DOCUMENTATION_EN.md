@@ -33,7 +33,7 @@ running the postprocessor a second time on the same file.
 ## Getting started
 
 On the first Editor load, Asset Router creates `Assets/AssetRouter/ImporterSettingsDatabase.asset`
-with four default rules. Open **Tools > Asset Router Settings** to see them.
+with six default rules. Open **Tools > Asset Router Settings** to see them.
 
 Drop a file into your project. If the file name matches one of the default patterns (e.g. `T_Rock.png`
 matches `T_*`), Asset Router moves it to the corresponding folder and applies the preset.
@@ -145,6 +145,48 @@ Examples:
 While editing a pattern, the detail panel shows up to 3 matching file names from your project.
 For Regex mode, it shows a red error message when the pattern is invalid. The preview updates
 300 ms after you stop typing.
+
+---
+
+## Path Templating
+
+Path Templating lets a single rule route assets to different subdirectories based on captured
+values from the pattern. Place `{1}`, `{2}`, or `{name}` tokens in the **Target Folder** field.
+At import time, each token is replaced by the corresponding capture group value.
+
+**Example:** pattern `T_Char_*_*` (Glob), target `Assets/Art/Characters/{1}/`
+
+| Imported file | Resolved target |
+|---------------|-----------------|
+| `T_Char_Hero_D.png` | `Assets/Art/Characters/Hero/` |
+| `T_Char_Enemy_N.png` | `Assets/Art/Characters/Enemy/` |
+
+### Token types
+
+| Token | Meaning |
+|-------|---------|
+| `{1}`, `{2}`, … | Positional capture. Glob `*` and `**` produce groups, numbered left-to-right. |
+| `{name}` | Named capture. Regex mode only, via `(?<name>...)`. |
+| `{{` | Literal `{`. |
+| `}}` | Literal `}`. |
+
+### Capture groups in Glob mode
+
+`*` → group; `**` → group; `?` → no group.
+
+Pattern `T_*_*`, file `T_Hero_Diffuse.png`: `{1}` = `Hero`, `{2}` = `Diffuse.png`.
+
+### Missing tokens
+
+A token whose group does not exist is kept literally in the output. Template `Assets/{3}/` with
+only two groups produces `Assets/{3}/` unchanged.
+
+### Backward compatibility
+
+Target folders without `{` are unaffected. Existing rules work with zero overhead.
+
+For the full token grammar, escape rules, and sanitization details, see
+[api/path-templating.md](api/path-templating.md).
 
 ---
 
@@ -265,14 +307,17 @@ Each entry must start with `Assets/`.
 
 ## Default rules
 
-The database created on first load contains four rules:
+The database created on first load contains six rules. The first two use Path Templating
+(see [Path Templating](#path-templating)) and demonstrate routing to per-asset subfolders.
 
-| Rule Name | Pattern | Target Folder | Preset |
-|-----------|---------|---------------|--------|
-| UI Textures | `UI_*` | `Assets/Art/UI/` | TextureImporter_UI |
-| General Textures | `T_*` | `Assets/Art/Textures/` | TextureImporter |
-| Sound Effects | `SFX_*` | `Assets/Audio/SFX/` | AudioImporter |
-| Music | `Mus_*` | `Assets/Audio/Music/` | AudioImporter_Music |
+| Rule Name | Pattern | Mode | Target Folder | Preset |
+|-----------|---------|------|---------------|--------|
+| UI Textures | `UI_*` | Glob | `Assets/Art/UI/` | TextureImporter_UI |
+| Character Textures | `T_Char_*_*` | Glob | `Assets/Art/Characters/{1}/` | TextureImporter |
+| Location Textures | `^T_Loc_(?<loc>\w+)_.*` | Regex | `Assets/Art/Locations/{loc}/` | TextureImporter |
+| General Textures | `T_*` | Glob | `Assets/Art/Textures/` | TextureImporter |
+| Sound Effects | `SFX_*` | Glob | `Assets/Audio/SFX/` | AudioImporter |
+| Music | `Mus_*` | Glob | `Assets/Audio/Music/` | AudioImporter_Music |
 
 These are starting points. Rename, reorder, or delete them as needed.
 

@@ -118,14 +118,59 @@ namespace Kodlon.AssetRouter.Tests
         public void GlobToRegex_Star_ProducesNonSlashWildcard()
         {
             var regex = PatternMatcher.GlobToRegex("T_*");
-            Assert.AreEqual("^T_[^/]*$", regex);
+            Assert.AreEqual("^T_([^/]*)$", regex);
         }
 
         [Test]
         public void GlobToRegex_DoubleStar_ProducesAnyWildcard()
         {
             var regex = PatternMatcher.GlobToRegex("T_**");
-            Assert.AreEqual("^T_.*$", regex);
+            Assert.AreEqual("^T_(.*)$", regex);
+        }
+
+        [Test]
+        public void Match_GlobWithStar_CapturesPositionalValue()
+        {
+            var rule = MakeRule(PatternMode.Glob, "T_Char_*_*");
+            var m = PatternMatcher.Match(rule, "Assets/T_Char_Hero_Diffuse.png");
+            Assert.IsNotNull(m);
+            Assert.AreEqual("Hero", m.Groups[1].Value);
+            Assert.AreEqual("Diffuse.png", m.Groups[2].Value);
+        }
+
+        [Test]
+        public void Match_GlobWithDoubleStar_CapturesPath()
+        {
+            var rule = MakeRule(PatternMode.Glob, "Assets/**/T_*.png", matchFullPath: true);
+            var m = PatternMatcher.Match(rule, "Assets/Art/Sub/T_Rock.png");
+            Assert.IsNotNull(m);
+            Assert.AreEqual("Art/Sub", m.Groups[1].Value);
+            Assert.AreEqual("Rock", m.Groups[2].Value);
+        }
+
+        [Test]
+        public void Match_RegexNamedGroup_CapturesByName()
+        {
+            var rule = MakeRule(PatternMode.Regex, @"^T_Loc_(?<loc>\w+)_.*");
+            var m = PatternMatcher.Match(rule, "Assets/T_Loc_Forest_Rock.png");
+            Assert.IsNotNull(m);
+            Assert.AreEqual("Forest", m.Groups["loc"].Value);
+        }
+
+        [Test]
+        public void Match_NoMatch_ReturnsNull()
+        {
+            var rule = MakeRule(PatternMode.Glob, "T_*");
+            var m = PatternMatcher.Match(rule, "Assets/UI_Button.png");
+            Assert.IsNull(m);
+        }
+
+        [Test]
+        public void Matches_LegacyWrapper_StillReturnsBool()
+        {
+            var rule = MakeRule(PatternMode.Glob, "T_*");
+            Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/T_Rock.png"));
+            Assert.IsFalse(PatternMatcher.Matches(rule, "Assets/UI_Rock.png"));
         }
 
         private static ImportRule MakeRule(PatternMode mode, string pattern, bool matchFullPath = false) =>

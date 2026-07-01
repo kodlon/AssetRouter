@@ -13,7 +13,7 @@ Texture2D, Mesh, or AudioClip that the prefab needs a reference to.
 | Field | Type | What it controls | Default |
 |-------|------|-----------------|---------|
 | Template Prefab | GameObject | Prefab to instantiate. Required; action is skipped when null. | None |
-| Output Folder | string | Where to save the new prefab. Falls back to the rule's target folder when empty. | "" |
+| Output Folder | string | Where to save the new prefab. Falls back to the imported asset's folder when empty. | "" |
 | Name Pattern | string | File name without extension. `{assetName}` is replaced with the imported file name (no extension). | `{assetName}_Prefab` |
 | Overwrite Existing | bool | When false, the action is skipped if a prefab already exists at the output path. | false |
 

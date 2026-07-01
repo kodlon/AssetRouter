@@ -39,18 +39,20 @@ namespace Kodlon.AssetRouter.Logic
                     if (!RuleValidator.ShouldProcess(db, path))
                         continue;
 
-                    var rule = RuleValidator.FindMatchingRule(db.rules, path);
+                    var ruleMatch = RuleValidator.FindMatchingRule(db.rules, path);
 
-                    if (rule == null)
+                    if (ruleMatch == null)
                     {
                         result.Add(new DryRunEntry(path, null, null, false));
                         continue;
                     }
 
-                    var targetFolder  = PathUtility.NormalizeAssetPath(rule.targetFolder) + "/";
-                    var currentFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(path) ?? "") + "/";
+                    var rule           = ruleMatch.Value.Rule;
+                    var resolvedFolder = TargetResolver.Resolve(rule.targetFolder, ruleMatch.Value.Match);
+                    var targetFolder   = PathUtility.NormalizeAssetPath(resolvedFolder) + "/";
+                    var currentFolder  = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(path) ?? "") + "/";
                     var alreadyInPlace = string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase);
-                    var targetPath = alreadyInPlace ? null : targetFolder + Path.GetFileName(path);
+                    var targetPath     = alreadyInPlace ? null : targetFolder + Path.GetFileName(path);
 
                     result.Add(new DryRunEntry(path, rule, targetPath, alreadyInPlace));
                 }
