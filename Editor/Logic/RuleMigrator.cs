@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using Kodlon.AssetRouter.Data;
 using UnityEditor;
@@ -16,7 +17,7 @@ namespace Kodlon.AssetRouter.Logic
 
             if (db.schemaVersion < 2)
             {
-                MigrateToV2(db);
+                MigrateToV2(db.rules);
                 migrated = true;
             }
 
@@ -30,16 +31,30 @@ namespace Kodlon.AssetRouter.Logic
             Debug.Log($"[AssetRouter][Migration] Database migrated to schema v{ImporterSettingsDatabase.LatestSchemaVersion}.");
         }
 
-        private static void MigrateToV2(ImporterSettingsDatabase db)
+        /// <summary>
+        /// Migrates a specific set of rules (e.g. freshly imported from JSON) using their own source schema
+        /// version, independent of the target database's current <see cref="ImporterSettingsDatabase.schemaVersion"/>.
+        /// Safe to call even when the target database is already at the latest schema — migration is
+        /// idempotent (guarded by whether each rule's <c>pattern</c> is already populated).
+        /// </summary>
+        public static void MigrateImportedRules(List<BaseImportRule> rules, int fromSchemaVersion)
         {
-            if (db.rules == null)
+            if (fromSchemaVersion >= 2)
+                return;
+
+            MigrateToV2(rules);
+        }
+
+        private static void MigrateToV2(List<BaseImportRule> rules)
+        {
+            if (rules == null)
                 return;
 
             var count = 0;
 
-            for (var i = 0; i < db.rules.Count; i++)
+            for (var i = 0; i < rules.Count; i++)
             {
-                var rule = db.rules[i];
+                var rule = rules[i];
 
                 if (rule == null)
                     continue;

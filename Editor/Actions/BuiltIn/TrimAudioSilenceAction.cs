@@ -52,7 +52,7 @@ namespace Kodlon.AssetRouter.Actions
                 File.WriteAllBytes(tmp, trimmed);
 
                 if (File.Exists(absolutePath))
-                    File.Replace(tmp, absolutePath, absolutePath + ".bak");
+                    File.Replace(tmp, absolutePath, null);
                 else
                     File.Move(tmp, absolutePath);
 
@@ -93,6 +93,9 @@ namespace Kodlon.AssetRouter.Actions
             if (dataSize < 0 || (long)dataDataOffset + dataSize > wav.Length)
                 return false;
 
+            if (channels <= 0)
+                return false;
+
             var frameSize  = channels * 2;
             var frameCount = dataSize / frameSize;
 
@@ -129,7 +132,15 @@ namespace Kodlon.AssetRouter.Actions
             var newDataSize   = newFrameCount * frameSize;
 
             var dataChunkHeaderOffset = dataDataOffset - 8;
-            var outputSize = dataChunkHeaderOffset + 8 + newDataSize;
+            var newPad = (newDataSize & 1) != 0 ? 1 : 0;
+
+            // Chunks after "data" (smpl loop points, cue, LIST/INFO, ...) must survive the trim —
+            // account for the original chunk's word-alignment pad byte when locating them.
+            var originalPad     = (dataSize & 1) != 0 ? 1 : 0;
+            var trailingOffset  = dataDataOffset + dataSize + originalPad;
+            var trailingLength  = wav.Length - trailingOffset;
+
+            var outputSize = dataChunkHeaderOffset + 8 + newDataSize + newPad + trailingLength;
 
             trimmed = new byte[outputSize];
 
@@ -143,6 +154,9 @@ namespace Kodlon.AssetRouter.Actions
             Array.Copy(newDataSizeBytes, 0, trimmed, dataChunkHeaderOffset + 4, 4);
 
             Array.Copy(wav, dataDataOffset + startFrame * frameSize, trimmed, dataChunkHeaderOffset + 8, newDataSize);
+
+            if (trailingLength > 0)
+                Array.Copy(wav, trailingOffset, trimmed, dataChunkHeaderOffset + 8 + newDataSize + newPad, trailingLength);
 
             var riffSizeBytes = BitConverter.GetBytes(outputSize - 8);
             Array.Copy(riffSizeBytes, 0, trimmed, 4, 4);

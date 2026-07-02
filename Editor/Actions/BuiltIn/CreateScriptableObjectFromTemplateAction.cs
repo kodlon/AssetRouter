@@ -48,6 +48,7 @@ namespace Kodlon.AssetRouter.Actions
             (instance as IAssetRouterDataSetup)?.SetupAssetRouter(importedAsset, ctx.AssetPath);
 
             PathUtility.EnsureFolderExists(folder);
+            PipelineOutputGuard.MarkCreated(soPath);
             AssetDatabase.CreateAsset(instance, soPath);
 
             ctx.Logger.Log($"[AssetRouter] CreateScriptableObject → {soPath}");

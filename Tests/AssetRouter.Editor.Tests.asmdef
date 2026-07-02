@@ -3,6 +3,7 @@
     "rootNamespace": "Kodlon.AssetRouter.Tests",
     "references": [
         "AssetRouter.Editor",
+        "AssetRouter.Runtime",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

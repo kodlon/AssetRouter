@@ -62,6 +62,11 @@ namespace Kodlon.AssetRouter.Logic
                     if (rule != null)
                         db.rules.Add(rule);
                 }
+
+                // Migrate using the JSON's own schemaVersion, not the target database's — otherwise
+                // importing an old-schema JSON into an already-migrated database silently skips migration.
+                var importedSchemaVersion = root["schemaVersion"]?.Value<int?>() ?? db.schemaVersion;
+                RuleMigrator.MigrateImportedRules(db.rules, importedSchemaVersion);
             }
 
             EditorUtility.SetDirty(db);
@@ -81,8 +86,14 @@ namespace Kodlon.AssetRouter.Logic
                 targetFolder         = rObj["targetFolder"]?.Value<string>()         ?? ""
             };
 
-            if (Enum.TryParse<PatternMode>(rObj["patternMode"]?.Value<string>(), out var mode))
-                rule.patternMode = mode;
+            var patternModeStr = rObj["patternMode"]?.Value<string>();
+            if (!string.IsNullOrEmpty(patternModeStr))
+            {
+                if (Enum.TryParse<PatternMode>(patternModeStr, ignoreCase: true, out var mode) && Enum.IsDefined(typeof(PatternMode), mode))
+                    rule.patternMode = mode;
+                else
+                    Debug.LogWarning($"[AssetRouter] Rule \"{rule.ruleName}\": unknown patternMode \"{patternModeStr}\" — defaulting to {rule.patternMode}.");
+            }
 
             var presetGuid = rObj["preset"]?.Value<string>();
             if (!string.IsNullOrEmpty(presetGuid))

@@ -10,26 +10,6 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal sealed class AssetRouterPostprocessor : AssetPostprocessor
     {
-        private static readonly HashSet<string> AssetsBeingMoved = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, BaseImportRule> _pendingActions =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        [InitializeOnLoadMethod]
-        private static void RegisterClearHooks()
-        {
-            AssemblyReloadEvents.beforeAssemblyReload -= ClearGuards;
-            AssemblyReloadEvents.beforeAssemblyReload += ClearGuards;
-        }
-
-        [InitializeOnEnterPlayMode]
-        private static void OnEnterPlayMode() => ClearGuards();
-
-        private static void ClearGuards()
-        {
-            AssetsBeingMoved.Clear();
-            _pendingActions.Clear();
-        }
-
         private static void OnPostprocessAllAssets(
             string[] importedAssets,
             string[] deletedAssets,
@@ -44,21 +24,14 @@ namespace Kodlon.AssetRouter.Logic
             var toMove            = new List<AssetMoveCandidate>();
             var unknownAssets     = new List<string>();
             var batchMatchedRules = new List<string>();
+            var pendingRuns       = new List<(BaseImportRule Rule, string Path)>();
 
             foreach (var assetPath in importedAssets)
             {
-                if (AssetsBeingMoved.Contains(assetPath))
-                {
-                    AssetsBeingMoved.Remove(assetPath);
-
-                    if (_pendingActions.TryGetValue(assetPath, out var pendingRule))
-                    {
-                        _pendingActions.Remove(assetPath);
-                        ActionPipeline.Execute(pendingRule, assetPath, db);
-                    }
-
+                // Skip assets the pipeline itself just created (e.g. a generated prefab/material) —
+                // otherwise a wildcard rule matching an action's own output would route it again, forever.
+                if (PipelineOutputGuard.WasCreatedByPipeline(assetPath))
                     continue;
-                }
 
                 if (!RuleValidator.ShouldProcess(db, assetPath))
                     continue;
@@ -90,7 +63,7 @@ namespace Kodlon.AssetRouter.Logic
 
                 if (alreadyInPlace)
                 {
-                    ActionPipeline.Execute(rule, assetPath, db);
+                    pendingRuns.Add((rule, assetPath));
                     continue;
                 }
 
@@ -98,10 +71,23 @@ namespace Kodlon.AssetRouter.Logic
             }
 
             if (toMove.Count > 0)
-                ExecuteMovesBatched(toMove, db);
+                pendingRuns.AddRange(ExecuteMovesBatched(toMove));
 
             if (batchMatchedRules.Count > 0)
                 RuleStatsStore.IncrementBatch(batchMatchedRules);
+
+            if (pendingRuns.Count > 0)
+            {
+                // Actions that create assets (CreateAsset/SaveAsPrefabAsset/ImportAsset) must not run from
+                // inside OnPostprocessAllAssets — Unity explicitly disallows nested import batches. Deferring
+                // via delayCall also means a self-matching output asset gets its own top-level postprocess
+                // call, where PipelineOutputGuard can catch and skip it.
+                EditorApplication.delayCall += () =>
+                {
+                    foreach (var (rule, path) in pendingRuns)
+                        ActionPipeline.Execute(rule, path, db);
+                };
+            }
 
             if (unknownAssets.Count > 0)
             {
@@ -120,9 +106,6 @@ namespace Kodlon.AssetRouter.Logic
             if (db == null || !db.enableAutoImport)
                 return;
 
-            if (AssetsBeingMoved.Contains(assetPath))
-                return;
-
             if (!RuleValidator.ShouldProcess(db, assetPath))
                 return;
 
@@ -130,7 +113,7 @@ namespace Kodlon.AssetRouter.Logic
             ApplyPreset(ruleMatch?.Rule);
         }
 
-        private static void ExecuteMovesBatched(List<AssetMoveCandidate> candidates, ImporterSettingsDatabase db)
+        private static List<(BaseImportRule Rule, string Path)> ExecuteMovesBatched(List<AssetMoveCandidate> candidates)
         {
             foreach (var candidate in candidates)
             {
@@ -139,6 +122,9 @@ namespace Kodlon.AssetRouter.Logic
             }
 
             var logEntries = new List<OperationLogEntry>();
+            // AssetDatabase.MoveAsset does not trigger a reimport, so the moved asset never comes back
+            // through OnPostprocessAllAssets' importedAssets — the caller runs the pipeline for it instead.
+            var moved = new List<(BaseImportRule Rule, string Path)>();
 
             AssetDatabase.StartAssetEditing();
             try
@@ -146,7 +132,10 @@ namespace Kodlon.AssetRouter.Logic
                 foreach (var candidate in candidates)
                 {
                     if (MoveToTargetFolder(candidate.Path, candidate.Rule, candidate.Match, out var targetPath))
+                    {
                         logEntries.Add(new OperationLogEntry(candidate.Path, targetPath, candidate.Rule.ruleName));
+                        moved.Add((candidate.Rule, targetPath));
+                    }
                 }
             }
             finally
@@ -154,11 +143,10 @@ namespace Kodlon.AssetRouter.Logic
                 AssetDatabase.StopAssetEditing();
             }
 
-            foreach (var entry in logEntries)
-                AssetsBeingMoved.Remove(entry.from);
-
             if (logEntries.Count > 0)
                 OperationLog.RecordBatch(logEntries, "AutoImport");
+
+            return moved;
         }
 
         private static bool MoveToTargetFolder(string assetPath, BaseImportRule rule, System.Text.RegularExpressions.Match match, out string targetPath)
@@ -167,17 +155,10 @@ namespace Kodlon.AssetRouter.Logic
             var targetFolder = PathUtility.NormalizeAssetPath(resolvedFolder) + "/";
             targetPath = targetFolder + Path.GetFileName(assetPath);
 
-            AssetsBeingMoved.Add(assetPath);
-            AssetsBeingMoved.Add(targetPath);
-            _pendingActions[targetPath] = rule;
-
             var error = AssetDatabase.MoveAsset(assetPath, targetPath);
 
             if (!string.IsNullOrEmpty(error))
             {
-                AssetsBeingMoved.Remove(assetPath);
-                AssetsBeingMoved.Remove(targetPath);
-                _pendingActions.Remove(targetPath);
                 Debug.LogWarning($"[AssetRouter] Failed to move {assetPath} -> {targetPath}: {error}");
                 return false;
             }
@@ -197,26 +178,43 @@ namespace Kodlon.AssetRouter.Logic
 
             var fileList = string.Join("\n", existing.Select(p => $"  • {Path.GetFileName(p)}"));
 
-            var importAll = EditorUtility.DisplayDialog(
+            // DisplayDialogComplex's cancel action is the "cancel" button — Esc/close is a safe no-op here,
+            // unlike DisplayDialog where Esc silently picks the second button (which used to be "Delete all").
+            var choice = EditorUtility.DisplayDialogComplex(
                 $"Asset Router — {existing.Count} Unknown File(s)",
                 $"The following files match no import rule:\n{fileList}\n\nWhat would you like to do?",
                 "Import all as-is",
-                "Delete all");
+                "Cancel",
+                "Delete all…");
 
-            if (importAll)
+            switch (choice)
             {
-                foreach (var path in existing)
-                    Debug.LogWarning($"[AssetRouter] \"{Path.GetFileName(path)}\" imported without a matching rule.");
-            }
-            else
-            {
-                foreach (var path in existing)
-                {
-                    if (AssetDatabase.DeleteAsset(path))
-                        Debug.Log($"[AssetRouter] \"{Path.GetFileName(path)}\" deleted.");
-                    else
-                        Debug.LogWarning($"[AssetRouter] Failed to delete \"{path}\".");
-                }
+                case 0: // Import all as-is
+                    foreach (var path in existing)
+                        Debug.LogWarning($"[AssetRouter] \"{Path.GetFileName(path)}\" imported without a matching rule.");
+                    break;
+
+                case 2: // Delete all…
+                    var confirmed = EditorUtility.DisplayDialog(
+                        "Asset Router — Confirm Delete",
+                        $"Permanently delete {existing.Count} file(s)?\n{fileList}\n\nThis cannot be undone.",
+                        "Delete",
+                        "Cancel");
+
+                    if (!confirmed)
+                        break;
+
+                    foreach (var path in existing)
+                    {
+                        if (AssetDatabase.DeleteAsset(path))
+                            Debug.Log($"[AssetRouter] \"{Path.GetFileName(path)}\" deleted.");
+                        else
+                            Debug.LogWarning($"[AssetRouter] Failed to delete \"{path}\".");
+                    }
+                    break;
+
+                default: // Cancel (1) or Esc — leave the files as imported, untouched
+                    break;
             }
         }
 

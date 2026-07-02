@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using Kodlon.AssetRouter.Logic;
 using UnityEditor;
 using UnityEngine;
@@ -34,14 +35,33 @@ namespace Kodlon.AssetRouter.Editor
             if (string.IsNullOrEmpty(savePath))
                 return;
 
-            var className  = Path.GetFileNameWithoutExtension(savePath);
-            var ns         = PlayerSettings.productName.Replace(" ", string.Empty) + ".AssetRouter";
+            var className  = SanitizeIdentifier(Path.GetFileNameWithoutExtension(savePath), defaultName);
+            var ns         = SanitizeIdentifier(PlayerSettings.productName, "Game") + ".AssetRouter";
             var content    = template
                 .Replace("{{ACTION_NAME}}", className)
                 .Replace("{{NAMESPACE}}", ns);
 
             File.WriteAllText(PathUtility.ToAbsolute(savePath), content);
             AssetDatabase.Refresh();
+        }
+
+        /// <summary>Strips characters that are not valid in a C# identifier and guards against a leading digit or empty result.</summary>
+        private static string SanitizeIdentifier(string raw, string fallback)
+        {
+            var sb = new StringBuilder();
+
+            if (!string.IsNullOrEmpty(raw))
+                foreach (var c in raw)
+                    if (char.IsLetterOrDigit(c) || c == '_')
+                        sb.Append(c);
+
+            if (sb.Length == 0)
+                return fallback;
+
+            if (char.IsDigit(sb[0]))
+                sb.Insert(0, '_');
+
+            return sb.ToString();
         }
 
         // ── Templates ─────────────────────────────────────────────────────────────

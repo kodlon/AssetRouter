@@ -2,11 +2,17 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
+#if UNITY_2D_SPRITE
+using UnityEditor.U2D.Sprites;
+#endif
+
 namespace Kodlon.AssetRouter.Actions
 {
     /// <summary>
-    /// Derives a bounding rectangle from the sprite's opaque pixels and applies it as the physics shape
-    /// via <c>Sprite.OverridePhysicsShape</c>. Requires Read/Write enabled on the texture.
+    /// Derives a bounding rectangle from each sprite's opaque pixels and persists it as the physics shape
+    /// via <c>ISpritePhysicsOutlineDataProvider</c>, so it survives reimport and machine-to-machine transfer.
+    /// Requires Read/Write enabled on the texture and the 2D Sprite package (<c>com.unity.2d.sprite</c>).
+    /// Supports both Single and Multiple sprite import modes.
     /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Generate Sprite Physics Shape", fileName = "GenerateSpritePhysicsShapeAction")]
     public sealed class GenerateSpritePhysicsShapeAction : AssetImportActionAsset
@@ -20,12 +26,19 @@ namespace Kodlon.AssetRouter.Actions
         public float alphaThreshold = 0.1f;
 
         public override bool CanRunOn(Object importedAsset, AssetImportContext ctx)
-            => importedAsset is Texture2D t && t.isReadable
-               && AssetImporter.GetAtPath(ctx.AssetPath) is TextureImporter ti
-               && ti.textureType == TextureImporterType.Sprite;
+        {
+#if UNITY_2D_SPRITE
+            return importedAsset is Texture2D t && t.isReadable
+                   && AssetImporter.GetAtPath(ctx.AssetPath) is TextureImporter ti
+                   && ti.textureType == TextureImporterType.Sprite;
+#else
+            return false;
+#endif
+        }
 
         public override void Execute(Object importedAsset, AssetImportContext ctx)
         {
+#if UNITY_2D_SPRITE
             if (importedAsset is not Texture2D texture)
                 return;
 
@@ -35,69 +48,134 @@ namespace Kodlon.AssetRouter.Actions
                 return;
             }
 
-            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(ctx.AssetPath);
-            if (sprite == null)
+            if (AssetImporter.GetAtPath(ctx.AssetPath) is not TextureImporter importer)
                 return;
 
-            var pixels = texture.GetPixels();
-            var w      = texture.width;
-            var h      = texture.height;
+            var factories = new SpriteDataProviderFactories();
+            factories.Init();
 
-            var left   = FindLeft(pixels, w, h, alphaThreshold);
-            var right  = FindRight(pixels, w, h, alphaThreshold);
-            var bottom = FindBottom(pixels, w, h, alphaThreshold);
-            var top    = FindTop(pixels, w, h, alphaThreshold);
-
-            if (left > right || bottom > top)
+            var dataProvider = factories.GetSpriteEditorDataProviderFromObject(importer);
+            if (dataProvider == null)
                 return;
 
-            var ppu    = sprite.pixelsPerUnit;
-            var pivot  = sprite.pivot;
-            var outline = new Vector2[]
+            dataProvider.InitSpriteEditorDataProvider();
+
+            var outlineProvider = dataProvider.GetDataProvider<ISpritePhysicsOutlineDataProvider>();
+            if (outlineProvider == null)
+                return;
+
+            var spriteRects = dataProvider.GetSpriteRects();
+            if (spriteRects == null || spriteRects.Length == 0)
+                return;
+
+            var pixels    = texture.GetPixels();
+            var texWidth  = texture.width;
+            var texHeight = texture.height;
+            var ppu       = importer.spritePixelsPerUnit;
+            var appliedAny = false;
+
+            foreach (var spriteRect in spriteRects)
             {
-                new Vector2((left - pivot.x) / ppu,          (bottom - pivot.y) / ppu),
-                new Vector2((right + 1 - pivot.x) / ppu,     (bottom - pivot.y) / ppu),
-                new Vector2((right + 1 - pivot.x) / ppu,     (top + 1 - pivot.y) / ppu),
-                new Vector2((left - pivot.x) / ppu,          (top + 1 - pivot.y) / ppu),
-            };
+                // Bounds are computed per sprite rect so Multiple-mode sheets get one shape per sprite
+                // instead of a single box spanning the whole texture.
+                var rect = ClampToTexture(spriteRect.rect, texWidth, texHeight);
 
-            sprite.OverridePhysicsShape(new List<Vector2[]> { outline });
-            EditorUtility.SetDirty(sprite);
-            AssetDatabase.SaveAssets();
+                var left   = FindLeft(pixels, texWidth, rect, alphaThreshold);
+                var right  = FindRight(pixels, texWidth, rect, alphaThreshold);
+                var bottom = FindBottom(pixels, texWidth, rect, alphaThreshold);
+                var top    = FindTop(pixels, texWidth, rect, alphaThreshold);
+
+                if (left > right || bottom > top)
+                    continue;
+
+                var pivotPx = new Vector2(spriteRect.pivot.x * rect.width, spriteRect.pivot.y * rect.height);
+
+                var outline = new[]
+                {
+                    new Vector2((left     - rect.xMin - pivotPx.x) / ppu, (bottom   - rect.yMin - pivotPx.y) / ppu),
+                    new Vector2((right + 1 - rect.xMin - pivotPx.x) / ppu, (bottom   - rect.yMin - pivotPx.y) / ppu),
+                    new Vector2((right + 1 - rect.xMin - pivotPx.x) / ppu, (top   + 1 - rect.yMin - pivotPx.y) / ppu),
+                    new Vector2((left     - rect.xMin - pivotPx.x) / ppu, (top   + 1 - rect.yMin - pivotPx.y) / ppu),
+                };
+
+                // Without this guard, SaveAndReimport() below triggers another import pass, the rule
+                // matches again (already in place), and Execute runs again — an infinite reimport loop.
+                if (OutlineMatches(outlineProvider.GetOutlines(spriteRect.spriteID), outline))
+                    continue;
+
+                outlineProvider.SetOutlines(spriteRect.spriteID, new List<Vector2[]> { outline });
+                appliedAny = true;
+            }
+
+            if (!appliedAny)
+                return;
+
+            dataProvider.Apply();
+            importer.SaveAndReimport();
 
             ctx.Logger.Log($"[AssetRouter] SpritePhysicsShape → {ctx.AssetPath}");
+#else
+            ctx.Logger.LogWarning("AssetRouter", "[AssetRouter] GenerateSpritePhysicsShapeAction: com.unity.2d.sprite package is not installed.");
+#endif
         }
 
-        private static int FindLeft(Color[] p, int w, int h, float t)
+#if UNITY_2D_SPRITE
+        private static bool OutlineMatches(List<Vector2[]> existing, Vector2[] outline)
         {
-            for (var x = 0; x < w; x++)
-                for (var y = 0; y < h; y++)
-                    if (p[y * w + x].a >= t) return x;
-            return 0;
+            if (existing == null || existing.Count != 1)
+                return false;
+
+            var current = existing[0];
+            if (current == null || current.Length != outline.Length)
+                return false;
+
+            for (var i = 0; i < outline.Length; i++)
+                if (current[i] != outline[i]) // Vector2's == is an approximate comparison
+                    return false;
+
+            return true;
         }
 
-        private static int FindRight(Color[] p, int w, int h, float t)
+        private static RectInt ClampToTexture(Rect rect, int texWidth, int texHeight)
         {
-            for (var x = w - 1; x >= 0; x--)
-                for (var y = 0; y < h; y++)
-                    if (p[y * w + x].a >= t) return x;
-            return w - 1;
+            var xMin = Mathf.Clamp(Mathf.RoundToInt(rect.xMin), 0, texWidth);
+            var yMin = Mathf.Clamp(Mathf.RoundToInt(rect.yMin), 0, texHeight);
+            var xMax = Mathf.Clamp(Mathf.RoundToInt(rect.xMax), 0, texWidth);
+            var yMax = Mathf.Clamp(Mathf.RoundToInt(rect.yMax), 0, texHeight);
+            return new RectInt(xMin, yMin, xMax - xMin, yMax - yMin);
         }
 
-        private static int FindBottom(Color[] p, int w, int h, float t)
+        private static int FindLeft(Color[] p, int texWidth, RectInt r, float t)
         {
-            for (var y = 0; y < h; y++)
-                for (var x = 0; x < w; x++)
-                    if (p[y * w + x].a >= t) return y;
-            return 0;
+            for (var x = r.xMin; x < r.xMax; x++)
+                for (var y = r.yMin; y < r.yMax; y++)
+                    if (p[y * texWidth + x].a >= t) return x;
+            return r.xMin;
         }
 
-        private static int FindTop(Color[] p, int w, int h, float t)
+        private static int FindRight(Color[] p, int texWidth, RectInt r, float t)
         {
-            for (var y = h - 1; y >= 0; y--)
-                for (var x = 0; x < w; x++)
-                    if (p[y * w + x].a >= t) return y;
-            return h - 1;
+            for (var x = r.xMax - 1; x >= r.xMin; x--)
+                for (var y = r.yMin; y < r.yMax; y++)
+                    if (p[y * texWidth + x].a >= t) return x;
+            return r.xMax - 1;
         }
+
+        private static int FindBottom(Color[] p, int texWidth, RectInt r, float t)
+        {
+            for (var y = r.yMin; y < r.yMax; y++)
+                for (var x = r.xMin; x < r.xMax; x++)
+                    if (p[y * texWidth + x].a >= t) return y;
+            return r.yMin;
+        }
+
+        private static int FindTop(Color[] p, int texWidth, RectInt r, float t)
+        {
+            for (var y = r.yMax - 1; y >= r.yMin; y--)
+                for (var x = r.xMin; x < r.xMax; x++)
+                    if (p[y * texWidth + x].a >= t) return y;
+            return r.yMax - 1;
+        }
+#endif
     }
 }

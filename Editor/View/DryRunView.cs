@@ -131,8 +131,8 @@ namespace Kodlon.AssetRouter.View
 
         private void DrawReimportAllButton(ImporterSettingsDatabase db)
         {
-            if (GUILayout.Button("Re-import All Matched", GUILayout.Height(28f)))
-                ReimportAll(db);
+            if (GUILayout.Button("Force Re-import In-Place", GUILayout.Height(28f)))
+                ReimportInPlace(db);
         }
 
         private void SetSelection(bool value)
@@ -151,15 +151,16 @@ namespace Kodlon.AssetRouter.View
             _entries = null;
         }
 
-        private void ReimportAll(ImporterSettingsDatabase db)
+        private void ReimportInPlace(ImporterSettingsDatabase db)
         {
             var all = DryRunPlanner.Scan(db);
 
+            // Only in-place matched assets are touched here — moving out-of-place assets is what
+            // "Apply Selected" is for, and must go through the preview/selection flow, not this button.
             foreach (var e in all)
-                if (e.MatchedRule != null)
-                    e.Selected = true;
+                e.Selected = e.MatchedRule != null && e.AlreadyInPlace;
 
-            BatchMover.Move(all, _forceReimport);
+            BatchMover.Move(all, forceReimportInPlace: true);
             _entries = null;
         }
     }

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
 using Kodlon.AssetRouter.Logic;
 
@@ -6,11 +8,25 @@ namespace Kodlon.AssetRouter.Tests
 {
     public class RuleStatsStoreTests
     {
+        private string _tempPath;
+
         [SetUp]
-        public void SetUp() => RuleStatsStore.Clear();
+        public void SetUp()
+        {
+            _tempPath = Path.Combine(Path.GetTempPath(), $"assetrouter-teststats-{Guid.NewGuid():N}.json");
+            RuleStatsStore.OverrideStatsPathForTests = _tempPath;
+            RuleStatsStore.Clear();
+        }
 
         [TearDown]
-        public void TearDown() => RuleStatsStore.Clear();
+        public void TearDown()
+        {
+            RuleStatsStore.OverrideStatsPathForTests = null;
+
+            foreach (var path in new[] { _tempPath, _tempPath + ".bak", _tempPath + ".tmp" })
+                if (File.Exists(path))
+                    File.Delete(path);
+        }
 
         [Test]
         public void IncrementBatch_NewRule_CreatesEntryWithCountOne()

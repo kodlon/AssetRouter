@@ -16,7 +16,7 @@ namespace Kodlon.AssetRouter.View
         private const float SectionSpacing = 6f;
         private const double PreviewDebounceSeconds = 0.3;
 
-        private ImporterSettingsDatabase _database;
+        [SerializeField] private ImporterSettingsDatabase _database;
         private bool _isFilterFoldoutOpen;
         private ReorderableList _rulesList;
         private GUIStyle _saveButtonStyle;
@@ -52,7 +52,10 @@ namespace Kodlon.AssetRouter.View
         private void OnEnable()
         {
             EditorApplication.projectChanged += OnProjectChanged;
-            LoadDatabase(DatabaseLocator.FindDatabase());
+
+            // _database survives domain reload via [SerializeField] — only fall back to auto-resolving
+            // the first database in the project when nothing was previously selected.
+            LoadDatabase(_database != null ? _database : DatabaseLocator.FindDatabase());
         }
 
         private void OnDisable()

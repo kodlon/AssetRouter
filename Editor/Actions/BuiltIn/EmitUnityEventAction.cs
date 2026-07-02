@@ -10,8 +10,14 @@ namespace Kodlon.AssetRouter.Actions
     /// <summary>
     /// Fires a serialized <c>UnityEvent&lt;Object&gt;</c> when an asset is imported.
     /// Lets non-programmers wire up callbacks entirely in the Inspector without writing code.
-    /// Skipped automatically when no persistent listeners are configured.
     /// </summary>
+    /// <remarks>
+    /// This action is itself a ScriptableObject asset, so its persistent listeners can only target other
+    /// assets (e.g. a ScriptableObject or a prefab's components) — a listener pointing at a scene object
+    /// serializes to null and silently no-ops when invoked, since scene objects don't exist at asset-edit time.
+    /// <see cref="CanRunOn"/> only counts <em>persistent</em> listeners added in the Inspector; listeners
+    /// added at runtime via <c>UnityEvent.AddListener</c> do not count and will never cause this action to run.
+    /// </remarks>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Emit Unity Event", fileName = "EmitUnityEventAction")]
     public sealed class EmitUnityEventAction : AssetImportActionAsset
     {

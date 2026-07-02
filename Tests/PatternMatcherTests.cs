@@ -141,14 +141,23 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void Match_GlobWithDoubleStar_CapturesPath()
         {
-            // ** in glob translates to (.*) — greedy, so the trailing '/' before the next literal
-            // segment ends up INSIDE the capture. Downstream TargetResolver.Resolve collapses any
-            // resulting // in the resolved target, so this is safe in practice.
+            // "**/" expands only over whole path segments — the trailing '/' is a literal outside the
+            // capture group, so it is no longer included in the captured value.
             var rule = MakeRule(PatternMode.Glob, "Assets/**/T_*.png", matchFullPath: true);
             var m = PatternMatcher.Match(rule, "Assets/Art/Sub/T_Rock.png");
             Assert.IsNotNull(m);
-            Assert.AreEqual("Art/Sub/", m.Groups[1].Value);
+            Assert.AreEqual("Art/Sub", m.Groups[1].Value);
             Assert.AreEqual("Rock", m.Groups[2].Value);
+        }
+
+        [Test]
+        public void Match_GlobWithDoubleStar_DoesNotMatchMidSegment()
+        {
+            // "Assets/**/T_*.png" must not match a file that is directly in Assets/ and whose name merely
+            // contains "T_" mid-string — "**" over a segment boundary requires an actual '/' in the input.
+            var rule = MakeRule(PatternMode.Glob, "Assets/**/T_*.png", matchFullPath: true);
+            var m = PatternMatcher.Match(rule, "Assets/SubT_Rock.png");
+            Assert.IsNull(m);
         }
 
         [Test]

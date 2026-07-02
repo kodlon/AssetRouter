@@ -9,8 +9,11 @@ namespace Kodlon.AssetRouter.Logic
     {
         private const int MaxSessions = 500;
 
+        /// <summary>Test-only override so tests don't read/write the real project's operation log.</summary>
+        internal static string OverrideLogPathForTests;
+
         private static string LogPath =>
-            Path.Combine(
+            OverrideLogPathForTests ?? Path.Combine(
                 Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
                 "Library", "AssetRouter", "log.json");
 

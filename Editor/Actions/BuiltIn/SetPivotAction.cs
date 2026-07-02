@@ -21,12 +21,23 @@ namespace Kodlon.AssetRouter.Actions
             if (AssetImporter.GetAtPath(ctx.AssetPath) is not TextureImporter importer)
                 return;
 
+            if (importer.spriteImportMode == SpriteImportMode.Multiple)
+            {
+                ctx.Logger.LogWarning("AssetRouter",
+                    $"[AssetRouter] SetPivot: {ctx.AssetPath} uses Multiple sprite mode — per-sprite pivots must be " +
+                    "set in the Sprite Editor, skipping.");
+                return;
+            }
+
             var settings = new TextureImporterSettings();
             importer.ReadTextureSettings(settings);
 
-            if (settings.spritePivot == pivot)
+            // spritePivot is only honored when alignment is Custom — without this, the pivot is written
+            // but silently has no visual effect (default alignment is Center).
+            if (settings.spriteAlignment == (int)SpriteAlignment.Custom && settings.spritePivot == pivot)
                 return;
 
+            settings.spriteAlignment = (int)SpriteAlignment.Custom;
             settings.spritePivot = pivot;
             importer.SetTextureSettings(settings);
             AssetDatabase.ImportAsset(ctx.AssetPath, ImportAssetOptions.ForceUpdate);

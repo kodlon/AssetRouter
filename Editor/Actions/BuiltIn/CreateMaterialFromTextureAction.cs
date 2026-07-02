@@ -53,6 +53,7 @@ namespace Kodlon.AssetRouter.Actions
             mat.SetTexture(textureProperty, texture);
 
             PathUtility.EnsureFolderExists(folder);
+            PipelineOutputGuard.MarkCreated(matPath);
             AssetDatabase.CreateAsset(mat, matPath);
 
             ctx.Logger.Log($"[AssetRouter] CreateMaterial → {matPath}");

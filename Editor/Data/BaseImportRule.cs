@@ -56,6 +56,7 @@ namespace Kodlon.AssetRouter.Data
 
         [NonSerialized] internal Regex _compiledPattern;
         [NonSerialized] internal string _compiledFor;
+        [NonSerialized] internal PatternMode _compiledForMode;
         [NonSerialized] internal int _sessionMatchCount;
     }
 }

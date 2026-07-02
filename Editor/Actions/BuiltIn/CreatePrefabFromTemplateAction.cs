@@ -47,10 +47,16 @@ namespace Kodlon.AssetRouter.Actions
 
             try
             {
-                instance.GetComponentInChildren<IAssetRouterPrefabSetup>()
-                    ?.SetupAssetRouter(importedAsset, ctx.AssetPath);
+                foreach (var setup in instance.GetComponentsInChildren<IAssetRouterPrefabSetup>(true))
+                    setup.SetupAssetRouter(importedAsset, ctx.AssetPath);
+
+                // Saving a connected InstantiatePrefab instance would create a Prefab Variant tied to the
+                // template, so later template edits leak into every previously generated prefab. Unpack
+                // first so the output is a fully independent asset.
+                PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
 
                 PathUtility.EnsureFolderExists(folder);
+                PipelineOutputGuard.MarkCreated(prefabPath);
                 PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
             }
             finally

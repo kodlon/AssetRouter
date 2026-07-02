@@ -22,8 +22,11 @@ namespace Kodlon.AssetRouter.Logic
 
     internal static class RuleStatsStore
     {
+        /// <summary>Test-only override so tests don't read/write the real project's stats file.</summary>
+        internal static string OverrideStatsPathForTests;
+
         private static string StatsPath =>
-            Path.Combine(
+            OverrideStatsPathForTests ?? Path.Combine(
                 Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
                 "Library", "AssetRouter", "stats.json");
 

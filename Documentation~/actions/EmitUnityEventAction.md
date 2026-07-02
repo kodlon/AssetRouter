@@ -31,6 +31,11 @@ idempotent depends on what the listeners do.
 
 ## Edge cases
 
+**Listener target must be an asset, not a scene object:** this action is itself a ScriptableObject
+asset, so persistent listener references are resolved against other assets (a ScriptableObject, a
+prefab's components, etc.). A listener pointing at a GameObject in a scene serializes to `null` and
+silently does nothing when invoked — there is no error or warning.
+
 **Listener calls a method that triggers another import:** if the listener method imports or
 modifies assets, the postprocessor may run again. Make sure listener methods do not create
 a feedback loop.

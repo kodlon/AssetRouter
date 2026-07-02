@@ -58,7 +58,7 @@ namespace Kodlon.AssetRouter.Logic
 
         private static Regex GetOrCompile(BaseImportRule rule)
         {
-            if (rule._compiledFor == rule.pattern)
+            if (rule._compiledFor == rule.pattern && rule._compiledForMode == rule.patternMode)
                 return rule._compiledPattern;
 
             var regexSource = rule.patternMode == PatternMode.Glob
@@ -79,6 +79,7 @@ namespace Kodlon.AssetRouter.Logic
             }
 
             rule._compiledFor = rule.pattern;
+            rule._compiledForMode = rule.patternMode;
             return rule._compiledPattern;
         }
 
@@ -91,9 +92,20 @@ namespace Kodlon.AssetRouter.Logic
             {
                 if (glob[i] == '*' && i + 1 < glob.Length && glob[i + 1] == '*')
                 {
-                    sb.Append("(.*)");
                     i += 2;
-                    if (i < glob.Length && glob[i] == '/') i++;
+
+                    // "**/" must expand over whole path segments only — a bare (.*) before the "/" literal
+                    // would let the match start mid-segment (e.g. "Assets/**/T_*.png" wrongly matching
+                    // "Assets/SubT_Rock.png"). A trailing "**" with nothing after it just captures the rest.
+                    if (i < glob.Length && glob[i] == '/')
+                    {
+                        sb.Append("(?:(.*)/)?");
+                        i++;
+                    }
+                    else
+                    {
+                        sb.Append("(.*)");
+                    }
                 }
                 else if (glob[i] == '*')
                 {
