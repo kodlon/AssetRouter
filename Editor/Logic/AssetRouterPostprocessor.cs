@@ -33,6 +33,11 @@ namespace Kodlon.AssetRouter.Logic
                 if (PipelineOutputGuard.WasCreatedByPipeline(assetPath))
                     continue;
 
+                // Skip assets whose pipeline run is already in flight — an action that reimports its own
+                // trigger asset (e.g. SetPivotAction) would otherwise cause the whole rule to run again.
+                if (PipelineOutputGuard.IsRunning(assetPath))
+                    continue;
+
                 if (!RuleValidator.ShouldProcess(db, assetPath))
                     continue;
 
@@ -78,6 +83,11 @@ namespace Kodlon.AssetRouter.Logic
 
             if (pendingRuns.Count > 0)
             {
+                // Mark in-flight synchronously (not inside the delayed closure) so a reimport triggered by
+                // one of the rule's own actions is caught even if it happens before delayCall fires.
+                foreach (var (_, path) in pendingRuns)
+                    PipelineOutputGuard.BeginRun(path);
+
                 // Actions that create assets (CreateAsset/SaveAsPrefabAsset/ImportAsset) must not run from
                 // inside OnPostprocessAllAssets — Unity explicitly disallows nested import batches. Deferring
                 // via delayCall also means a self-matching output asset gets its own top-level postprocess
@@ -85,7 +95,16 @@ namespace Kodlon.AssetRouter.Logic
                 EditorApplication.delayCall += () =>
                 {
                     foreach (var (rule, path) in pendingRuns)
-                        ActionPipeline.Execute(rule, path, db);
+                    {
+                        try
+                        {
+                            ActionPipeline.Execute(rule, path, db);
+                        }
+                        finally
+                        {
+                            PipelineOutputGuard.EndRun(path);
+                        }
+                    }
                 };
             }
 

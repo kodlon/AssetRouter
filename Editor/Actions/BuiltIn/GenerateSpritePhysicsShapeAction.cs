@@ -71,7 +71,6 @@ namespace Kodlon.AssetRouter.Actions
             var pixels    = texture.GetPixels();
             var texWidth  = texture.width;
             var texHeight = texture.height;
-            var ppu       = importer.spritePixelsPerUnit;
             var appliedAny = false;
 
             foreach (var spriteRect in spriteRects)
@@ -88,14 +87,19 @@ namespace Kodlon.AssetRouter.Actions
                 if (left > right || bottom > top)
                     continue;
 
-                var pivotPx = new Vector2(spriteRect.pivot.x * rect.width, spriteRect.pivot.y * rect.height);
+                // ISpritePhysicsOutlineDataProvider outlines are in texture-pixel space relative to the
+                // CENTER of the sprite rect — unlike the runtime Sprite.OverridePhysicsShape API (used by
+                // the old, non-persisting version of this action), they are NOT divided by pixels-per-unit
+                // and are NOT relative to the pivot.
+                var centerX = rect.width / 2f;
+                var centerY = rect.height / 2f;
 
                 var outline = new[]
                 {
-                    new Vector2((left     - rect.xMin - pivotPx.x) / ppu, (bottom   - rect.yMin - pivotPx.y) / ppu),
-                    new Vector2((right + 1 - rect.xMin - pivotPx.x) / ppu, (bottom   - rect.yMin - pivotPx.y) / ppu),
-                    new Vector2((right + 1 - rect.xMin - pivotPx.x) / ppu, (top   + 1 - rect.yMin - pivotPx.y) / ppu),
-                    new Vector2((left     - rect.xMin - pivotPx.x) / ppu, (top   + 1 - rect.yMin - pivotPx.y) / ppu),
+                    new Vector2(left      - rect.xMin - centerX, bottom    - rect.yMin - centerY),
+                    new Vector2(right + 1 - rect.xMin - centerX, bottom    - rect.yMin - centerY),
+                    new Vector2(right + 1 - rect.xMin - centerX, top   + 1 - rect.yMin - centerY),
+                    new Vector2(left      - rect.xMin - centerX, top   + 1 - rect.yMin - centerY),
                 };
 
                 // Without this guard, SaveAndReimport() below triggers another import pass, the rule

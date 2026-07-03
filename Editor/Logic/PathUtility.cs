@@ -41,7 +41,12 @@ namespace Kodlon.AssetRouter.Logic
                 var next = current + "/" + parts[i];
 
                 if (!AssetDatabase.IsValidFolder(next))
-                    AssetDatabase.CreateFolder(current, parts[i]);
+                {
+                    var guid = AssetDatabase.CreateFolder(current, parts[i]);
+                    if (string.IsNullOrEmpty(guid))
+                        Debug.LogWarning($"[AssetRouter] Failed to create folder \"{next}\" — invalid name or permissions? " +
+                                         "The subsequent move/import will likely fail too.");
+                }
 
                 current = next;
             }

@@ -171,9 +171,16 @@ namespace Kodlon.AssetRouter.View
             if (string.IsNullOrEmpty(rule.pattern))
                 return;
 
-            if (rule.pattern != _lastPreviewPattern)
+            // \x1f (unit separator) avoids key collisions from naive concatenation of adjacent fields.
+            // Must include every field BuildPatternPreview's result depends on — pattern, patternMode,
+            // matchAgainstFullPath, targetFolder, scopeFolder — or toggling one without touching the
+            // pattern text leaves a stale preview.
+            var previewKey = string.Join("\x1f",
+                rule.pattern, rule.patternMode, rule.matchAgainstFullPath, rule.targetFolder, rule.scopeFolder);
+
+            if (previewKey != _lastPreviewKey)
             {
-                _lastPreviewPattern = rule.pattern;
+                _lastPreviewKey     = previewKey;
                 _cachedPreview      = null;
                 _previewRebuildTime = EditorApplication.timeSinceStartup + PreviewDebounceSeconds;
             }

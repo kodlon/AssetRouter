@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using Kodlon.AssetRouter.Data;
 using UnityEditor;
 using UnityEngine;
 
@@ -7,7 +8,7 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal static class BatchMover
     {
-        public static BatchResult Move(List<DryRunEntry> entries, bool forceReimportInPlace = false)
+        public static BatchResult Move(List<DryRunEntry> entries, ImporterSettingsDatabase db, bool forceReimportInPlace = false)
         {
             if (entries == null || entries.Count == 0)
                 return new BatchResult(0, 0, 0, 0);
@@ -17,7 +18,11 @@ namespace Kodlon.AssetRouter.Logic
             var skipped        = 0;
             var errored        = 0;
             var logEntries     = new List<OperationLogEntry>();
-            var forceReimports = new List<string>();
+            var forceReimports = new List<DryRunEntry>();
+            // Everything that ends up here gets its preset (re)applied and its rule's post-import actions
+            // run — mirroring what the live auto-import pipeline does. Without this, "Apply Selected"/
+            // "Force Re-import In-Place" would silently skip both, unlike routing a freshly-dropped file.
+            var toProcess = new List<(BaseImportRule Rule, string Path, bool ForceReimport)>();
             var total   = entries.Count;
             var current = 0;
 
@@ -60,7 +65,7 @@ namespace Kodlon.AssetRouter.Logic
                     if (entry.AlreadyInPlace)
                     {
                         if (forceReimportInPlace)
-                            forceReimports.Add(entry.AssetPath);
+                            forceReimports.Add(entry);
                         else
                             skipped++;
 
@@ -81,6 +86,7 @@ namespace Kodlon.AssetRouter.Logic
                     {
                         logEntries.Add(new OperationLogEntry(entry.AssetPath, targetPath, entry.MatchedRule.ruleName));
                         moved++;
+                        toProcess.Add((entry.MatchedRule, targetPath, false));
                     }
                     else
                     {
@@ -95,18 +101,54 @@ namespace Kodlon.AssetRouter.Logic
                 EditorUtility.ClearProgressBar();
             }
 
-            foreach (var path in forceReimports)
+            foreach (var entry in forceReimports)
             {
-                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
                 reimported++;
+                toProcess.Add((entry.MatchedRule, entry.AssetPath, true));
             }
 
             if (logEntries.Count > 0)
                 OperationLog.RecordBatch(logEntries, "BatchMover");
 
+            foreach (var (rule, path, forceReimport) in toProcess)
+            {
+                PipelineOutputGuard.BeginRun(path);
+                try
+                {
+                    ApplyPresetAndReimport(rule, path, forceReimport);
+                    ActionPipeline.Execute(rule, path, db);
+                }
+                finally
+                {
+                    PipelineOutputGuard.EndRun(path);
+                }
+            }
+
             var result = new BatchResult(moved, reimported, skipped, errored);
             Debug.Log($"[AssetRouter] Batch complete. {result}");
             return result;
+        }
+
+        private static void ApplyPresetAndReimport(BaseImportRule rule, string assetPath, bool forceReimport)
+        {
+            var importer = AssetImporter.GetAtPath(assetPath);
+            if (importer == null)
+                return;
+
+            var presetApplied = false;
+
+            if (rule is ImportRule importRule && importRule.preset != null)
+            {
+                if (importRule.preset.ApplyTo(importer))
+                    presetApplied = true;
+                else
+                    Debug.LogWarning($"[AssetRouter] BatchMover: preset type mismatch for {assetPath} ({importRule.ruleName})");
+            }
+
+            // Only force a reimport when something actually needs to be persisted, or the user explicitly
+            // asked for one via "Force Re-import In-Place" — a plain move with no preset needs neither.
+            if (presetApplied || forceReimport)
+                importer.SaveAndReimport();
         }
     }
 }

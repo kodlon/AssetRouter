@@ -138,7 +138,9 @@ namespace Kodlon.AssetRouter.Actions
             // account for the original chunk's word-alignment pad byte when locating them.
             var originalPad     = (dataSize & 1) != 0 ? 1 : 0;
             var trailingOffset  = dataDataOffset + dataSize + originalPad;
-            var trailingLength  = wav.Length - trailingOffset;
+            // A malformed WAV can claim an odd dataSize with no actual pad byte present, pushing
+            // trailingOffset past the end of the file — clamp instead of letting outputSize go negative.
+            var trailingLength  = Math.Max(0, wav.Length - trailingOffset);
 
             var outputSize = dataChunkHeaderOffset + 8 + newDataSize + newPad + trailingLength;
 

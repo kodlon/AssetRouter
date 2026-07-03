@@ -185,6 +185,38 @@ namespace Kodlon.AssetRouter.Tests
             Assert.IsFalse(PatternMatcher.Matches(rule, "Assets/UI_Rock.png"));
         }
 
+        // Locks in Unicode behavior in CI — RegexOptions.CultureInvariant means case-folding uses the
+        // invariant culture's Unicode tables, not the OS locale, so this must hold on every CI runner.
+
+        [Test]
+        public void Glob_Cyrillic_MatchesFilename()
+        {
+            var rule = MakeRule(PatternMode.Glob, "Т_*.png");
+            Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/Т_Скала.png"));
+        }
+
+        [Test]
+        public void Glob_Cyrillic_CaseInsensitive()
+        {
+            var rule = MakeRule(PatternMode.Glob, "т_*.png"); // lowercase Cyrillic т
+            Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/Т_Скала.png")); // uppercase Cyrillic Т
+        }
+
+        [Test]
+        public void Glob_Question_MatchesSingleCyrillicCharacter()
+        {
+            var rule = MakeRule(PatternMode.Glob, "T_?.png");
+            Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/T_Ы.png"));
+            Assert.IsFalse(PatternMatcher.Matches(rule, "Assets/T_Ыы.png"));
+        }
+
+        [Test]
+        public void Glob_Star_MatchesFilenameContainingSpaces()
+        {
+            var rule = MakeRule(PatternMode.Glob, "T_*.png");
+            Assert.IsTrue(PatternMatcher.Matches(rule, "Assets/T_Character Design.png"));
+        }
+
         private static ImportRule MakeRule(PatternMode mode, string pattern, bool matchFullPath = false) =>
             new() { patternMode = mode, pattern = pattern, matchAgainstFullPath = matchFullPath, isEnabled = true };
     }

@@ -27,7 +27,11 @@ namespace Kodlon.AssetRouter.View
         private List<RuleConflict> _conflicts;
         private HashSet<int> _conflictedIndices;
 
-        private string _lastPreviewPattern;
+        // Composite key of (pattern, patternMode, matchAgainstFullPath, targetFolder, scopeFolder) — the
+        // preview depends on all five, so invalidating on pattern text alone leaves a stale preview after
+        // switching Glob/Regex, toggling Match Full Path, or editing the target/scope folder without
+        // touching the pattern text.
+        private string _lastPreviewKey;
         private string _cachedPreview;
         private double _previewRebuildTime = -1;
 
@@ -81,6 +85,8 @@ namespace Kodlon.AssetRouter.View
                 DrawNoDatabaseHint();
                 return;
             }
+
+            DrawMultipleDatabaseWarning();
 
             _serializedDb.Update();
 
@@ -236,7 +242,7 @@ namespace Kodlon.AssetRouter.View
             _rulesList.onSelectCallback = list =>
             {
                 _selectedIndex = list.index;
-                _lastPreviewPattern = null;
+                _lastPreviewKey = null;
                 _cachedPreview = null;
                 _previewRebuildTime = -1;
                 _actionsList = null;
@@ -296,7 +302,7 @@ namespace Kodlon.AssetRouter.View
             _serializedDb = _database != null ? new SerializedObject(_database) : null;
             _rulesList = null;
             _selectedIndex = -1;
-            _lastPreviewPattern = null;
+            _lastPreviewKey = null;
             _cachedPreview = null;
             _previewRebuildTime = -1;
             _actionsList = null;
@@ -387,6 +393,21 @@ namespace Kodlon.AssetRouter.View
             EditorGUILayout.PropertyField(_serializedDb.FindProperty("monitoredExtensions"), new GUIContent("Monitored Extensions"), true);
             EditorGUILayout.PropertyField(_serializedDb.FindProperty("ignoredFolders"), new GUIContent("Ignored Folders"), true);
             EditorGUI.indentLevel--;
+        }
+
+        private void DrawMultipleDatabaseWarning()
+        {
+            // AssetRouterPostprocessor always drives live auto-import off DatabaseLocator.FindDatabase()
+            // (the first ImporterSettingsDatabase Unity finds), regardless of which one this window has
+            // open. With more than one database in the project these can silently diverge.
+            var liveDb = DatabaseLocator.FindDatabase();
+            if (liveDb == null || liveDb == _database)
+                return;
+
+            EditorGUILayout.HelpBox(
+                $"You're editing \"{_database.name}\", but live auto-import is driven by \"{liveDb.name}\" " +
+                "— select it above, or delete/rename the other database, to avoid editing rules that never run.",
+                MessageType.Warning);
         }
 
         private void DrawNoDatabaseHint()

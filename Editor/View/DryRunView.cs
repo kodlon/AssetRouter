@@ -147,7 +147,7 @@ namespace Kodlon.AssetRouter.View
         private void ApplySelected(ImporterSettingsDatabase db)
         {
             if (_entries == null) return;
-            BatchMover.Move(_entries, _forceReimport);
+            BatchMover.Move(_entries, db, _forceReimport);
             _entries = null;
         }
 
@@ -160,7 +160,7 @@ namespace Kodlon.AssetRouter.View
             foreach (var e in all)
                 e.Selected = e.MatchedRule != null && e.AlreadyInPlace;
 
-            BatchMover.Move(all, forceReimportInPlace: true);
+            BatchMover.Move(all, db, forceReimportInPlace: true);
             _entries = null;
         }
     }

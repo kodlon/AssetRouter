@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Kodlon.AssetRouter.Logic;
@@ -45,7 +47,23 @@ namespace Kodlon.AssetRouter.Editor
             AssetDatabase.Refresh();
         }
 
-        /// <summary>Strips characters that are not valid in a C# identifier and guards against a leading digit or empty result.</summary>
+        private static readonly HashSet<string> ReservedKeywords = new(StringComparer.Ordinal)
+        {
+            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
+            "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
+            "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
+            "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
+            "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
+            "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
+            "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
+            "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while"
+        };
+
+        /// <summary>
+        /// Strips characters that are not valid in a C# identifier, guards against a leading digit or empty
+        /// result, and escapes reserved keywords (e.g. a file named "class.cs" would otherwise generate an
+        /// uncompilable "class class : ...").
+        /// </summary>
         private static string SanitizeIdentifier(string raw, string fallback)
         {
             var sb = new StringBuilder();
@@ -61,7 +79,8 @@ namespace Kodlon.AssetRouter.Editor
             if (char.IsDigit(sb[0]))
                 sb.Insert(0, '_');
 
-            return sb.ToString();
+            var result = sb.ToString();
+            return ReservedKeywords.Contains(result) ? "_" + result : result;
         }
 
         // ── Templates ─────────────────────────────────────────────────────────────
@@ -104,8 +123,10 @@ namespace {{NAMESPACE}}
             if (AssetImporter.GetAtPath(ctx.AssetPath) is not TextureImporter importer)
                 return;
 
-            // TODO: modify importer settings
-            AssetDatabase.ImportAsset(ctx.AssetPath, ImportAssetOptions.ForceUpdate);
+            // TODO: modify importer settings, then reimport. Always guard with an equality check first
+            // (compare the setting you're about to write against its current value) — an unconditional
+            // ImportAsset call here will reimport on every run, forever.
+            // AssetDatabase.ImportAsset(ctx.AssetPath, ImportAssetOptions.ForceUpdate);
         }
     }
 }

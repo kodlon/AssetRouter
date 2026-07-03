@@ -95,6 +95,13 @@ namespace Kodlon.AssetRouter.Logic
                     Debug.LogWarning($"[AssetRouter] Rule \"{rule.ruleName}\": unknown patternMode \"{patternModeStr}\" — defaulting to {rule.patternMode}.");
             }
 
+            // Schema v1 exports predate "pattern" and used these three fields instead. RuleMigrator only
+            // has something to migrate if they're actually read here — without this, MigrateImportedRules
+            // is a no-op for every v1 JSON, since ImportRule always starts with these fields empty.
+            rule._legacyPrefix          = rObj["prefix"]?.Value<string>()          ?? "";
+            rule._legacySuffix          = rObj["suffix"]?.Value<string>()          ?? "";
+            rule._legacyExtensionFilter = rObj["extensionFilter"]?.Value<string>() ?? "";
+
             var presetGuid = rObj["preset"]?.Value<string>();
             if (!string.IsNullOrEmpty(presetGuid))
             {
