@@ -45,13 +45,21 @@ namespace Kodlon.AssetRouter.View
         private readonly NamingValidatorView _validatorView = new NamingValidatorView();
         private Dictionary<string, int> _statsCache;
 
-        [MenuItem("Tools/Asset Router Settings")]
+        [MenuItem("Tools/Asset Router/Settings")]
         public static void OpenWindow()
         {
             var win = GetWindow<AssetRouterWindow>("Asset Router");
             win.minSize = new Vector2(520f, 480f);
             win.Show();
         }
+
+        [MenuItem("Tools/Asset Router/Documentation")]
+        private static void OpenDocumentation()
+            => Application.OpenURL("https://github.com/kodlon/AssetRouter/blob/main/Documentation~/DOCUMENTATION_EN.md");
+
+        [MenuItem("Tools/Asset Router/Report Issue")]
+        private static void OpenIssueTracker()
+            => Application.OpenURL("https://github.com/kodlon/AssetRouter/issues");
 
         private void OnEnable()
         {

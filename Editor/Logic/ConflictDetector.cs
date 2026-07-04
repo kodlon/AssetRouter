@@ -25,6 +25,7 @@ namespace Kodlon.AssetRouter.Logic
         }
     }
 
+    [InitializeOnLoad]
     internal static class ConflictDetector
     {
         private static readonly string[] FixedSamplePaths =
@@ -37,6 +38,20 @@ namespace Kodlon.AssetRouter.Logic
             "Assets/Sprite_Player.png", "Assets/Atlas_UI.png",
         };
 
+        private static string[] _cachedSamplePaths;
+
+        static ConflictDetector()
+        {
+            EditorApplication.projectChanged     -= InvalidateSampleCache;
+            EditorApplication.projectChanged     += InvalidateSampleCache;
+            AssetDatabase.importPackageCompleted -= OnImportPackageCompleted;
+            AssetDatabase.importPackageCompleted += OnImportPackageCompleted;
+        }
+
+        internal static void InvalidateSampleCache() => _cachedSamplePaths = null;
+
+        private static void OnImportPackageCompleted(string _) => _cachedSamplePaths = null;
+
         public static List<RuleConflict> Detect(List<BaseImportRule> rules)
         {
             var conflicts = new List<RuleConflict>();
@@ -44,7 +59,7 @@ namespace Kodlon.AssetRouter.Logic
             if (rules == null || rules.Count < 2)
                 return conflicts;
 
-            var samplePaths = BuildSamplePaths();
+            var samplePaths = GetOrBuildSamplePaths();
 
             for (var i = 0; i < rules.Count; i++)
             {
@@ -95,11 +110,21 @@ namespace Kodlon.AssetRouter.Logic
             return PatternMatcher.Matches(rule, path);
         }
 
+        private static string[] GetOrBuildSamplePaths()
+        {
+            if (_cachedSamplePaths != null)
+                return _cachedSamplePaths;
+
+            _cachedSamplePaths = BuildSamplePaths();
+            return _cachedSamplePaths;
+        }
+
         private static string[] BuildSamplePaths()
         {
             var paths = new HashSet<string>(FixedSamplePaths, StringComparer.OrdinalIgnoreCase);
 
             var guids = AssetDatabase.FindAssets("", new[] { "Assets" });
+            Array.Sort(guids);
             var limit = Math.Min(guids.Length, 100);
 
             for (var i = 0; i < limit; i++)

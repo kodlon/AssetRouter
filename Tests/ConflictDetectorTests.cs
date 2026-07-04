@@ -104,6 +104,49 @@ namespace Kodlon.AssetRouter.Tests
             Assert.IsEmpty(ConflictDetector.Detect(null));
         }
 
+        [Test]
+        public void Detect_CalledTwice_ReturnsSameResults()
+        {
+            var rules = new List<BaseImportRule>
+            {
+                MakeRule("T_*"),
+                MakeRule("T_*_D.png")
+            };
+
+            var first  = ConflictDetector.Detect(rules);
+            var second = ConflictDetector.Detect(rules);
+
+            Assert.AreEqual(first.Count, second.Count);
+            for (var i = 0; i < first.Count; i++)
+            {
+                Assert.AreEqual(first[i].Type,   second[i].Type);
+                Assert.AreEqual(first[i].IndexA, second[i].IndexA);
+                Assert.AreEqual(first[i].IndexB, second[i].IndexB);
+            }
+        }
+
+        [Test]
+        public void Detect_AfterInvalidate_ReturnsSameResults()
+        {
+            var rules = new List<BaseImportRule>
+            {
+                MakeRule("T_*"),
+                MakeRule("T_*_D.png")
+            };
+
+            var before = ConflictDetector.Detect(rules);
+            ConflictDetector.InvalidateSampleCache();
+            var after = ConflictDetector.Detect(rules);
+
+            Assert.AreEqual(before.Count, after.Count);
+            for (var i = 0; i < before.Count; i++)
+            {
+                Assert.AreEqual(before[i].Type,   after[i].Type);
+                Assert.AreEqual(before[i].IndexA, after[i].IndexA);
+                Assert.AreEqual(before[i].IndexB, after[i].IndexB);
+            }
+        }
+
         private static ImportRule MakeRule(string pattern, bool enabled = true) =>
             new() { pattern = pattern, patternMode = PatternMode.Glob, isEnabled = enabled };
     }

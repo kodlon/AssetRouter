@@ -3,6 +3,10 @@ using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
+    /// <summary>
+    /// Enables the "Add Collider" option on a ModelImporter so Unity generates a MeshCollider sub-asset on import.
+    /// Provided as a legacy sample; the recommended approach is to configure this directly in the Model import settings.
+    /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Generate Mesh Collider", fileName = "GenerateMeshColliderAction")]
     public sealed class GenerateMeshColliderAction : AssetImportActionAsset
     {
