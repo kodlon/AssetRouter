@@ -200,7 +200,13 @@ namespace Kodlon.AssetRouter.View
             _rulesList = new ReorderableList(_serializedDb, rulesProp, true, true, true, true);
 
             _rulesList.drawHeaderCallback = rect =>
-                EditorGUI.LabelField(rect, "Import Rules", EditorStyles.boldLabel);
+            {
+                var labelRect = new Rect(rect.x, rect.y, rect.width - 124f, rect.height);
+                var btnRect   = new Rect(rect.xMax - 122f, rect.y + 1f, 120f, rect.height - 2f);
+                EditorGUI.LabelField(labelRect, "Import Rules", EditorStyles.boldLabel);
+                if (GUI.Button(btnRect, "Paste from Clipboard", EditorStyles.miniButton))
+                    PasteRuleFromClipboard();
+            };
 
             _rulesList.elementHeightCallback = _ => ListElementHeight;
 
@@ -355,6 +361,32 @@ namespace Kodlon.AssetRouter.View
             {
                 EditorUtility.DisplayDialog("Export Failed", e.Message, "OK");
             }
+        }
+
+        private void PasteRuleFromClipboard()
+        {
+            var clip = GUIUtility.systemCopyBuffer;
+
+            if (string.IsNullOrEmpty(clip))
+            {
+                EditorUtility.DisplayDialog("Paste Rule", "Clipboard is empty.", "OK");
+                return;
+            }
+
+            if (!JsonImporter.TryImportRuleFromJson(clip, out var imported, out var err))
+            {
+                EditorUtility.DisplayDialog("Paste Rule", err, "OK");
+                return;
+            }
+
+            if (imported.postImportActions != null)
+                foreach (var action in imported.postImportActions)
+                    if (action != null)
+                        AssetDatabase.AddObjectToAsset(action, _database);
+
+            EditorUtility.SetDirty(_database);
+            AddRule(_rulesList, imported);
+            Debug.Log($"[AssetRouter] Rule \"{imported.ruleName}\" pasted from clipboard.");
         }
 
         private void ImportDatabaseFromJson()

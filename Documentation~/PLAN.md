@@ -559,8 +559,15 @@ SO зберігає лічильник `timesMatched` на правило (incre
 - [x] `NamingValidatorView.cs` — scan, table, clipboard export
 - [x] 4й таб "Validate" у `AssetRouterWindow`
 
-### 10.5 Rule templates / sharing
+### ✅ 10.5 Rule templates / sharing
+> ✅ **Виконано — v0.9.2**
+
 Кнопка `Export rule as gist` — копіює YAML/JSON одного правила в clipboard. Кнопка `Import rule from clipboard` — додає його в поточний SO. Дозволяє ділитися правилами між проєктами без копіювання всього SO.
+
+- [x] `JsonExporter.ExportRule(ImportRule)` — JSON з `{guid, path}` для preset і object-ref полів дій (через reflection)
+- [x] `JsonImporter.TryImportRuleFromJson` — резолв preset GUID → fallback path → warning; object-ref поля actions відновлюються через reflection + `{guid, path}`; warning якщо N refs не резолвились
+- [x] UI: "Copy Rule to Clipboard" у деталях правила; "Paste from Clipboard" у хедері списку правил (без потреби виділяти правило)
+- [x] 6 нових тестів у `JsonRoundTripTests.cs`
 
 ### ✅ 10.6 OnPreprocessAsset double-apply protection
 > ✅ **Виконано — v0.8.0**

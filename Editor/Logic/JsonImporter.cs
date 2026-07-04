@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
 using Newtonsoft.Json.Linq;
@@ -72,6 +73,155 @@ namespace Kodlon.AssetRouter.Logic
             EditorUtility.SetDirty(db);
 
             RuleMigrator.MigrateIfNeeded(db);
+        }
+
+        public static bool TryImportRuleFromJson(string json, out ImportRule rule, out string error)
+        {
+            rule  = null;
+            error = null;
+
+            JObject rObj;
+            try { rObj = JObject.Parse(json); }
+            catch (Exception e) { error = e.Message; return false; }
+
+            if (rObj["$assetRouterRule"] == null)
+            {
+                error = "Clipboard does not contain a valid Asset Router rule.\nUse 'Copy Rule to Clipboard' on a rule first.";
+                return false;
+            }
+
+            rule = new ImportRule
+            {
+                ruleName             = rObj["ruleName"]?.Value<string>()           ?? "Imported Rule",
+                isEnabled            = rObj["isEnabled"]?.Value<bool>()            ?? true,
+                pattern              = rObj["pattern"]?.Value<string>()            ?? "",
+                matchAgainstFullPath = rObj["matchAgainstFullPath"]?.Value<bool>() ?? false,
+                scopeFolder          = rObj["scopeFolder"]?.Value<string>()        ?? "",
+                targetFolder         = rObj["targetFolder"]?.Value<string>()       ?? "Assets/"
+            };
+
+            var modeStr = rObj["patternMode"]?.Value<string>();
+            if (!string.IsNullOrEmpty(modeStr)
+                && Enum.TryParse<PatternMode>(modeStr, ignoreCase: true, out var mode)
+                && Enum.IsDefined(typeof(PatternMode), mode))
+                rule.patternMode = mode;
+
+            if (rObj["preset"] is JObject presetRefObj)
+            {
+                var resolved = ResolveAssetRef(presetRefObj, typeof(Preset)) as Preset;
+                if (resolved != null)
+                    rule.preset = resolved;
+                else
+                    Debug.LogWarning($"[AssetRouter] Rule \"{rule.ruleName}\": preset could not be resolved — re-link manually.");
+            }
+
+            rule.postImportActions = ParseTemplateActions(rObj["postImportActions"] as JArray);
+            return true;
+        }
+
+        private static readonly BindingFlags SerializedFieldFlags =
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+        private static bool IsSerializedObjectRef(FieldInfo f)
+        {
+            if (f.IsStatic) return false;
+            if (!typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType)) return false;
+            if (f.GetCustomAttribute<NonSerializedAttribute>() != null) return false;
+            return f.IsPublic || f.GetCustomAttribute<SerializeField>() != null;
+        }
+
+        private static UnityEngine.Object ResolveAssetRef(JObject refObj, Type targetType)
+        {
+            var guid = refObj["guid"]?.Value<string>();
+            if (!string.IsNullOrEmpty(guid))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    var obj = AssetDatabase.LoadAssetAtPath(path, targetType);
+                    if (obj != null) return obj;
+                }
+            }
+            var pathFallback = refObj["path"]?.Value<string>();
+            if (!string.IsNullOrEmpty(pathFallback))
+                return AssetDatabase.LoadAssetAtPath(pathFallback, targetType);
+            return null;
+        }
+
+        private static int RestoreActionObjectRefs(AssetImportActionAsset action, Type actionType, JObject fieldsObj)
+        {
+            var unresolved = 0;
+            foreach (var field in actionType.GetFields(SerializedFieldFlags))
+            {
+                if (!IsSerializedObjectRef(field)) continue;
+                var token = fieldsObj[field.Name];
+                if (token == null || token.Type == JTokenType.Null) continue;
+                if (token is not JObject refObj) { unresolved++; continue; }
+                var resolved = ResolveAssetRef(refObj, field.FieldType);
+                if (resolved != null)
+                    field.SetValue(action, resolved);
+                else
+                    unresolved++;
+            }
+            return unresolved;
+        }
+
+        private static List<AssetImportActionAsset> ParseTemplateActions(JArray actionsArr)
+        {
+            var result = new List<AssetImportActionAsset>();
+            if (actionsArr == null) return result;
+
+            var allTypes = TypeCache.GetTypesDerivedFrom<AssetImportActionAsset>();
+            var totalUnresolved = 0;
+
+            foreach (var aToken in actionsArr)
+            {
+                if (aToken is not JObject aObj) continue;
+
+                var typeName = aObj["$type"]?.Value<string>();
+                if (string.IsNullOrEmpty(typeName)) continue;
+
+                Type actionType = null;
+                foreach (var t in allTypes)
+                {
+                    if (t.FullName == typeName) { actionType = t; break; }
+                }
+
+                if (actionType == null)
+                {
+                    Debug.LogWarning($"[AssetRouter] Unknown action type '{typeName}' — skipped.");
+                    continue;
+                }
+
+                var action = ScriptableObject.CreateInstance(actionType) as AssetImportActionAsset;
+                if (action == null) continue;
+
+                action.name = aObj["name"]?.Value<string>() ?? ObjectNames.NicifyVariableName(actionType.Name);
+
+                if (aObj["fields"] is JObject fieldsObj)
+                {
+                    // Strip object-ref fields before JsonUtility — cross-project instanceIDs are meaningless.
+                    var valueFields = (JObject)fieldsObj.DeepClone();
+                    foreach (var field in actionType.GetFields(SerializedFieldFlags))
+                        if (IsSerializedObjectRef(field) && valueFields[field.Name] != null)
+                            valueFields[field.Name] = JValue.CreateNull();
+
+                    try { JsonUtility.FromJsonOverwrite(valueFields.ToString(), action); }
+                    catch (Exception e)
+                    {
+                        Debug.LogWarning($"[AssetRouter] Could not restore fields for '{actionType.Name}': {e.Message}");
+                    }
+
+                    totalUnresolved += RestoreActionObjectRefs(action, actionType, fieldsObj);
+                }
+
+                result.Add(action);
+            }
+
+            if (totalUnresolved > 0)
+                Debug.LogWarning($"[AssetRouter] {totalUnresolved} object reference(s) in pasted actions could not be resolved — re-link manually in the Inspector.");
+
+            return result;
         }
 
         private static ImportRule ParseRule(JObject rObj)

@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
 using Kodlon.AssetRouter.Logic;
 using Newtonsoft.Json.Linq;
@@ -153,6 +154,121 @@ namespace Kodlon.AssetRouter.Tests
             Assert.AreEqual("C", (db2.rules[2] as ImportRule)?.ruleName);
 
             Object.DestroyImmediate(db2);
+        }
+
+        [Test]
+        public void ExportRule_ThenImportRule_PreservesFields()
+        {
+            var rule = new ImportRule
+            {
+                ruleName             = "Textures",
+                isEnabled            = false,
+                pattern              = "T_*_D.png",
+                patternMode          = PatternMode.Regex,
+                matchAgainstFullPath = true,
+                scopeFolder          = "Assets/Raw/",
+                targetFolder         = "Assets/Art/Textures/"
+            };
+
+            var json = JsonExporter.ExportRule(rule);
+            var ok   = JsonImporter.TryImportRuleFromJson(json, out var imported, out _);
+
+            Assert.IsTrue(ok);
+            Assert.AreEqual("Textures",             imported.ruleName);
+            Assert.IsFalse(imported.isEnabled);
+            Assert.AreEqual("T_*_D.png",            imported.pattern);
+            Assert.AreEqual(PatternMode.Regex,      imported.patternMode);
+            Assert.IsTrue(imported.matchAgainstFullPath);
+            Assert.AreEqual("Assets/Raw/",          imported.scopeFolder);
+            Assert.AreEqual("Assets/Art/Textures/", imported.targetFolder);
+        }
+
+        [Test]
+        public void ExportRule_PreservesActionTypeAndValueFields()
+        {
+            var pivotAction = ScriptableObject.CreateInstance<SetPivotAction>();
+            pivotAction.pivot = new Vector2(0.25f, 0.75f);
+
+            var rule = new ImportRule { ruleName = "PivotRule", pattern = "T_*" };
+            rule.postImportActions.Add(pivotAction);
+
+            var json = JsonExporter.ExportRule(rule);
+            var ok   = JsonImporter.TryImportRuleFromJson(json, out var imported, out _);
+
+            Assert.IsTrue(ok);
+            Assert.AreEqual(1, imported.postImportActions.Count);
+            var restored = imported.postImportActions[0] as SetPivotAction;
+            Assert.IsNotNull(restored);
+            Assert.AreEqual(new Vector2(0.25f, 0.75f), restored.pivot);
+
+            Object.DestroyImmediate(pivotAction);
+            Object.DestroyImmediate(restored);
+        }
+
+        [Test]
+        public void TryImportRuleFromJson_InvalidJson_ReturnsFalseWithError()
+        {
+            var ok = JsonImporter.TryImportRuleFromJson("not valid {{ json", out _, out var err);
+
+            Assert.IsFalse(ok);
+            Assert.IsNotEmpty(err);
+        }
+
+        [Test]
+        public void TryImportRuleFromJson_DatabaseJson_ReturnsFalseWithError()
+        {
+            var dbJson = JsonExporter.Export(_db);
+            var ok     = JsonImporter.TryImportRuleFromJson(dbJson, out _, out var err);
+
+            Assert.IsFalse(ok);
+            Assert.IsNotEmpty(err);
+        }
+
+        [Test]
+        public void ExportRule_WithNullPreset_WritesNullPresetField()
+        {
+            var rule = new ImportRule { ruleName = "NoPreset", pattern = "*.png" };
+
+            var json = JsonExporter.ExportRule(rule);
+            var jObj = JObject.Parse(json);
+
+            Assert.IsTrue(jObj.ContainsKey("preset"));
+            Assert.AreEqual(JTokenType.Null, jObj["preset"].Type);
+        }
+
+        [Test]
+        public void TryImportRuleFromJson_UnresolvableObjectRef_ActionFieldIsNull()
+        {
+            const string json = @"{
+                ""$assetRouterRule"": 1,
+                ""$type"": ""ImportRule"",
+                ""ruleName"": ""Test"",
+                ""isEnabled"": true,
+                ""pattern"": ""T_*"",
+                ""patternMode"": ""Glob"",
+                ""matchAgainstFullPath"": false,
+                ""scopeFolder"": """",
+                ""targetFolder"": ""Assets/"",
+                ""postImportActions"": [
+                    {
+                        ""$type"": ""Kodlon.AssetRouter.Actions.AppendToCatalogAction"",
+                        ""name"": ""Append"",
+                        ""fields"": {
+                            ""catalog"": { ""guid"": ""ffffffffffffffffffffffffffffffff"", ""path"": ""Assets/NoSuch.asset"" }
+                        }
+                    }
+                ]
+            }";
+
+            var ok = JsonImporter.TryImportRuleFromJson(json, out var imported, out _);
+
+            Assert.IsTrue(ok);
+            Assert.AreEqual(1, imported.postImportActions.Count);
+            var action = imported.postImportActions[0] as AppendToCatalogAction;
+            Assert.IsNotNull(action);
+            Assert.IsNull(action.catalog);
+
+            Object.DestroyImmediate(imported.postImportActions[0]);
         }
 
         [Test]

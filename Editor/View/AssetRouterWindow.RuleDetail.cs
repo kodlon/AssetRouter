@@ -67,10 +67,13 @@ namespace Kodlon.AssetRouter.View
                 SectionLabel("Settings");
                 Field(element, "preset", "Import Preset");
 
-                if (ruleRef is ImportRule)
+                if (ruleRef is ImportRule importRuleForDetail)
                 {
                     SectionLabel("Post-Import Actions");
                     DrawActionsListFor(element);
+
+                    SectionLabel("Sharing");
+                    DrawRuleSharingButtons(importRuleForDetail);
                 }
 
                 EditorGUI.indentLevel--;
@@ -289,6 +292,15 @@ namespace Kodlon.AssetRouter.View
             }
 
             return false;
+        }
+
+        private void DrawRuleSharingButtons(ImportRule rule)
+        {
+            if (GUILayout.Button("Copy Rule to Clipboard", GUILayout.ExpandWidth(false)))
+            {
+                GUIUtility.systemCopyBuffer = JsonExporter.ExportRule(rule);
+                Debug.Log($"[AssetRouter] Rule \"{rule.ruleName}\" copied to clipboard.");
+            }
         }
 
         private static void Field(SerializedProperty parent, string propName, string label, string tooltip = null)

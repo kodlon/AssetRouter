@@ -1,4 +1,6 @@
+using System;
 using System.IO;
+using System.Reflection;
 using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
 using Newtonsoft.Json;
@@ -29,6 +31,41 @@ namespace Kodlon.AssetRouter.Logic
                 if (File.Exists(tmp))
                     try { File.Delete(tmp); } catch { }
             }
+        }
+
+        public static string ExportRule(ImportRule rule)
+        {
+            var rObj = new JObject
+            {
+                ["$assetRouterRule"]     = 1,
+                ["$type"]                = rule.GetType().Name,
+                ["ruleName"]             = rule.ruleName,
+                ["isEnabled"]            = rule.isEnabled,
+                ["pattern"]              = rule.pattern,
+                ["patternMode"]          = rule.patternMode.ToString(),
+                ["matchAgainstFullPath"] = rule.matchAgainstFullPath,
+                ["scopeFolder"]          = rule.scopeFolder,
+                ["targetFolder"]         = rule.targetFolder,
+                ["preset"]               = GuidAndPathRef(rule.preset)
+            };
+
+            var actionsArr = new JArray();
+            if (rule.postImportActions != null)
+            {
+                foreach (var action in rule.postImportActions)
+                {
+                    if (action == null) continue;
+                    actionsArr.Add(new JObject
+                    {
+                        ["$type"]  = action.GetType().FullName,
+                        ["name"]   = action.name,
+                        ["fields"] = SerializeActionFields(action)
+                    });
+                }
+            }
+
+            rObj["postImportActions"] = actionsArr;
+            return rObj.ToString(Formatting.Indented);
         }
 
         public static string Export(ImporterSettingsDatabase db)
@@ -84,6 +121,37 @@ namespace Kodlon.AssetRouter.Logic
 
             root["rules"] = rulesArr;
             return root.ToString(Formatting.Indented);
+        }
+
+        private static readonly BindingFlags SerializedFieldFlags =
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+        private static bool IsSerializedObjectRef(FieldInfo f)
+        {
+            if (f.IsStatic) return false;
+            if (!typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType)) return false;
+            if (f.GetCustomAttribute<NonSerializedAttribute>() != null) return false;
+            return f.IsPublic || f.GetCustomAttribute<SerializeField>() != null;
+        }
+
+        private static JToken SerializeActionFields(AssetImportActionAsset action)
+        {
+            var jObj = JObject.Parse(JsonUtility.ToJson(action));
+            foreach (var field in action.GetType().GetFields(SerializedFieldFlags))
+            {
+                if (!IsSerializedObjectRef(field)) continue;
+                jObj[field.Name] = GuidAndPathRef(field.GetValue(action) as UnityEngine.Object);
+            }
+            return jObj;
+        }
+
+        private static JToken GuidAndPathRef(UnityEngine.Object obj)
+        {
+            if (obj == null) return JValue.CreateNull();
+            var path = AssetDatabase.GetAssetPath(obj);
+            var guid = AssetDatabase.AssetPathToGUID(path);
+            if (string.IsNullOrEmpty(guid)) return JValue.CreateNull();
+            return new JObject { ["guid"] = guid, ["path"] = path };
         }
 
         private static JToken GuidRef(UnityEngine.Object obj)
