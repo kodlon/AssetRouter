@@ -5,6 +5,7 @@ and applies import presets based on naming rules.
 
 ## Documentation
 
+- [Feature Catalog](features.md) — every feature with description and example
 - [Getting Started and Full Reference](DOCUMENTATION_EN.md)
 - [Built-in Actions Reference](actions/README.md)
 - [Writing Your Own Action](api/extension-points.md)

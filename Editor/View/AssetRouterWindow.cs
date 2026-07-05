@@ -302,6 +302,7 @@ namespace Kodlon.AssetRouter.View
             DefaultDatabaseFactory.PopulateDefaults(db);
 
             AssetDatabase.CreateAsset(db, path);
+            DefaultDatabaseFactory.EmbedSubAssets(db);
             AssetDatabase.SaveAssets();
 
             DatabaseLocator.InvalidateCache();

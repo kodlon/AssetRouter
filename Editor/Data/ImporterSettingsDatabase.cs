@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Kodlon.AssetRouter.Actions;
+using UnityEditor;
 using UnityEngine;
 
 namespace Kodlon.AssetRouter.Data
@@ -43,6 +45,40 @@ namespace Kodlon.AssetRouter.Data
         [SerializeReference]
         public List<BaseImportRule> rules = new();
 
-        private void Reset() => DefaultDatabaseFactory.PopulateDefaults(this);
+        private void Reset()
+        {
+            var orphans = CollectEmbeddedActions();
+
+            DefaultDatabaseFactory.PopulateDefaults(this);
+            DefaultDatabaseFactory.EmbedSubAssets(this);
+
+            foreach (var action in orphans)
+            {
+                AssetDatabase.RemoveObjectFromAsset(action);
+                DestroyImmediate(action, true);
+            }
+        }
+
+        private List<AssetImportActionAsset> CollectEmbeddedActions()
+        {
+            var result = new List<AssetImportActionAsset>();
+
+            if (rules == null)
+                return result;
+
+            foreach (var rule in rules)
+            {
+                if (rule is not ImportRule importRule || importRule.postImportActions == null)
+                    continue;
+
+                foreach (var action in importRule.postImportActions)
+                {
+                    if (action != null && AssetDatabase.IsSubAsset(action))
+                        result.Add(action);
+                }
+            }
+
+            return result;
+        }
     }
 }

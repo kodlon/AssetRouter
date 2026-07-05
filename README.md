@@ -103,6 +103,7 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 
 Full documentation is in [`Documentation~/DOCUMENTATION_EN.md`](Documentation~/DOCUMENTATION_EN.md).
 
+- [Feature Catalog](Documentation~/features.md) — every feature with description and example
 - [Getting Started and Full Reference](Documentation~/DOCUMENTATION_EN.md)
 - [Built-in Actions Reference](Documentation~/actions/README.md)
 - [Writing Your Own Action](Documentation~/api/extension-points.md)

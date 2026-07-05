@@ -1,6 +1,8 @@
 using NUnit.Framework;
 using System.Linq;
+using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
+using UnityEngine;
 
 namespace Kodlon.AssetRouter.Tests
 {
@@ -10,22 +12,36 @@ namespace Kodlon.AssetRouter.Tests
         public void CreateDefaultRules_ContainsCharacterTexturesRule()
         {
             var rules = DefaultDatabaseFactory.CreateDefaultRules();
-            var rule = rules.OfType<ImportRule>().FirstOrDefault(r => r.ruleName == "Character Textures");
-            Assert.IsNotNull(rule, "Character Textures rule must exist");
-            Assert.AreEqual(PatternMode.Glob, rule.patternMode);
-            Assert.AreEqual("T_Char_*_*", rule.pattern);
-            Assert.AreEqual("Assets/Art/Characters/{1}/", rule.targetFolder);
+            try
+            {
+                var rule = rules.OfType<ImportRule>().FirstOrDefault(r => r.ruleName == "Character Textures");
+                Assert.IsNotNull(rule, "Character Textures rule must exist");
+                Assert.AreEqual(PatternMode.Glob, rule.patternMode);
+                Assert.AreEqual("T_Char_*_*", rule.pattern);
+                Assert.AreEqual("Assets/Art/Characters/{1}/", rule.targetFolder);
+            }
+            finally
+            {
+                DestroyActionInstances(rules);
+            }
         }
 
         [Test]
         public void CreateDefaultRules_ContainsLocationTexturesRule()
         {
             var rules = DefaultDatabaseFactory.CreateDefaultRules();
-            var rule = rules.OfType<ImportRule>().FirstOrDefault(r => r.ruleName == "Location Textures");
-            Assert.IsNotNull(rule, "Location Textures rule must exist");
-            Assert.AreEqual(PatternMode.Regex, rule.patternMode);
-            Assert.AreEqual(@"^T_Loc_(?<loc>\w+)_.*", rule.pattern);
-            Assert.AreEqual("Assets/Art/Locations/{loc}/", rule.targetFolder);
+            try
+            {
+                var rule = rules.OfType<ImportRule>().FirstOrDefault(r => r.ruleName == "Location Textures");
+                Assert.IsNotNull(rule, "Location Textures rule must exist");
+                Assert.AreEqual(PatternMode.Regex, rule.patternMode);
+                Assert.AreEqual(@"^T_Loc_(?<loc>\w+)_.*", rule.pattern);
+                Assert.AreEqual("Assets/Art/Locations/{loc}/", rule.targetFolder);
+            }
+            finally
+            {
+                DestroyActionInstances(rules);
+            }
         }
 
         [Test]
@@ -36,8 +52,42 @@ namespace Kodlon.AssetRouter.Tests
             var locIdx     = rules.FindIndex(r => r.ruleName == "Location Textures");
             var generalIdx = rules.FindIndex(r => r.ruleName == "General Textures");
 
-            Assert.Less(charIdx,    generalIdx, "Character Textures must come before General Textures");
-            Assert.Less(locIdx,     generalIdx, "Location Textures must come before General Textures");
+            try
+            {
+                Assert.Less(charIdx,    generalIdx, "Character Textures must come before General Textures");
+                Assert.Less(locIdx,     generalIdx, "Location Textures must come before General Textures");
+            }
+            finally
+            {
+                DestroyActionInstances(rules);
+            }
+        }
+
+        [Test]
+        public void CreateDefaultRules_UITexturesRule_HasSetPivotAction()
+        {
+            var rules = DefaultDatabaseFactory.CreateDefaultRules();
+
+            try
+            {
+                var rule = rules.OfType<ImportRule>().FirstOrDefault(r => r.ruleName == "UI Textures");
+                Assert.IsNotNull(rule, "UI Textures rule must exist");
+                Assert.IsNotNull(rule.postImportActions, "postImportActions must not be null");
+                Assert.AreEqual(1, rule.postImportActions.Count, "UI Textures must have exactly one action");
+                Assert.IsNotNull(rule.postImportActions[0], "action must not be null");
+                Assert.IsInstanceOf<SetPivotAction>(rule.postImportActions[0], "action must be SetPivotAction");
+            }
+            finally
+            {
+                DestroyActionInstances(rules);
+            }
+        }
+
+        private static void DestroyActionInstances(System.Collections.Generic.List<BaseImportRule> rules)
+        {
+            foreach (var rule in rules.OfType<ImportRule>())
+                foreach (var action in rule.postImportActions)
+                    if (action != null) Object.DestroyImmediate(action);
         }
     }
 }
