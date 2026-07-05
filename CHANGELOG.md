@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Welcome Window on first launch.** When no `ImporterSettingsDatabase` exists in the project and the
+  Editor is running interactively, a small utility window opens once per session and asks whether to
+  create a default database. Clicking **Create** writes the database to `Assets/AssetRouter/` and opens
+  the Asset Router Settings window; clicking **Not now** dismisses without any side-effects. The window
+  is suppressed in batch/CI mode (`Application.isBatchMode`).
+- **ConflictDetector sample-path caching.** `ConflictDetector.Detect` now re-uses a cached set of
+  sample paths across repeated calls and invalidates it on `projectChanged` and
+  `importPackageCompleted`. Eliminates repeated `AssetDatabase.FindAssets` calls during the same Editor
+  session. `BuildSamplePaths` also sorts the raw GUID list before truncation for deterministic overlap
+  detection across machines.
+
+---
+
 ## [0.9.2] — 2026-07-01
 
 ### Fixed

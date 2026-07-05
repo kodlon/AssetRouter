@@ -32,8 +32,11 @@ running the postprocessor a second time on the same file.
 
 ## Getting started
 
-On the first Editor load, Asset Router creates `Assets/AssetRouter/ImporterSettingsDatabase.asset`
-with six default rules. Open **Tools > Asset Router Settings** to see them.
+On the first Editor load, if no `ImporterSettingsDatabase` exists in your project, a **Welcome Window**
+appears. Click **Create** to generate `Assets/AssetRouter/ImporterSettingsDatabase.asset` with six
+default rules and open the Settings window automatically. Click **Not now** to skip — the window will
+not reappear in the same Editor session. Open **Tools > Asset Router Settings** to create a database
+later at any time.
 
 Drop a file into your project. If the file name matches one of the default patterns (e.g. `T_Rock.png`
 matches `T_*`), Asset Router moves it to the corresponding folder and applies the preset.
