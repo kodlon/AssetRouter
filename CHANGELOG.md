@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Clear Rule Statistics menu item.** `Tools > Asset Router > Clear Rule Statistics` resets the
+  per-rule match counters shown as `(N✓)` in the rules list, after a confirmation dialog. Previously
+  the counters could not be cleared from the UI (`Library/AssetRouter/stats.json` had to be deleted
+  manually).
+- **Beginner documentation.** New `Documentation~/getting-started.md` (step-by-step first run),
+  `ui-reference.md` (every window, tab, and button), `patterns.md` (Glob and Regex cookbook), and
+  `presets.md` (creating and assigning presets). Stale references fixed across existing docs: old
+  menu path `Tools > Asset Router Settings`, removed `AssetsBeingMoved` guard description, built-in
+  action count (11, not 10), full-database JSON format documented.
 - **Welcome Window on first launch.** When no `ImporterSettingsDatabase` exists in the project and the
   Editor is running interactively, a small utility window opens once per session and asks whether to
   create a default database. Clicking **Create** writes the database to `Assets/AssetRouter/` and opens

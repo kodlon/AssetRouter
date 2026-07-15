@@ -11,7 +11,7 @@ The project compiles and ships, but nobody can find anything quickly.
 
 ## Step 1: Understand what names exist
 
-Before setting up rules, open **Tools > Asset Router Settings**, go to the **Validate** tab, and
+Before setting up rules, open **Tools > Asset Router > Settings**, go to the **Validate** tab, and
 click **Scan Project**. This lists all monitored assets that currently match no rule. The list is
 probably long; that is expected. Use **Copy to Clipboard** to export it and look at the naming
 patterns.
@@ -37,7 +37,7 @@ Open the **Dry Run** tab and click **Scan Project**. Review the table:
 
 - Check that the "target folder" column shows where you actually want each file to go.
 - Uncheck rows for files you are not sure about.
-- Check that "Validate" and "already in place" are correct.
+- Check the "Rule" column: the wrong rule winning the match is the most common surprise.
 
 Do not click Apply Selected yet. If a pattern is too broad and catching wrong files, adjust it
 in Settings, then scan again.

@@ -61,6 +61,27 @@ namespace Kodlon.AssetRouter.View
         private static void OpenIssueTracker()
             => Application.OpenURL("https://github.com/kodlon/AssetRouter/issues");
 
+        [MenuItem("Tools/Asset Router/Clear Rule Statistics")]
+        private static void ClearRuleStatistics()
+        {
+            if (!EditorUtility.DisplayDialog(
+                    "Clear Rule Statistics",
+                    "Reset the match counter of every rule to zero?\nThis cannot be undone.",
+                    "Clear",
+                    "Cancel"))
+                return;
+
+            RuleStatsStore.Clear();
+
+            foreach (var win in Resources.FindObjectsOfTypeAll<AssetRouterWindow>())
+            {
+                win._statsCache = RuleStatsStore.ReadAll();
+                win.Repaint();
+            }
+
+            Debug.Log("[AssetRouter] Rule statistics cleared.");
+        }
+
         private void OnEnable()
         {
             EditorApplication.projectChanged += OnProjectChanged;

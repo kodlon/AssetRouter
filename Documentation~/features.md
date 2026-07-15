@@ -185,13 +185,13 @@ the new compression without anyone touching individual assets.
 
 Every batch move — from auto-import, Dry Run apply, or Batch Re-import — writes a session entry to
 `Library/AssetRouter/log.json`. Each entry records `from`, `to`, and the rule name. The **History**
-tab lists sessions newest-first with a timestamp and source label. Clicking **Undo session** reverses
+tab lists sessions newest-first with a timestamp and source label. Clicking **Undo Selected Session** reverses
 all moves in that session in reverse order, inside a single `StartAssetEditing` block. A summary
 dialog reports `Reverted / Failed` counts after completion. The log is capped at 500 sessions; write
 is atomic (`File.Replace`) so a crash mid-write never corrupts it.
 
 **Example.** A wrong glob pattern routes 200 textures to the wrong folder. The lead opens History,
-finds the auto-import session from two minutes ago, clicks **Undo session**. All 200 files return to
+finds the auto-import session from two minutes ago, clicks **Undo Selected Session**. All 200 files return to
 their original paths. Unity preserves asset GUIDs across `MoveAsset`, so no scene references break.
 
 ---
@@ -247,8 +247,8 @@ so she either deletes the test asset or explicitly switches the picker to the li
 Open **Tools > Asset Router > Diagnostic Window** to see a timestamped log of every asset that
 passed through the postprocessor. Each row shows the file name, the matched rule (or "no match"),
 the resolved target path, and whether the file was moved or left in place. The log is an in-memory
-ring buffer of 500 entries and clears on assembly reload. A toggle enables/disables logging so there
-is zero overhead when you do not need it.
+ring buffer of 500 entries and clears on assembly reload. Logging runs only while the window is
+open, so there is zero overhead when you do not need it.
 
 **Example.** A sound file `SFX_Footstep.wav` is not moving. The artist enables the Diagnostic Window,
 re-imports the file, and immediately sees the row: rule = "(no match)", moved = false. She realises
@@ -263,7 +263,8 @@ Each rule accumulates a **match count** across sessions, stored in `Library/Asse
 The count is incremented once per batch, not once per file, so busy rules do not dominate
 disproportionately. In the rules list every rule displays its count as `(N✓)` next to the name. An
 in-memory session counter (`_sessionMatchCount`) tracks hits within the current Editor session
-independently of the persistent store.
+independently of the persistent store. Reset the counters via
+**Tools > Asset Router > Clear Rule Statistics**.
 
 **Example.** After two weeks of importing, the "Music" rule shows `(0✓)`. Investigation reveals
 `.mp3` and `.ogg` are in Monitored Extensions but the "Music" rule pattern `Mus_*` never matched
@@ -306,11 +307,12 @@ the output folder. Three steps, one drag-and-drop, zero manual work.
 
 ### Built-in actions
 
-Ten actions ship with the package, covering a spectrum of architectural patterns:
+Eleven actions ship with the package, covering a spectrum of architectural patterns:
 
 | Action | What it does |
 |--------|-------------|
 | **SetPivotAction** | Sets sprite pivot to a configurable (x, y) and re-imports. Tier A — simplest possible action. |
+| **TrimAudioSilenceAction** | Trims leading and trailing silence from 16-bit PCM WAV files by rewriting the file and re-importing. |
 | **AppendToCatalogAction** | Adds the imported asset to an `AssetCatalog` ScriptableObject. Idempotent. |
 | **RegisterAddressableAction** | Adds the asset to an Addressables group. Requires the Addressables package; compiles to a no-op without it. |
 | **EmitUnityEventAction** | Fires a serialized `UnityEvent<Object>` wired in the Inspector. No code required by the end user. |

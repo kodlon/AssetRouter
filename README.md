@@ -30,7 +30,7 @@ Copy the package folder into your project's `Packages/` directory.
 
 1. On first Editor load, Asset Router creates `Assets/AssetRouter/ImporterSettingsDatabase.asset`
    with six default rules.
-2. Open **Tools > Asset Router Settings** to view and edit rules.
+2. Open **Tools > Asset Router > Settings** to view and edit rules.
 3. Drop an asset into the project. If the file name matches a rule pattern, the preset is applied
    and the file is moved to the target folder automatically.
 
@@ -63,7 +63,7 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 
 ## Built-in actions
 
-10 built-in actions cover a range of automation patterns:
+11 built-in actions cover a range of automation patterns:
 
 | Action | What it does |
 |--------|-------------|
@@ -85,12 +85,12 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 
 ```
 ├── Editor/
-│   ├── Actions/    # IAssetImportAction, AssetImportActionAsset, 10 built-in actions
-│   ├── Data/       # BaseImportRule, ImportRule, ImporterSettingsDatabase, AssetCatalog
+│   ├── Actions/    # IAssetImportAction, AssetImportActionAsset, 11 built-in actions
+│   ├── Data/       # BaseImportRule, ImportRule, ImporterSettingsDatabase
 │   ├── Logic/      # PatternMatcher, RuleValidator, Postprocessor, Initializer, DryRunPlanner
 │   ├── View/       # AssetRouterWindow, DryRunView, HistoryView, NamingValidatorView, DiagnosticWindow
 │   └── Wizard/     # ActionScaffoldingWizard (code generator)
-├── Runtime/        # IAssetRouterPrefabSetup, IAssetRouterDataSetup
+├── Runtime/        # AssetCatalog, IAssetRouterPrefabSetup, IAssetRouterDataSetup
 ├── Presets/        # 10 bundled .preset files
 ├── Tests/          # NUnit edit-mode tests (12 test files)
 ├── Samples~/
@@ -103,8 +103,13 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 
 Full documentation is in [`Documentation~/DOCUMENTATION_EN.md`](Documentation~/DOCUMENTATION_EN.md).
 
+- [Getting Started](Documentation~/getting-started.md) — install, first import, first rule in 10 minutes
+- [UI Reference](Documentation~/ui-reference.md) — every window, tab, and button
+- [Pattern Cookbook](Documentation~/patterns.md) — Glob and Regex recipes, common mistakes, how to test
+- [Presets](Documentation~/presets.md) — creating your own import presets
+- [Rule Sharing](Documentation~/rule-sharing.md) — copy a single rule between projects via clipboard
 - [Feature Catalog](Documentation~/features.md) — every feature with description and example
-- [Getting Started and Full Reference](Documentation~/DOCUMENTATION_EN.md)
+- [Full Reference](Documentation~/DOCUMENTATION_EN.md)
 - [Built-in Actions Reference](Documentation~/actions/README.md)
 - [Writing Your Own Action](Documentation~/api/extension-points.md)
 - [Changelog](CHANGELOG.md)

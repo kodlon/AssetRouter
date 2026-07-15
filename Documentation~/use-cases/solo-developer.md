@@ -13,7 +13,7 @@ Asset Router removes repetition. Identify the repetition first.
 
 ## Minimal setup
 
-Change only the target folders in the four default rules to match your project structure.
+Change only the target folders in the six default rules to match your project structure.
 Leave patterns, presets, and everything else at their defaults.
 
 Example: if your textures go in `Assets/Sprites/UI/` instead of `Assets/Art/UI/`, change only

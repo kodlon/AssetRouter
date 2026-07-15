@@ -1,6 +1,6 @@
 # Built-in Actions
 
-Asset Router ships with 10 built-in actions covering a range of automation patterns.
+Asset Router ships with 11 built-in actions covering a range of automation patterns.
 Each action is a ScriptableObject stored as a sub-asset inside your settings database.
 
 ## Action index

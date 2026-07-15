@@ -5,8 +5,13 @@ and applies import presets based on naming rules.
 
 ## Documentation
 
+- [Getting Started](getting-started.md) — install, first import, first rule in 10 minutes
+- [UI Reference](ui-reference.md) — every window, tab, and button
+- [Pattern Cookbook](patterns.md) — Glob and Regex recipes, common mistakes, how to test
+- [Presets](presets.md) — creating your own import presets and assigning them to rules
+- [Rule Sharing](rule-sharing.md) — copy a single rule between projects via clipboard
 - [Feature Catalog](features.md) — every feature with description and example
-- [Getting Started and Full Reference](DOCUMENTATION_EN.md)
+- [Full Reference](DOCUMENTATION_EN.md)
 - [Built-in Actions Reference](actions/README.md)
 - [Writing Your Own Action](api/extension-points.md)
 - [Path Templating Reference](api/path-templating.md)

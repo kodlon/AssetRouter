@@ -9,6 +9,9 @@ it shows a dialog or leaves the file in place, depending on your settings.
 **Unity:** 2022.3 LTS or later
 **Package ID:** `com.kodlon.assetrouter`
 
+New to Asset Router? Start with the step-by-step [Getting Started](getting-started.md) guide.
+For a complete map of every window, tab, and button, see the [UI Reference](ui-reference.md).
+
 ---
 
 ## How assets move through the system
@@ -21,12 +24,17 @@ it shows a dialog or leaves the file in place, depending on your settings.
    that folder.
 4. When a rule matches, the preset is applied to the importer.
 5. Unity fires `OnPostprocessAllAssets` after all importers finish.
-6. Asset Router calls `MoveAsset` to move the file to `targetFolder`, then runs each action in
-   `postImportActions` in order.
-7. If no rule matches and `showPopupForUnknownFiles` is true, a dialog asks what to do.
+6. Asset Router resolves the target folder (expanding `{token}` values), creates it when missing,
+   and calls `MoveAsset` to move the file there. All moves in one import batch run inside a single
+   `StartAssetEditing / StopAssetEditing` block and are recorded to History.
+7. The rule's `postImportActions` run after the import batch finishes, deferred via
+   `EditorApplication.delayCall`, because Unity forbids creating assets from inside
+   `OnPostprocessAllAssets`. Actions execute in list order; a failure in one does not stop the rest.
+8. If no rule matches and `showPopupForUnknownFiles` is true, a dialog asks what to do.
 
-The `AssetsBeingMoved` guard prevents the re-import that Unity triggers after `MoveAsset` from
-running the postprocessor a second time on the same file.
+`PipelineOutputGuard` prevents routing loops: an asset created by an action (e.g. a generated
+prefab or material) is not routed again when it comes back through the postprocessor, and an asset
+whose own action chain is still running is skipped when one of its actions triggers a re-import.
 
 ---
 
@@ -35,7 +43,7 @@ running the postprocessor a second time on the same file.
 On the first Editor load, if no `ImporterSettingsDatabase` exists in your project, a **Welcome Window**
 appears. Click **Create** to generate `Assets/AssetRouter/ImporterSettingsDatabase.asset` with six
 default rules and open the Settings window automatically. Click **Not now** to skip — the window will
-not reappear in the same Editor session. Open **Tools > Asset Router Settings** to create a database
+not reappear in the same Editor session. Open **Tools > Asset Router > Settings** to create a database
 later at any time.
 
 Drop a file into your project. If the file name matches one of the default patterns (e.g. `T_Rock.png`
@@ -48,7 +56,7 @@ click **Save / Apply**.
 
 ## The Settings window
 
-Open the window via **Tools > Asset Router Settings**.
+Open the window via **Tools > Asset Router > Settings**.
 
 ### Toolbar
 
@@ -72,7 +80,8 @@ Open the window via **Tools > Asset Router Settings**.
 
 The left panel shows all rules. Drag to reorder. The order matters: first matching rule wins.
 
-Rules marked with `(N)` have matched N times since stats were last cleared. Rules marked with `⚠`
+Rules marked with `(N✓)` have matched N import batches since stats were last cleared. Reset the
+counters via **Tools > Asset Router > Clear Rule Statistics**. Rules marked with `⚠`
 have a conflict with another rule (duplicate pattern or detected overlap).
 
 ### Rule fields
@@ -116,6 +125,9 @@ instance can be shared across multiple rules.
 ---
 
 ## Pattern syntax
+
+Copy-paste recipes for common naming conventions, in both modes, are collected in the
+[Pattern Cookbook](patterns.md).
 
 ### Glob mode
 
@@ -200,13 +212,14 @@ Dry Run scans the project and shows which files would be moved without doing any
 1. Click **Scan Project**. A progress bar appears while all monitored assets are checked.
 2. The table shows: file name, current folder, target folder, and matched rule.
 3. Check the rows you want to move, then click **Apply Selected**.
-4. Use **Select All** and **Select None** to bulk-select.
+4. Use **Select All** and **None** to bulk-select.
 
 **Force re-import**: when checked, assets already in the correct folder are also included and
 re-imported with the preset and actions applied. Useful when rules changed after the file was
 already in place.
 
-**Re-import All Matched**: skips the table and immediately moves all matching assets.
+**Force Re-import In-Place**: skips the table and re-applies the preset and actions to every
+matched asset that is already in its correct folder. No files are moved.
 
 ---
 
@@ -221,9 +234,10 @@ Click **Undo Selected Session** to move all files back to their original paths i
 The undo is best-effort: files that are no longer at the recorded path are skipped with a warning.
 A summary dialog shows how many files were reverted and how many were skipped.
 
-**Important:** undo reverses file moves only. Import settings applied by presets are not rolled back.
-After undo, the files are back in their original folders but the importer settings remain as set
-by the last preset application.
+**Important:** undo reverses file moves only. Import settings applied by presets are not rolled back:
+after undo, the files are back in their original folders but the importer settings remain as set
+by the last preset application. Assets created by post-import actions (generated prefabs, materials,
+ScriptableObjects, tiles) are not deleted either; remove them manually if they are no longer wanted.
 
 Click **Clear History** to delete all recorded sessions.
 
@@ -260,6 +274,9 @@ postprocessor saw and decided.
 The database is a Unity YAML ScriptableObject by default. JSON export and import are an additional
 workflow for teams that want human-readable diffs or need to share a database across projects.
 
+To share a single rule instead of the whole database, use the clipboard workflow described in
+[Rule Sharing](rule-sharing.md).
+
 ### Exporting
 
 Click **Export JSON** in the toolbar. Choose a save location. The JSON file contains all rules,
@@ -271,11 +288,58 @@ by GUID and local file ID.
 Click **Import JSON** in the toolbar. Choose the file. The current database is replaced with the
 contents of the JSON file. The original ScriptableObject asset is kept; only its contents change.
 
+### File format
+
+The export is one JSON object. Top-level fields mirror the database settings; each rule is an
+object in the `rules` array:
+
+```json
+{
+  "$schema": 1,
+  "schemaVersion": 2,
+  "enableAutoImport": true,
+  "showPopupForUnknownFiles": true,
+  "monitoredExtensions": [".png", ".wav"],
+  "ignoredFolders": ["Assets/Plugins/"],
+  "rules": [
+    {
+      "$type": "ImportRule",
+      "ruleName": "UI Textures",
+      "isEnabled": true,
+      "pattern": "UI_*",
+      "patternMode": "Glob",
+      "matchAgainstFullPath": false,
+      "scopeFolder": "",
+      "targetFolder": "Assets/Art/UI/",
+      "preset": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+      "postImportActions": [
+        { "guid": "0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a", "fileId": "-8163672490871529621" }
+      ]
+    }
+  ]
+}
+```
+
+Notes on the fields:
+
+- `$schema` marks the file as a full database export. It is a different marker from the
+  `$assetRouterRule` used by single-rule clipboard payloads; pasting one where the other is
+  expected produces a clear error.
+- `schemaVersion` is the rule schema version. Older files are migrated automatically on import.
+- `patternMode` is the string `"Glob"` or `"Regex"`. `$type` names the rule class, so future
+  rule types can round-trip.
+- `preset` is the preset asset's GUID as a plain string, or `null`. The preset file itself is
+  not embedded.
+- `postImportActions` entries reference action sub-assets by `guid` and `fileId`. These are
+  project-specific; see the portability note below.
+
 ### Portability note
 
 Post-import action references use Unity local file IDs, which are project-specific. A database
 JSON exported from project A and imported into project B will not resolve action sub-assets
 correctly. Rule settings, patterns, and target folders transfer correctly; action bindings do not.
+For cross-project transfer of a rule together with its action settings, use
+[Rule Sharing](rule-sharing.md), which serializes action fields by value.
 
 ---
 
@@ -310,8 +374,10 @@ Each entry must start with `Assets/`.
 
 ## Default rules
 
-The database created on first load contains six rules. The first two use Path Templating
-(see [Path Templating](#path-templating)) and demonstrate routing to per-asset subfolders.
+The database created on first load contains six rules. Character Textures and Location Textures
+use Path Templating (see [Path Templating](#path-templating)) and demonstrate routing to per-asset
+subfolders. UI Textures carries a `Set Pivot` post-import action as a working example of the
+actions pipeline.
 
 | Rule Name | Pattern | Mode | Target Folder | Preset |
 |-----------|---------|------|---------------|--------|
@@ -328,7 +394,8 @@ These are starting points. Rename, reorder, or delete them as needed.
 
 ## Bundled presets
 
-The package ships with 10 presets in the `Presets/` folder:
+The package ships with 10 presets in the `Presets/` folder. To create your own preset and assign
+it to a rule, see [Presets](presets.md).
 
 | Preset | For |
 |--------|-----|
@@ -363,9 +430,12 @@ The preset type must match the asset type. A TextureImporter preset on an audio 
 Check the preset asset in the Inspector to confirm its type matches.
 
 **Actions did not run.**
-Actions only run after the asset is moved. If the file was already in the target folder, the move
-is skipped and actions do not run unless Force Re-import is enabled in Dry Run.
-Open the Diagnostic Window and check the outcome column.
+During live auto-import, actions run for every file the rule matched, including files already in
+the target folder. In a Dry Run batch, files already in place run their preset and actions only
+when **Force re-import** is enabled. Open the Diagnostic Window and check the outcome column:
+`queued` means the action chain is scheduled to run right after the import batch. Also check that
+the action's own conditions hold (`CanRunOn`), e.g. `Set Pivot` skips textures that are not
+Sprite type.
 
 **Undo did not restore a file.**
 Undo moves files back to their recorded original paths. If a file was manually moved or deleted
@@ -377,3 +447,14 @@ A warning (⚠) means either two rules have identical patterns, or the overlap h
 that a sample set of project assets matches both rules. The first rule in the list wins. Reorder
 or adjust the patterns to remove the conflict. The heuristic can produce false positives; check
 the Validate tab to confirm actual routing.
+
+---
+
+## Related guides
+
+- [Getting Started](getting-started.md) — step-by-step first run in 10 minutes
+- [UI Reference](ui-reference.md) — every window, tab, and button
+- [Pattern Cookbook](patterns.md) — Glob and Regex recipes with common mistakes
+- [Presets](presets.md) — creating your own import presets
+- [Rule Sharing](rule-sharing.md) — copy a single rule between projects via clipboard
+- Use cases: [solo developer](use-cases/solo-developer.md), [mobile team](use-cases/mobile-team.md), [legacy project cleanup](use-cases/legacy-cleanup.md)

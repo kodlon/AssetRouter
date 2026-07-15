@@ -10,7 +10,7 @@ The full JSON export (`Export JSON` toolbar button) transfers your whole databas
 
 ### Copy a rule
 
-1. Open **Tools → Asset Router Settings**.
+1. Open **Tools → Asset Router → Settings**.
 2. Select the rule you want to share in the **Import Rules** list.
 3. In the rule detail panel, click **Copy Rule to Clipboard**.
 
@@ -18,7 +18,7 @@ The rule JSON is now in your system clipboard.
 
 ### Paste a rule
 
-1. Open **Tools → Asset Router Settings** in the target project.
+1. Open **Tools → Asset Router → Settings** in the target project.
 2. In the **Import Rules** list header, click **Paste from Clipboard**.
 
 The rule is added to the bottom of the list and selected. Click **Save / Apply** to persist.

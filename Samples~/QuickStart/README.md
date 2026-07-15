@@ -4,9 +4,10 @@ This sample demonstrates Asset Router's auto-import and routing flow.
 
 ## What's included
 
-- Pre-configured `ImporterSettingsDatabase.asset` with 6 default rules
-- `Raw/` folder with example files: `T_Rock_D.png`, `UI_Button.png`, `SFX_Click.wav`, `Mus_Loop.ogg`, `qwerty.png`
-- Links to the 10 bundled presets in `Packages/com.kodlon.assetrouter/Presets/`
+This sample is a written walkthrough; it ships no asset files yet. The database it refers to is
+the default one Asset Router offers to create on first launch (or via **Create New** in the
+Settings window). The example files below are ordinary files from your disk that you rename
+yourself: `T_Rock_D.png`, `UI_Button.png`, `SFX_Click.wav`, `Mus_Loop.ogg`, `qwerty.png`.
 
 ## How to import
 
@@ -23,8 +24,8 @@ Unity copies the sample into `Assets/Samples/Asset Router/<version>/Quick Start/
 
 ### Step 1 — Open the settings window
 
-Go to **Tools → Asset Router Settings**.  
-The window shows the pre-configured database with six rules:
+Go to **Tools → Asset Router → Settings**.  
+The window shows the default database with six rules:
 
 | Rule | Pattern | Target folder |
 |------|---------|---------------|
@@ -37,7 +38,7 @@ The window shows the pre-configured database with six rules:
 
 ### Step 2 — Drop a file
 
-Drag any file from the sample's `Raw/` folder into the **Project window root** (`Assets/`).
+Drag any of your renamed example files into the **Project window root** (`Assets/`).
 
 - `T_Rock_D.png` → moved to `Assets/Art/Textures/`, `TextureImporter` preset applied
 - `UI_Button.png` → moved to `Assets/Art/UI/`, `TextureImporter_UI` preset applied
@@ -59,14 +60,14 @@ Select a session and click **Undo Selected Session** to revert all moves in that
 
 ### Step 5 — Export / Import as JSON
 
-Open **Tools → Asset Router Settings**.  
+Open **Tools → Asset Router → Settings**.  
 Click **Export JSON** in the toolbar to save the database as a human-readable `.json` file.  
 This file is git-diff-friendly and can be committed to version control.  
 Use **Import JSON** on another machine to restore the same configuration.
 
 ---
 
-## Bundled presets (v0.5.0)
+## Bundled presets
 
 All presets live in `Packages/com.kodlon.assetrouter/Presets/`. Assign them to rules in the
 Settings tab via the **Import Preset** field.
