@@ -31,8 +31,11 @@ namespace Kodlon.AssetRouter.Logic
 
             if (guids.Length == 0)
             {
-                Debug.LogWarning("[AssetRouter] ImporterSettingsDatabase not found. " +
-                                 "Create one via Assets > Create > Asset Router > Settings Database.");
+                if (Application.isBatchMode)
+                {
+                    Debug.LogWarning("[AssetRouter] ImporterSettingsDatabase not found. " +
+                                     "Create one via Assets > Create > Asset Router > Settings Database.");
+                }
 
                 return null;
             }

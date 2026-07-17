@@ -14,12 +14,12 @@
     "versionDefines": [
         {
             "name": "com.unity.addressables",
-            "expression": "[1.19.0,)",
+            "expression": "[1.19.0,99.0.0]",
             "define": "UNITY_ADDRESSABLES"
         },
         {
             "name": "com.unity.2d.sprite",
-            "expression": "[1.0.0,)",
+            "expression": "[1.0.0,99.0.0]",
             "define": "UNITY_2D_SPRITE"
         }
     ],
