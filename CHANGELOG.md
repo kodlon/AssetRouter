@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Undo sessions are now recorded in the operation log** with `source = "Undo"`. Previously
+  `UndoEngine.Revert` moved assets back but wrote nothing to `Library/AssetRouter/log.json`,
+  leaving no audit trail of which files were reverted, when, or by whom. Each successful revert
+  is now flushed as a batch through `OperationLog.RecordBatch` — `from` is the pre-undo routed
+  target, `to` is the restored original path, and `ruleName` is preserved from the source entry
+  for context. Only assets that actually moved are recorded; a fully-failed or fully-cancelled
+  undo writes nothing (no empty sessions polluting History).
+  - `HistoryView` disables its **Undo Selected Session** button when the selected session's
+    source is `"Undo"`, so an accidental double-click cannot cascade into an implicit redo.
+    Users who want to re-apply the original routing should trigger a fresh Dry Run instead.
+  - New `UndoEngine.UndoSessionSource` public constant pins the wire tag ("Undo"); the
+    HistoryView guard and two new `OperationLogTests` cases (`UndoEngine_UndoSessionSource_IsStable`,
+    `RecordBatch_WithUndoSource_RoundTripsThroughReadAll`) protect the tag from silent rename.
+
+### Fixed
+- **`HandleUnknownAssets` no longer opens a modal dialog in batch/CI mode.**
+  `EditorUtility.DisplayDialogComplex` inside `AssetRouterPostprocessor.OnPostprocessAllAssets`
+  could block headless builds (or, worse, quietly pick the default response) whenever an asset
+  arrived that no rule matched. The postprocessor now short-circuits with
+  `Application.isBatchMode` and logs one warning per unmatched file instead of prompting.
+  Interactive Editor sessions behave exactly as before.
+
 ### Removed
 - **Diagnostic Window** (`Tools > Asset Router > Diagnostic Window`) and its backing
   `DiagnosticLog`. The window duplicated what the History tab already surfaces, only logged

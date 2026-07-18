@@ -189,6 +189,16 @@ namespace Kodlon.AssetRouter.Logic
             if (existing.Count == 0)
                 return;
 
+            // Never prompt in batch/CI mode. Unity forces the default button in headless runs, which
+            // in DisplayDialogComplex terms is `0` (Import all as-is) — accidental "Delete all" is
+            // out of reach here, but blocking the build waiting for a click still is not. Log and move on.
+            if (Application.isBatchMode)
+            {
+                foreach (var path in existing)
+                    Debug.LogWarning($"[AssetRouter] \"{Path.GetFileName(path)}\" imported without a matching rule (batch mode — dialog suppressed).");
+                return;
+            }
+
             var fileList = string.Join("\n", existing.Select(p => $"  • {Path.GetFileName(p)}"));
 
             // DisplayDialogComplex's cancel action is the "cancel" button — Esc/close is a safe no-op here,

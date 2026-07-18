@@ -21,7 +21,15 @@ namespace Kodlon.AssetRouter.View
 
                 GUILayout.FlexibleSpace();
 
-                using (new EditorGUI.DisabledScope(_sessions == null || _selectedIndex < 0))
+                // Undo is disabled for sessions that themselves are Undo sessions, so a click cannot
+                // cascade into an implicit redo. Users who need to re-apply the original routing
+                // should trigger it fresh via Dry Run.
+                var undoDisabled = _sessions == null
+                                   || _selectedIndex < 0
+                                   || _selectedIndex >= _sessions.Count
+                                   || _sessions[_selectedIndex]?.source == UndoEngine.UndoSessionSource;
+
+                using (new EditorGUI.DisabledScope(undoDisabled))
                 {
                     if (GUILayout.Button("Undo Selected Session", GUILayout.Width(165f)))
                         UndoSelected();
