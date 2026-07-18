@@ -11,7 +11,6 @@ not a tutorial.
 | Menu item | What it does |
 |-----------|--------------|
 | **Tools > Asset Router > Settings** | Opens the [main window](#main-window) with rules and tabs |
-| **Tools > Asset Router > Diagnostic Window** | Opens the [Diagnostic Window](#diagnostic-window) |
 | **Tools > Asset Router > Documentation** | Opens the online documentation on GitHub |
 | **Tools > Asset Router > Report Issue** | Opens the GitHub issue tracker |
 | **Tools > Asset Router > Clear Rule Statistics** | Resets the `(N✓)` match counters of all rules, after a confirmation |
@@ -179,36 +178,6 @@ measure how much of the project follows the naming convention.
 | **Scan Project** | Runs the scan and fills the table. | Always the first click on this tab. |
 | **Copy to Clipboard** | Copies the unmatched asset paths as plain text, one per line. | Pasting the offender list into a ticket or spreadsheet. |
 | Table (**File**, **Current Folder**) | The unmatched files. When everything matches, the tab says so instead. | Deciding whether to rename files, add rules, or leave them alone. |
-
----
-
-## Diagnostic Window
-
-Open via **Tools > Asset Router > Diagnostic Window**. Answers one question: "why did that file
-move (or not move)?" While the window is open it logs, in real time, every monitored asset the
-postprocessor sees and what it decided. Recording stops when the window closes, so it costs
-nothing when unused. The buffer keeps the last 500 entries and clears on script reload.
-
-Toolbar:
-
-| Element | What it does | When you need it |
-|---------|--------------|------------------|
-| **Clear** | Empties the log. | Starting a clean experiment. |
-| **Auto-scroll** | Keeps the newest entry visible. | On by default; turn off while reading older rows. |
-| Entry counter | Shows how many entries are in the buffer. | Orientation only. |
-
-Table columns: **Time**, **Asset**, **Rule**, **Target**, **Action**. The Action column is the
-verdict:
-
-| Action value | Meaning |
-|--------------|---------|
-| `no match` | No rule matched the file name. |
-| `in place` | A rule matched; the file is already in its target folder. |
-| `moved` | The file was routed to its target folder. |
-| `queued` | The move is done; the rule's post-import actions are about to run. |
-
-A file that never appears in the window at all was filtered out before rule matching: its
-extension is not monitored, or its folder is ignored.
 
 ---
 

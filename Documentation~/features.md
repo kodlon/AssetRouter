@@ -77,7 +77,8 @@ The **Target Folder** field supports capture group tokens that expand at move ti
 
 Captured values are sanitised before use: path-traversal segments (`..`, `.`), Windows-invalid
 characters, and leading dots are stripped. An unknown token logs a warning and is kept literally,
-producing a visible folder name so the misconfiguration is easy to find in the Diagnostic Window.
+producing a visible folder name so the misconfiguration is easy to spot in the Assets browser and
+in the History tab.
 
 **Example.** Pattern `T_Char_*_*` (Glob) + target `Assets/Art/Characters/{1}/`. Drop
 `T_Char_Hero_Diffuse.png` → it moves to `Assets/Art/Characters/Hero/`. Drop
@@ -241,21 +242,6 @@ so she either deletes the test asset or explicitly switches the picker to the li
 ---
 
 ## Diagnostics & Monitoring
-
-### Diagnostic Window
-
-Open **Tools > Asset Router > Diagnostic Window** to see a timestamped log of every asset that
-passed through the postprocessor. Each row shows the file name, the matched rule (or "no match"),
-the resolved target path, and whether the file was moved or left in place. The log is an in-memory
-ring buffer of 500 entries and clears on assembly reload. Logging runs only while the window is
-open, so there is zero overhead when you do not need it.
-
-**Example.** A sound file `SFX_Footstep.wav` is not moving. The artist enables the Diagnostic Window,
-re-imports the file, and immediately sees the row: rule = "(no match)", moved = false. She realises
-the extension `.wav` was missing from Monitored Extensions, adds it, and the next import routes the
-file correctly.
-
----
 
 ### Per-rule statistics
 

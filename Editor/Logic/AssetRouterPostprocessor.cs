@@ -48,9 +48,6 @@ namespace Kodlon.AssetRouter.Logic
                     if (db.showPopupForUnknownFiles)
                         unknownAssets.Add(assetPath);
 
-                    if (DiagnosticLog.IsEnabled)
-                        DiagnosticLog.Add(assetPath, null, null, false, false);
-
                     continue;
                 }
 
@@ -62,9 +59,6 @@ namespace Kodlon.AssetRouter.Logic
                 var currentFolder  = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(assetPath) ?? "") + "/";
                 var targetFolder   = PathUtility.NormalizeAssetPath(resolvedTarget) + "/";
                 var alreadyInPlace = string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase);
-
-                if (DiagnosticLog.IsEnabled)
-                    DiagnosticLog.Add(assetPath, rule.ruleName, resolvedTarget, !alreadyInPlace, alreadyInPlace);
 
                 if (alreadyInPlace)
                 {

@@ -254,21 +254,6 @@ Click **Copy to Clipboard** to export the list of non-matching paths as newline-
 
 ---
 
-## Diagnostic Window
-
-Open via **Tools > Asset Router > Diagnostic Window**.
-
-Shows every monitored asset processed by the postprocessor in real time, with columns for
-timestamp, file name, matched rule, and outcome (no match / already in place / moved / queued).
-
-The window starts recording when it is open and stops when closed, so it adds no overhead when
-not in use. The buffer holds the last 500 entries and is cleared on assembly reload.
-
-Use this when a file is not moving and you cannot tell why. The window shows exactly what the
-postprocessor saw and decided.
-
----
-
 ## JSON export and import
 
 The database is a Unity YAML ScriptableObject by default. JSON export and import are an additional
@@ -415,10 +400,11 @@ it to a rule, see [Presets](presets.md).
 ## Troubleshooting
 
 **My file did not move.**
-Open the Diagnostic Window (Tools > Asset Router > Diagnostic Window). If the file does not appear
-there, its extension is not in the Monitored Extensions list or its path is under an Ignored Folder.
-If it appears with outcome "no match", no rule matched the file name. Check the pattern in Settings
-or open the Validate tab to find all unmatched files.
+Open the **History** tab. If there is no entry for the file, its extension is not in the
+Monitored Extensions list or its path is under an Ignored Folder. If the file also does not
+appear in the **Validate** tab as an unmatched asset, the filter settings are excluding it —
+check **Settings tab > File Filter Settings**. If it does appear in Validate, no rule pattern
+matches its name; adjust the pattern and re-check the live preview in the rule detail panel.
 
 **The rule does not match even though the pattern looks right.**
 Check the live preview in the rule detail panel. If the preview shows 0 matches, the pattern is
@@ -432,10 +418,9 @@ Check the preset asset in the Inspector to confirm its type matches.
 **Actions did not run.**
 During live auto-import, actions run for every file the rule matched, including files already in
 the target folder. In a Dry Run batch, files already in place run their preset and actions only
-when **Force re-import** is enabled. Open the Diagnostic Window and check the outcome column:
-`queued` means the action chain is scheduled to run right after the import batch. Also check that
-the action's own conditions hold (`CanRunOn`), e.g. `Set Pivot` skips textures that are not
-Sprite type.
+when **Force re-import** is enabled. Check the **History** tab — a moved entry means the action
+chain was scheduled to run right after the import batch. Also check that the action's own
+conditions hold (`CanRunOn`), e.g. `Set Pivot` skips textures that are not Sprite type.
 
 **Undo did not restore a file.**
 Undo moves files back to their recorded original paths. If a file was manually moved or deleted

@@ -88,7 +88,7 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 │   ├── Actions/    # IAssetImportAction, AssetImportActionAsset, 11 built-in actions
 │   ├── Data/       # BaseImportRule, ImportRule, ImporterSettingsDatabase
 │   ├── Logic/      # PatternMatcher, RuleValidator, Postprocessor, Initializer, DryRunPlanner
-│   ├── View/       # AssetRouterWindow, DryRunView, HistoryView, NamingValidatorView, DiagnosticWindow
+│   ├── View/       # AssetRouterWindow, DryRunView, HistoryView, NamingValidatorView
 │   └── Wizard/     # ActionScaffoldingWizard (code generator)
 ├── Runtime/        # AssetCatalog, IAssetRouterPrefabSetup, IAssetRouterDataSetup
 ├── Presets/        # 10 bundled .preset files

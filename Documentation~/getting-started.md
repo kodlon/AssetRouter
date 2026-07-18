@@ -199,18 +199,17 @@ Test it. Rename an audio file to `Voice_Intro.wav` and drop it into the project.
 
 ## Step 8. When a file does not move
 
-Sooner or later you drop a file and nothing happens. Open
-**Tools > Asset Router > Diagnostic Window**, keep it open, then right-click the stubborn file
-and choose **Reimport**. The window logs every import decision in real time.
+Sooner or later you drop a file and nothing happens. Work through this checklist:
 
-<!-- SCREENSHOT: Diagnostic Window with a few logged entries -->
+| Symptom | Likely cause | What to do |
+|---------|--------------|------------|
+| No entry appears in the **History** tab for the file | Its extension is not in Monitored Extensions, or its folder is in Ignored Folders | Check **Settings tab > File Filter Settings** |
+| The **Validate** tab lists the file as unmatched | No rule pattern matched the file name | Check the pattern and its live preview |
+| The file's rule shows `(0✓)` in the rules list | The rule has never matched anything — pattern is wrong or the extension is not monitored | Test the pattern against the file name in the rule preview |
+| History shows the move but the file is still in place | The target folder resolves to the current folder | Check the resolved `Target Folder` shown next to the rule |
 
-| What you see | What it means | What to do |
-|--------------|---------------|------------|
-| The file is not listed at all | Its extension is not in Monitored Extensions, or its folder is in Ignored Folders | Check **Settings tab > File Filter Settings** |
-| Action column says `no match` | No rule pattern matched the file name | Check the pattern and its live preview, or scan the **Validate** tab |
-| Action column says `in place` | A rule matched, but the file is already in its target folder | Nothing to do |
-| Action column says `moved` | Routing worked | Nothing to do |
+Still stuck? Right-click the file and choose **Reimport** to trigger the postprocessor again, then
+re-check the **History** and **Validate** tabs.
 
 ---
 

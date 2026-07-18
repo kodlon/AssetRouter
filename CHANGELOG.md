@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **Diagnostic Window** (`Tools > Asset Router > Diagnostic Window`) and its backing
+  `DiagnosticLog`. The window duplicated what the History tab already surfaces, only logged
+  a subset of events (postprocessor auto-imports; not `BatchMover` or `UndoEngine`), was
+  cleared on every assembly reload, and only recorded while the window itself was open —
+  which made it appear broken in most usage scenarios. A proper action-trace / debug view
+  (rule evaluation, `ActionPipeline` errors, timings) is deferred to a future release.
+  Removed files: `Editor/View/DiagnosticWindow.cs`, `Editor/Logic/DiagnosticLog.cs`. The
+  two `DiagnosticLog.Add` call sites in `AssetRouterPostprocessor.OnPostprocessAllAssets`
+  are gone.
+
 ### Added
 - **Clear Rule Statistics menu item.** `Tools > Asset Router > Clear Rule Statistics` resets the
   per-rule match counters shown as `(N✓)` in the rules list, after a confirmation dialog. Previously
@@ -178,7 +189,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `AssetRouterPostprocessor.OnPostprocessAllAssets`: collected rule-name list is flushed to
   `RuleStatsStore.IncrementBatch` once per import batch (not per asset). Emits to `DiagnosticLog`
-  when the window is open.
+  when the window is open. *(DiagnosticLog removed in a later release — see [Unreleased].)*
 - Asset Router window: `TabLabels` extended from 3 to 4 entries ("Validate" added). Stats cache
   loaded from `RuleStatsStore` when a database is loaded.
 - `package.json` version bumped to `0.8.0`.

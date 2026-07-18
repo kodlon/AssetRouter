@@ -38,12 +38,6 @@ For a solo developer with a single machine, the database `.asset` file in git is
 You do not need JSON export unless you want readable diffs in pull requests or plan to share
 rules with someone else.
 
-## Diagnostic Window
-
-When a file does not move and you cannot figure out why, open
-**Tools > Asset Router > Diagnostic Window**. It shows exactly what the postprocessor saw:
-whether the file's extension is monitored, whether a rule matched, and what outcome resulted.
-
 ## Validate tab
 
 Open the Validate tab after a large asset import to find any files that did not match a rule.
