@@ -17,7 +17,11 @@ namespace Kodlon.AssetRouter.Logic
                 Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
                 "Library", "AssetRouter", "log.json");
 
-        public static void RecordBatch(List<OperationLogEntry> entries, string source = "AutoImport")
+        public static void RecordBatch(
+            List<OperationLogEntry> entries,
+            string source = "AutoImport",
+            IEnumerable<string> createdAssets = null,
+            IEnumerable<string> createdFolders = null)
         {
             if (entries == null || entries.Count == 0)
                 return;
@@ -25,9 +29,11 @@ namespace Kodlon.AssetRouter.Logic
             var log = ReadLogFile();
             log.sessions.Add(new OperationSession
             {
-                timestamp = DateTime.UtcNow.ToString("o"),
-                source    = source,
-                entries   = new List<OperationLogEntry>(entries)
+                timestamp      = DateTime.UtcNow.ToString("o"),
+                source         = source,
+                entries        = new List<OperationLogEntry>(entries),
+                createdAssets  = createdAssets  == null ? new List<string>() : new List<string>(createdAssets),
+                createdFolders = createdFolders == null ? new List<string>() : new List<string>(createdFolders),
             });
 
             if (log.sessions.Count > MaxSessions)
@@ -36,7 +42,19 @@ namespace Kodlon.AssetRouter.Logic
             WriteLogFile(log);
         }
 
-        public static List<OperationSession> ReadAll() => ReadLogFile().sessions ?? new List<OperationSession>();
+        public static List<OperationSession> ReadAll()
+        {
+            var sessions = ReadLogFile().sessions ?? new List<OperationSession>();
+
+            // v=1 sessions have no createdAssets/createdFolders — JsonUtility leaves them null.
+            foreach (var s in sessions)
+            {
+                s.createdAssets  ??= new List<string>();
+                s.createdFolders ??= new List<string>();
+            }
+
+            return sessions;
+        }
 
         public static void Clear() => WriteLogFile(new OperationLogFile());
 

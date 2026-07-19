@@ -82,11 +82,18 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
+        public void UndoEngine_RecycleFolder_IsStable()
+        {
+            // The recycle folder path is a public contract with users' projects — renaming it
+            // orphans everything they've previously undone. Freeze the value in tests.
+            Assert.AreEqual("Assets/_AssetRouterRecycle", UndoEngine.RecycleFolder);
+        }
+
+        [Test]
         public void UndoEngine_UndoSessionSource_IsStable()
         {
-            // HistoryView.Draw filters the "Undo Selected Session" button on this exact string.
-            // If the constant is renamed, the guard silently stops matching and Undo cascades
-            // into a redo — this test freezes the wire value.
+            // The tag is written into on-disk log files. Renaming it would silently break
+            // filtering / analytics on existing histories. Freeze the value.
             Assert.AreEqual("Undo", UndoEngine.UndoSessionSource);
         }
 
@@ -112,6 +119,74 @@ namespace Kodlon.AssetRouter.Tests
                 "Undo entry should record the post-undo location as `to` (original spot).");
             Assert.AreEqual("Textures", last.entries[0].ruleName,
                 "Original rule name should be preserved for context in the History view.");
+        }
+
+        [Test]
+        public void RecordBatch_WithSideEffects_RoundTripsCreatedAssetsAndFolders()
+        {
+            // Guards the schema-v2 addition: createdAssets and createdFolders must survive JSON
+            // round-trip. UndoEngine.CleanupSideEffects reads these lists back to know what to
+            // AssetDatabase.DeleteAsset — if serialization drops them, orphan artifacts return.
+            const string source = "OperationLogTests_SideEffects";
+            var entries = new List<OperationLogEntry>
+            {
+                new OperationLogEntry("Assets/T_Rock.png", "Assets/Art/Textures/T_Rock.png", "Textures"),
+            };
+            var createdAssets  = new[] { "Assets/Art/Textures/T_Rock_Mat.mat" };
+            var createdFolders = new[] { "Assets/Art", "Assets/Art/Textures" };
+
+            OperationLog.RecordBatch(entries, source, createdAssets, createdFolders);
+
+            var last = OperationLog.ReadAll().FindLast(s => s.source == source);
+
+            Assert.IsNotNull(last);
+            CollectionAssert.AreEqual(createdAssets,  last.createdAssets);
+            CollectionAssert.AreEqual(createdFolders, last.createdFolders);
+        }
+
+        [Test]
+        public void ReadAll_NormalisesNullSideEffectListsOnLegacySessions()
+        {
+            // Simulate a v=1 log file (predates the createdAssets/createdFolders fields) by writing
+            // JSON that lacks them entirely. JsonUtility leaves the missing List<string> fields as
+            // null; ReadAll must replace them with empty lists so callers (UndoEngine, HistoryView)
+            // never see a null and never NRE.
+            var legacyJson =
+                "{\"v\":1,\"sessions\":[" +
+                "{\"timestamp\":\"2026-01-01T00:00:00Z\",\"source\":\"AutoImport\"," +
+                " \"entries\":[{\"from\":\"Assets/a.png\",\"to\":\"Assets/T/a.png\",\"ruleName\":\"R\"}]" +
+                "}]}";
+            File.WriteAllText(_tempPath, legacyJson);
+
+            var sessions = OperationLog.ReadAll();
+
+            Assert.AreEqual(1, sessions.Count);
+            Assert.IsNotNull(sessions[0].createdAssets,  "createdAssets should be normalised to an empty list, not left null.");
+            Assert.IsNotNull(sessions[0].createdFolders, "createdFolders should be normalised to an empty list, not left null.");
+            Assert.AreEqual(0, sessions[0].createdAssets.Count);
+            Assert.AreEqual(0, sessions[0].createdFolders.Count);
+        }
+
+        [Test]
+        public void RecordBatch_WithNullSideEffects_WritesEmptyLists()
+        {
+            // Overload accepts nulls for the two side-effect parameters. Log must still deserialize
+            // cleanly with empty lists rather than nulls so downstream iteration is safe.
+            const string source = "OperationLogTests_NullSideEffects";
+            var entries = new List<OperationLogEntry>
+            {
+                new OperationLogEntry("Assets/a.png", "Assets/T/a.png", "R"),
+            };
+
+            OperationLog.RecordBatch(entries, source, createdAssets: null, createdFolders: null);
+
+            var last = OperationLog.ReadAll().FindLast(s => s.source == source);
+
+            Assert.IsNotNull(last);
+            Assert.IsNotNull(last.createdAssets);
+            Assert.IsNotNull(last.createdFolders);
+            Assert.AreEqual(0, last.createdAssets.Count);
+            Assert.AreEqual(0, last.createdFolders.Count);
         }
     }
 }

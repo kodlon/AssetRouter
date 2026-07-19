@@ -25,6 +25,8 @@ namespace Kodlon.AssetRouter.Logic
             var unknownAssets     = new List<string>();
             var batchMatchedRules = new List<string>();
             var pendingRuns       = new List<(BaseImportRule Rule, string Path)>();
+            // Shared across the whole batch — every action's side effects land in one place per session.
+            var artifactCollector = new ArtifactCollector();
 
             foreach (var assetPath in importedAssets)
             {
@@ -69,8 +71,10 @@ namespace Kodlon.AssetRouter.Logic
                 toMove.Add(new AssetMoveCandidate(assetPath, rule, ruleMatch.Value.Match));
             }
 
+            var moveLogEntries = new List<OperationLogEntry>();
+
             if (toMove.Count > 0)
-                pendingRuns.AddRange(ExecuteMovesBatched(toMove));
+                pendingRuns.AddRange(ExecuteMovesBatched(toMove, artifactCollector, moveLogEntries));
 
             if (batchMatchedRules.Count > 0)
                 RuleStatsStore.IncrementBatch(batchMatchedRules);
@@ -90,15 +94,14 @@ namespace Kodlon.AssetRouter.Logic
                 {
                     foreach (var (rule, path) in pendingRuns)
                     {
-                        try
-                        {
-                            ActionPipeline.Execute(rule, path, db);
-                        }
-                        finally
-                        {
-                            PipelineOutputGuard.EndRun(path);
-                        }
+                        try   { ActionPipeline.Execute(rule, path, db, artifactCollector); }
+                        finally { PipelineOutputGuard.EndRun(path); }
                     }
+
+                    // Deferred so createdAssets captures artifacts built asynchronously by actions.
+                    // In-place-only batches don't create a session (RecordBatch needs ≥1 entry).
+                    if (moveLogEntries.Count > 0)
+                        OperationLog.RecordBatch(moveLogEntries, "AutoImport", artifactCollector.Assets, artifactCollector.Folders);
                 };
             }
 
@@ -126,17 +129,18 @@ namespace Kodlon.AssetRouter.Logic
             ApplyPreset(ruleMatch?.Rule);
         }
 
-        private static List<(BaseImportRule Rule, string Path)> ExecuteMovesBatched(List<AssetMoveCandidate> candidates)
+        private static List<(BaseImportRule Rule, string Path)> ExecuteMovesBatched(
+            List<AssetMoveCandidate> candidates,
+            IArtifactSink artifactSink,
+            List<OperationLogEntry> logEntriesOut)
         {
+            // Folders must be created before StartAssetEditing — inside a batch CreateFolder is a no-op.
             foreach (var candidate in candidates)
             {
                 var resolved = TargetResolver.Resolve(candidate.Rule.targetFolder, candidate.Match);
-                PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(resolved));
+                artifactSink?.OnFoldersCreated(PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(resolved)));
             }
 
-            var logEntries = new List<OperationLogEntry>();
-            // AssetDatabase.MoveAsset does not trigger a reimport, so the moved asset never comes back
-            // through OnPostprocessAllAssets' importedAssets — the caller runs the pipeline for it instead.
             var moved = new List<(BaseImportRule Rule, string Path)>();
 
             AssetDatabase.StartAssetEditing();
@@ -146,7 +150,7 @@ namespace Kodlon.AssetRouter.Logic
                 {
                     if (MoveToTargetFolder(candidate.Path, candidate.Rule, candidate.Match, out var targetPath))
                     {
-                        logEntries.Add(new OperationLogEntry(candidate.Path, targetPath, candidate.Rule.ruleName));
+                        logEntriesOut.Add(new OperationLogEntry(candidate.Path, targetPath, candidate.Rule.ruleName));
                         moved.Add((candidate.Rule, targetPath));
                     }
                 }
@@ -156,9 +160,7 @@ namespace Kodlon.AssetRouter.Logic
                 AssetDatabase.StopAssetEditing();
             }
 
-            if (logEntries.Count > 0)
-                OperationLog.RecordBatch(logEntries, "AutoImport");
-
+            // Caller writes the session after actions finish (see delayCall in OnPostprocessAllAssets).
             return moved;
         }
 

@@ -10,13 +10,13 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal static class ActionPipeline
     {
-        public static void Execute(BaseImportRule rule, string assetPath, ImporterSettingsDatabase db)
+        public static void Execute(BaseImportRule rule, string assetPath, ImporterSettingsDatabase db, IArtifactSink sink = null)
         {
             var asset = AssetDatabase.LoadAssetAtPath<Object>(assetPath);
-            Execute(rule, asset, assetPath, db);
+            Execute(rule, asset, assetPath, db, sink);
         }
 
-        public static void Execute(BaseImportRule rule, Object asset, string assetPath, ImporterSettingsDatabase db)
+        public static void Execute(BaseImportRule rule, Object asset, string assetPath, ImporterSettingsDatabase db, IArtifactSink sink = null)
         {
             if (rule is not ImportRule importRule)
                 return;
@@ -26,7 +26,7 @@ namespace Kodlon.AssetRouter.Logic
             if (actions == null || actions.Count == 0)
                 return;
 
-            var ctx = new AssetImportContext(assetPath, rule, db);
+            var ctx = new AssetImportContext(assetPath, rule, db, logger: null, sink: sink);
 
             for (var i = 0; i < actions.Count; i++)
             {

@@ -55,9 +55,10 @@ namespace Kodlon.AssetRouter.Actions
                 // first so the output is a fully independent asset.
                 PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
 
-                PathUtility.EnsureFolderExists(folder);
+                ctx.Sink?.OnFoldersCreated(PathUtility.EnsureFolderExists(folder));
                 PipelineOutputGuard.MarkCreated(prefabPath);
                 PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
+                ctx.Sink?.OnAssetCreated(prefabPath);
             }
             finally
             {

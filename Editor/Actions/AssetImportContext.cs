@@ -1,34 +1,30 @@
 using Kodlon.AssetRouter.Data;
+using Kodlon.AssetRouter.Logic;
 using UnityEngine;
 
 namespace Kodlon.AssetRouter.Actions
 {
-    /// <summary>
-    /// Read-only context passed to every action in the post-import pipeline.
-    /// </summary>
+    /// <summary>Read-only context passed to every action in the post-import pipeline.</summary>
     public readonly struct AssetImportContext
     {
-        /// <summary>Unity asset path with forward slashes, e.g. <c>Assets/Art/T_Rock_D.png</c>.</summary>
-        public readonly string AssetPath;
-
-        /// <summary>The rule that matched this asset and triggered the action chain.</summary>
-        public readonly BaseImportRule Rule;
-
-        /// <summary>The settings database that owns the matched rule.</summary>
+        public readonly string                   AssetPath;
+        public readonly BaseImportRule           Rule;
         public readonly ImporterSettingsDatabase Database;
+        public readonly ILogger                  Logger;
 
-        /// <summary>Logger for action output. Defaults to <see cref="Debug.unityLogger"/> when not provided.</summary>
-        public readonly ILogger Logger;
+        /// <summary>Optional sink that records action side effects (created assets and folders) so Undo can reverse them. Null in tests and hand-built contexts.</summary>
+        public readonly IArtifactSink Sink;
 
-        /// <summary>
-        /// Creates a new context. <paramref name="logger"/> defaults to <see cref="Debug.unityLogger"/> when null.
-        /// </summary>
         public AssetImportContext(string assetPath, BaseImportRule rule, ImporterSettingsDatabase database, ILogger logger = null)
+            : this(assetPath, rule, database, logger, sink: null) { }
+
+        public AssetImportContext(string assetPath, BaseImportRule rule, ImporterSettingsDatabase database, ILogger logger, IArtifactSink sink)
         {
             AssetPath = assetPath;
-            Rule = rule;
-            Database = database;
-            Logger = logger ?? Debug.unityLogger;
+            Rule      = rule;
+            Database  = database;
+            Logger    = logger ?? Debug.unityLogger;
+            Sink      = sink;
         }
     }
 }

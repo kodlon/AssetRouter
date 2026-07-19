@@ -23,13 +23,17 @@ namespace Kodlon.AssetRouter.Logic
             // run — mirroring what the live auto-import pipeline does. Without this, "Apply Selected"/
             // "Force Re-import In-Place" would silently skip both, unlike routing a freshly-dropped file.
             var toProcess = new List<(BaseImportRule Rule, string Path, bool ForceReimport)>();
+            var artifactCollector = new ArtifactCollector();
             var total   = entries.Count;
             var current = 0;
 
             foreach (var entry in entries)
             {
                 if (entry.Selected && entry.MatchedRule != null && !entry.AlreadyInPlace && entry.TargetPath != null)
-                    PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(Path.GetDirectoryName(entry.TargetPath) ?? ""));
+                {
+                    var created = PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(Path.GetDirectoryName(entry.TargetPath) ?? ""));
+                    artifactCollector.OnFoldersCreated(created);
+                }
             }
 
             AssetDatabase.StartAssetEditing();
@@ -107,22 +111,23 @@ namespace Kodlon.AssetRouter.Logic
                 toProcess.Add((entry.MatchedRule, entry.AssetPath, true));
             }
 
-            if (logEntries.Count > 0)
-                OperationLog.RecordBatch(logEntries, "BatchMover");
-
             foreach (var (rule, path, forceReimport) in toProcess)
             {
                 PipelineOutputGuard.BeginRun(path);
                 try
                 {
                     ApplyPresetAndReimport(rule, path, forceReimport);
-                    ActionPipeline.Execute(rule, path, db);
+                    ActionPipeline.Execute(rule, path, db, artifactCollector);
                 }
                 finally
                 {
                     PipelineOutputGuard.EndRun(path);
                 }
             }
+
+            // Record after actions — synchronous flow means the collector has everything by now.
+            if (logEntries.Count > 0)
+                OperationLog.RecordBatch(logEntries, "BatchMover", artifactCollector.Assets, artifactCollector.Folders);
 
             var result = new BatchResult(moved, reimported, skipped, errored);
             Debug.Log($"[AssetRouter] Batch complete. {result}");

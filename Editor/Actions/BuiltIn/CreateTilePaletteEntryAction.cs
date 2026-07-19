@@ -53,9 +53,10 @@ namespace Kodlon.AssetRouter.Actions
             tile.color  = tileColor;
             tile.name   = tileName;
 
-            PathUtility.EnsureFolderExists(folder);
+            ctx.Sink?.OnFoldersCreated(PathUtility.EnsureFolderExists(folder));
             PipelineOutputGuard.MarkCreated(tilePath);
             AssetDatabase.CreateAsset(tile, tilePath);
+            ctx.Sink?.OnAssetCreated(tilePath);
 
             ctx.Logger.Log($"[AssetRouter] CreateTile → {tilePath}");
         }
