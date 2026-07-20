@@ -16,7 +16,7 @@ namespace Kodlon.AssetRouter.Logic
             string[] movedAssets,
             string[] movedFromAssetPaths)
         {
-            var db = DatabaseLocator.FindDatabase();
+            var db = DatabaseLocator.FindDatabase(logIfAmbiguous: true);
 
             if (db == null || !db.enableAutoImport)
                 return;
@@ -30,6 +30,11 @@ namespace Kodlon.AssetRouter.Logic
 
             foreach (var assetPath in importedAssets)
             {
+                // Assets sitting in the recycle folder are the outcome of a previous Undo — routing
+                // them back would immediately undo the undo and create fresh side effects.
+                if (assetPath.StartsWith(UndoEngine.RecycleFolder + "/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 // Skip assets the pipeline itself just created (e.g. a generated prefab/material) —
                 // otherwise a wildcard rule matching an action's own output would route it again, forever.
                 if (PipelineOutputGuard.WasCreatedByPipeline(assetPath))
@@ -160,6 +165,15 @@ namespace Kodlon.AssetRouter.Logic
                 AssetDatabase.StopAssetEditing();
             }
 
+            if (logEntriesOut.Count > 0)
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append("[AssetRouter] Moved ").Append(logEntriesOut.Count).Append(" asset(s):");
+                foreach (var e in logEntriesOut)
+                    sb.Append('\n').Append("  ").Append(e.from).Append(" → ").Append(e.to).Append("  (").Append(e.ruleName).Append(')');
+                Debug.Log(sb.ToString());
+            }
+
             // Caller writes the session after actions finish (see delayCall in OnPostprocessAllAssets).
             return moved;
         }
@@ -178,7 +192,6 @@ namespace Kodlon.AssetRouter.Logic
                 return false;
             }
 
-            Debug.Log($"[AssetRouter] Moved: {assetPath} -> {targetPath} ({rule.ruleName})");
             return true;
         }
 
@@ -248,9 +261,7 @@ namespace Kodlon.AssetRouter.Logic
             if (rule is not ImportRule importRule || importRule.preset == null)
                 return;
 
-            if (importRule.preset.ApplyTo(assetImporter))
-                Debug.Log($"[AssetRouter] Preset applied ({importRule.ruleName}) -> {assetPath}");
-            else
+            if (!importRule.preset.ApplyTo(assetImporter))
                 Debug.LogWarning($"[AssetRouter] Preset type mismatch for {assetPath} ({importRule.ruleName})");
         }
     }

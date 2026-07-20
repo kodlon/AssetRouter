@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `HandleUnknownAssets` no longer opens a modal dialog in batch/CI mode (`Application.isBatchMode` guard).
+- `DatabaseLocator` no longer silently picks the first DB when the project has more than one — auto-import is disabled with a `LogWarning` until only one `ImporterSettingsDatabase` remains. Warning fires once per domain reload (from the postprocessor path only); the migrator / initializer stay silent to avoid `projectChanged` spam.
+- One log line per import batch instead of one per file. `[AssetRouter] Moved N asset(s): a, b, c, …`. Also drops the per-preset "Preset applied" info line (kept the warning on type mismatch).
+- `BuildPatternPreview` scopes its `AssetDatabase.FindAssets` to `rule.scopeFolder` when set — was walking all of `Assets/` for 3 samples.
+- `AssetCatalog.Contains` / `AppendToCatalogAction` are O(1) now: `HashSet<Object>` cache rebuilt via `ISerializationCallbackReceiver`. Serialized list is unchanged; existing catalogs load without any migration.
 
 ### Removed
 - Diagnostic Window — duplicated History, only worked while open, cleared on every assembly reload. A proper debug view is deferred.

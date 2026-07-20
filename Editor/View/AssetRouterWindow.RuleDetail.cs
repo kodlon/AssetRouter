@@ -216,16 +216,20 @@ namespace Kodlon.AssetRouter.View
                 && PatternMatcher.TryGetRegexError(rule.pattern, out var error))
                 return $"⚠ {error}";
 
-            var hasTokens = !string.IsNullOrEmpty(rule.targetFolder) && rule.targetFolder.Contains('{');
-            var lines     = new List<string>(3);
-            var guids     = AssetDatabase.FindAssets("", new[] { "Assets" });
-            var limit     = Mathf.Min(guids.Length, 500);
-            var hasScope  = !string.IsNullOrEmpty(rule.scopeFolder);
+            var hasTokens   = !string.IsNullOrEmpty(rule.targetFolder) && rule.targetFolder.Contains('{');
+            var lines       = new List<string>(3);
+            var hasScope    = !string.IsNullOrEmpty(rule.scopeFolder);
+            var scopeIsReal = hasScope && AssetDatabase.IsValidFolder(rule.scopeFolder);
+            var searchIn    = scopeIsReal ? new[] { rule.scopeFolder } : new[] { "Assets" };
+            var guids       = AssetDatabase.FindAssets("", searchIn);
+            var limit       = Mathf.Min(guids.Length, 500);
 
             for (var i = 0; i < limit && lines.Count < 3; i++)
             {
                 var path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                if (hasScope && !PathUtility.IsUnderFolder(path, rule.scopeFolder))
+                // Extra guard for the fallback case (scopeFolder set but non-existent) — Unity's
+                // FindAssets fell back to searching "Assets" root, so filter matches manually.
+                if (hasScope && !scopeIsReal && !PathUtility.IsUnderFolder(path, rule.scopeFolder))
                     continue;
 
                 var m = PatternMatcher.Match(rule, path);

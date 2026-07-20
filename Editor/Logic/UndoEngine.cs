@@ -22,14 +22,24 @@ namespace Kodlon.AssetRouter.Logic
             var recycled        = 0;
             var failed          = 0;
             var cancelled       = false;
-            var recycleReady    = false;
+            // Destinations picked in this batch. AssetPathToGUID doesn't see MoveAsset results
+            // until StopAssetEditing, so we track picks locally to avoid two files colliding on
+            // the same recycle target.
+            var takenInBatch = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // Parent folders must exist before StartAssetEditing — creation inside a batch breaks MoveAsset.
+            // All folder creation happens BEFORE StartAssetEditing — CreateFolder inside the batch
+            // does not register with the asset database until Stop, and any MoveAsset targeting the
+            // fresh folder fails with "Parent directory is not in asset database".
+            var needsRecycle = false;
             foreach (var e in entries)
             {
-                if (!IsProjectRoot(e.from))
+                if (IsProjectRoot(e.from))
+                    needsRecycle = true;
+                else
                     PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(Path.GetDirectoryName(e.from) ?? string.Empty));
             }
+            if (needsRecycle)
+                PathUtility.EnsureFolderExists(RecycleFolder);
 
             AssetDatabase.StartAssetEditing();
             try
@@ -52,17 +62,11 @@ namespace Kodlon.AssetRouter.Logic
                         continue;
                     }
 
-                    // Root-origin drops go to the recycle folder to avoid re-cluttering the drop zone.
-                    // Everything else restores in place.
-                    var toRecycle = IsProjectRoot(entry.from);
-                    if (toRecycle && !recycleReady)
-                    {
-                        PathUtility.EnsureFolderExists(RecycleFolder);
-                        recycleReady = true;
-                    }
+                    var toRecycle   = IsProjectRoot(entry.from);
+                    var destination = toRecycle ? ResolveRecyclePath(entry.to, takenInBatch) : entry.from;
+                    takenInBatch.Add(destination);
 
-                    var destination = toRecycle ? ResolveRecyclePath(entry.to) : entry.from;
-                    var error       = AssetDatabase.MoveAsset(entry.to, destination);
+                    var error = AssetDatabase.MoveAsset(entry.to, destination);
 
                     if (!string.IsNullOrEmpty(error))
                     {
@@ -109,24 +113,18 @@ namespace Kodlon.AssetRouter.Logic
             return string.Equals(parent, "Assets", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string ResolveRecyclePath(string sourcePath)
+        private static string ResolveRecyclePath(string sourcePath, HashSet<string> takenInBatch)
         {
-            var fileName  = Path.GetFileName(sourcePath);
-            var baseName  = Path.GetFileNameWithoutExtension(fileName);
-            var extension = Path.GetExtension(fileName);
+            var proposed = $"{RecycleFolder}/{Path.GetFileName(sourcePath)}";
+            var unique   = AssetDatabase.GenerateUniqueAssetPath(proposed);
 
-            var candidate = $"{RecycleFolder}/{fileName}";
-            if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(candidate)))
-                return candidate;
+            // GenerateUniqueAssetPath consults AssetDatabase state, which does not yet reflect
+            // MoveAsset results within the current StartAssetEditing batch. Loop until we get a
+            // path that no earlier iteration has already claimed for this run.
+            while (takenInBatch.Contains(unique))
+                unique = AssetDatabase.GenerateUniqueAssetPath(unique);
 
-            for (var i = 1; i < 1000; i++)
-            {
-                candidate = $"{RecycleFolder}/{baseName}_{i}{extension}";
-                if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(candidate)))
-                    return candidate;
-            }
-
-            return $"{RecycleFolder}/{baseName}_{DateTime.UtcNow.Ticks}{extension}";
+            return unique;
         }
 
         private static (int assets, int folders, int failed) CleanupSideEffects(OperationSession session)

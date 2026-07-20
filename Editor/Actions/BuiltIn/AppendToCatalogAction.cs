@@ -22,10 +22,9 @@ namespace Kodlon.AssetRouter.Actions
             if (catalog == null || importedAsset == null)
                 return;
 
-            if (catalog.entries.Contains(importedAsset))
+            if (!catalog.Add(importedAsset))
                 return;
 
-            catalog.entries.Add(importedAsset);
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssetIfDirty(catalog);
 

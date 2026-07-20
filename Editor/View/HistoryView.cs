@@ -33,6 +33,11 @@ namespace Kodlon.AssetRouter.View
 
                 GUILayout.Space(8f);
 
+                if (GUILayout.Button("Empty Recycle", GUILayout.Width(105f)))
+                    EmptyRecycle();
+
+                GUILayout.Space(4f);
+
                 if (GUILayout.Button("Clear History", GUILayout.Width(105f)))
                     ClearHistory();
             }
@@ -151,6 +156,31 @@ namespace Kodlon.AssetRouter.View
                 return parsed.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 
             return rawTimestamp.Length >= 19 ? rawTimestamp.Substring(0, 19) : rawTimestamp;
+        }
+
+        private static void EmptyRecycle()
+        {
+            if (!AssetDatabase.IsValidFolder(UndoEngine.RecycleFolder))
+            {
+                EditorUtility.DisplayDialog("Empty Recycle", "The recycle folder is already empty.", "OK");
+                return;
+            }
+
+            var contents = AssetDatabase.FindAssets(string.Empty, new[] { UndoEngine.RecycleFolder });
+            if (contents == null || contents.Length == 0)
+            {
+                AssetDatabase.DeleteAsset(UndoEngine.RecycleFolder);
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog(
+                    "Empty Recycle",
+                    $"Delete {contents.Length} asset(s) in {UndoEngine.RecycleFolder}?\nThis cannot be undone.",
+                    "Delete",
+                    "Cancel"))
+                return;
+
+            AssetDatabase.DeleteAsset(UndoEngine.RecycleFolder);
         }
 
         private void ClearHistory()
