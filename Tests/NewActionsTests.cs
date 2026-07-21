@@ -312,6 +312,8 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void CreateMaterialFromTexture_RelativeOutputFolder_OutputInSubfolderOfAsset()
         {
+            AssetDatabase.CreateFolder(SubFolder, "Materials");
+
             var rule    = new ImportRule { targetFolder = TokenTarget };
             var ctx     = new AssetImportContext(FakeAsset, rule, null);
             var baseMat = new Material(Shader.Find("Sprites/Default"));

@@ -104,17 +104,17 @@ namespace Kodlon.AssetRouter.Actions
 
         private string ResolveOutputFolder(string assetPath)
         {
-            var assetFolder = Path.GetDirectoryName(assetPath) ?? string.Empty;
+            var assetFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(assetPath) ?? string.Empty);
 
             if (string.IsNullOrEmpty(outputFolder))
-                return PathUtility.NormalizeAssetPath(assetFolder);
+                return assetFolder;
 
-            var normalized = outputFolder.Replace('\\', '/').Trim('/');
+            var normalized = PathUtility.NormalizeAssetPath(outputFolder).TrimStart('/');
 
             if (normalized.StartsWith("Assets/", System.StringComparison.OrdinalIgnoreCase) || normalized == "Assets")
-                return PathUtility.NormalizeAssetPath(normalized);
+                return normalized;
 
-            return PathUtility.NormalizeAssetPath(assetFolder + "/" + normalized);
+            return assetFolder + "/" + normalized;
         }
     }
 }
