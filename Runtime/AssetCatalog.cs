@@ -1,45 +1,65 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Kodlon.AssetRouter.Data
 {
     /// <summary>
-    /// ScriptableObject that holds a list of asset references. Used with <c>AppendToCatalogAction</c>
+    /// ScriptableObject that holds a list of asset references. Used with
+    /// <c>AppendToCatalogAction</c>
     /// to collect imported assets into a single registry accessible at runtime.
     /// Create one via <c>Create &gt; Asset Router &gt; Asset Catalog</c>.
     /// </summary>
     [CreateAssetMenu(fileName = "AssetCatalog", menuName = "Asset Router/Asset Catalog")]
     public class AssetCatalog : ScriptableObject, ISerializationCallbackReceiver
     {
-        /// <summary>Assets registered in this catalog. Kept public for Inspector edits and read-only iteration.</summary>
+        /// <summary>
+        /// Assets registered in this catalog. Kept public for Inspector edits and
+        /// read-only iteration.
+        /// </summary>
         public List<Object> entries = new();
 
-        [System.NonSerialized] private HashSet<Object> _lookup;
+        [NonSerialized]
+        private HashSet<Object> _lookup;
 
-        public void OnBeforeSerialize() { /* list is the source of truth */ }
+        /// <summary>
+        /// Adds an entry if it is not already present. Returns true when the
+        /// entry was appended.
+        /// </summary>
+        public bool Add(Object asset)
+        {
+            if (asset == null)
+                return false;
+
+            EnsureLookup();
+
+            if (!_lookup.Add(asset))
+                return false;
+
+            entries.Add(asset);
+
+            return true;
+        }
+
+        public bool Contains(Object asset)
+        {
+            if (asset == null)
+                return false;
+
+            EnsureLookup();
+
+            return _lookup.Contains(asset);
+        }
 
         public void OnAfterDeserialize()
         {
             _lookup = new HashSet<Object>(entries);
         }
 
-        /// <summary>Adds an entry if it is not already present. Returns true when the entry was appended.</summary>
-        public bool Add(Object asset)
+        public void OnBeforeSerialize()
         {
-            if (asset == null) return false;
-
-            EnsureLookup();
-
-            if (!_lookup.Add(asset)) return false;
-            entries.Add(asset);
-            return true;
-        }
-
-        public bool Contains(Object asset)
-        {
-            if (asset == null) return false;
-            EnsureLookup();
-            return _lookup.Contains(asset);
+            /* list is the source of truth */
         }
 
         private void EnsureLookup()

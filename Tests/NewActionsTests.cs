@@ -1,23 +1,24 @@
-using NUnit.Framework;
 using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
-using UnityEditor;
+using NUnit.Framework;
 using UnityEngine;
 
 namespace Kodlon.AssetRouter.Tests
 {
     public class NewActionsTests
     {
-        // ── EmitUnityEventAction ─────────────────────────────────────────────────
-
         [Test]
-        public void EmitUnityEvent_CanRunOn_NoPersistentListeners_ReturnsFalse()
+        public void CreateMaterialFromTexture_CanRunOn_NonTextureAsset_ReturnsFalse()
         {
-            var action = ScriptableObject.CreateInstance<EmitUnityEventAction>();
-            var ctx    = new AssetImportContext("Assets/T_Rock.png", null, null);
+            var action = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
+            action.baseMaterial = new Material(Shader.Find("Sprites/Default"));
+            var nonTex = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
+            var ctx = new AssetImportContext("Assets/Data.asset", null, null);
 
-            Assert.IsFalse(action.CanRunOn(null, ctx));
+            Assert.IsFalse(action.CanRunOn(nonTex, ctx));
 
+            Object.DestroyImmediate(action.baseMaterial);
+            Object.DestroyImmediate(nonTex);
             Object.DestroyImmediate(action);
         }
 
@@ -26,7 +27,7 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void CreateMaterialFromTexture_CanRunOn_NullAsset_ReturnsFalse()
         {
-            var action  = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
+            var action = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
             action.baseMaterial = new Material(Shader.Find("Sprites/Default"));
             var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
 
@@ -37,28 +38,13 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void CreateMaterialFromTexture_CanRunOn_NonTextureAsset_ReturnsFalse()
-        {
-            var action  = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
-            action.baseMaterial = new Material(Shader.Find("Sprites/Default"));
-            var nonTex = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
-            var ctx    = new AssetImportContext("Assets/Data.asset", null, null);
-
-            Assert.IsFalse(action.CanRunOn(nonTex, ctx));
-
-            Object.DestroyImmediate(action.baseMaterial);
-            Object.DestroyImmediate(nonTex);
-            Object.DestroyImmediate(action);
-        }
-
-        [Test]
         public void CreateMaterialFromTexture_CanRunOn_NullBaseMaterial_UsesPipelineDefaultFallback()
         {
             // Built-in RP Default-Material is always available in the Editor, so the null-baseMaterial
             // path always resolves.
             var action = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
-            var tex    = new Texture2D(4, 4);
-            var ctx    = new AssetImportContext("Assets/T_Rock.png", null, null);
+            var tex = new Texture2D(4, 4);
+            var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
 
             Assert.IsTrue(action.CanRunOn(tex, ctx));
 
@@ -69,7 +55,7 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void CreateMaterialFromTexture_CanRunOn_ValidTextureAndMaterial_ReturnsTrue()
         {
-            var action  = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
+            var action = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
             action.baseMaterial = new Material(Shader.Find("Sprites/Default"));
             var tex = new Texture2D(4, 4);
             var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
@@ -81,40 +67,13 @@ namespace Kodlon.AssetRouter.Tests
             Object.DestroyImmediate(action);
         }
 
-        // ── CreateScriptableObjectFromTemplateAction ─────────────────────────────
-
-        [Test]
-        public void CreateScriptableObjectFromTemplate_CanRunOn_NullTemplate_ReturnsFalse()
-        {
-            var action = ScriptableObject.CreateInstance<CreateScriptableObjectFromTemplateAction>();
-            var ctx    = new AssetImportContext("Assets/T_Rock.png", null, null);
-
-            Assert.IsFalse(action.CanRunOn(null, ctx));
-
-            Object.DestroyImmediate(action);
-        }
-
-        [Test]
-        public void CreateScriptableObjectFromTemplate_CanRunOn_WithTemplate_ReturnsTrue()
-        {
-            var action   = ScriptableObject.CreateInstance<CreateScriptableObjectFromTemplateAction>();
-            var template = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
-            action.template = template;
-            var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
-
-            Assert.IsTrue(action.CanRunOn(null, ctx));
-
-            Object.DestroyImmediate(template);
-            Object.DestroyImmediate(action);
-        }
-
         // ── CreatePrefabFromTemplateAction ───────────────────────────────────────
 
         [Test]
         public void CreatePrefabFromTemplate_CanRunOn_NullPrefab_ReturnsFalse()
         {
             var action = ScriptableObject.CreateInstance<CreatePrefabFromTemplateAction>();
-            var ctx    = new AssetImportContext("Assets/T_Rock.png", null, null);
+            var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
 
             Assert.IsFalse(action.CanRunOn(null, ctx));
 
@@ -125,13 +84,53 @@ namespace Kodlon.AssetRouter.Tests
         public void CreatePrefabFromTemplate_CanRunOn_WithPrefab_ReturnsTrue()
         {
             var action = ScriptableObject.CreateInstance<CreatePrefabFromTemplateAction>();
-            var go     = new GameObject("TestTemplate");
+            var go = new GameObject("TestTemplate");
             action.templatePrefab = go;
             var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
 
             Assert.IsTrue(action.CanRunOn(null, ctx));
 
             Object.DestroyImmediate(go);
+            Object.DestroyImmediate(action);
+        }
+
+        // ── CreateScriptableObjectFromTemplateAction ─────────────────────────────
+
+        [Test]
+        public void CreateScriptableObjectFromTemplate_CanRunOn_NullTemplate_ReturnsFalse()
+        {
+            var action = ScriptableObject.CreateInstance<CreateScriptableObjectFromTemplateAction>();
+            var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
+
+            Assert.IsFalse(action.CanRunOn(null, ctx));
+
+            Object.DestroyImmediate(action);
+        }
+
+        [Test]
+        public void CreateScriptableObjectFromTemplate_CanRunOn_WithTemplate_ReturnsTrue()
+        {
+            var action = ScriptableObject.CreateInstance<CreateScriptableObjectFromTemplateAction>();
+            var template = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
+            action.template = template;
+            var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
+
+            Assert.IsTrue(action.CanRunOn(null, ctx));
+
+            Object.DestroyImmediate(template);
+            Object.DestroyImmediate(action);
+        }
+
+        // ── EmitUnityEventAction ─────────────────────────────────────────────────
+
+        [Test]
+        public void EmitUnityEvent_CanRunOn_NoPersistentListeners_ReturnsFalse()
+        {
+            var action = ScriptableObject.CreateInstance<EmitUnityEventAction>();
+            var ctx = new AssetImportContext("Assets/T_Rock.png", null, null);
+
+            Assert.IsFalse(action.CanRunOn(null, ctx));
+
             Object.DestroyImmediate(action);
         }
 
@@ -148,34 +147,17 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void NineSliceBorders_ComputeBorder_TwoPixelPaddingAllSides_ReturnsSymmetricBorder()
+        public void NineSliceBorders_ComputeBorder_BelowAlphaThreshold_TreatedAsTransparent()
         {
-            const int w = 10, h = 10, pad = 2;
+            const int w = 6, h = 6;
             var pixels = new Color[w * h];
-            for (var y = pad; y < h - pad; y++)
-                for (var x = pad; x < w - pad; x++)
-                    pixels[y * w + x] = Color.white;
+            pixels[0] = new Color(1f, 1f, 1f, 0.05f); // alpha below threshold 0.1
+            pixels[w * h - 1] = Color.white; // only bottom-right corner truly opaque
 
             var border = GenerateNineSliceBordersAction.ComputeBorder(pixels, w, h, 0.1f);
 
-            Assert.AreEqual(new Vector4(pad, pad, pad, pad), border);
-        }
-
-        [Test]
-        public void NineSliceBorders_ComputeBorder_LeftPaddingOnly_ReturnsCorrectLeftBorder()
-        {
-            const int w = 8, h = 4, leftPad = 3;
-            var pixels = new Color[w * h];
-            for (var y = 0; y < h; y++)
-                for (var x = leftPad; x < w; x++)
-                    pixels[y * w + x] = Color.white;
-
-            var border = GenerateNineSliceBordersAction.ComputeBorder(pixels, w, h, 0.1f);
-
-            Assert.AreEqual(leftPad, border.x);
-            Assert.AreEqual(0f, border.y);
-            Assert.AreEqual(0f, border.z);
-            Assert.AreEqual(0f, border.w);
+            // opaque region is just the last pixel at (w-1, h-1)
+            Assert.AreEqual(new Vector4(w - 1, h - 1, 0f, 0f), border);
         }
 
         [Test]
@@ -183,14 +165,37 @@ namespace Kodlon.AssetRouter.Tests
         {
             const int w = 6, h = 8, bottomPad = 2;
             var pixels = new Color[w * h];
+
             for (var y = bottomPad; y < h; y++)
+            {
                 for (var x = 0; x < w; x++)
                     pixels[y * w + x] = Color.white;
+            }
 
             var border = GenerateNineSliceBordersAction.ComputeBorder(pixels, w, h, 0.1f);
 
             Assert.AreEqual(0f, border.x);
             Assert.AreEqual(bottomPad, border.y);
+            Assert.AreEqual(0f, border.z);
+            Assert.AreEqual(0f, border.w);
+        }
+
+        [Test]
+        public void NineSliceBorders_ComputeBorder_LeftPaddingOnly_ReturnsCorrectLeftBorder()
+        {
+            const int w = 8, h = 4, leftPad = 3;
+            var pixels = new Color[w * h];
+
+            for (var y = 0; y < h; y++)
+            {
+                for (var x = leftPad; x < w; x++)
+                    pixels[y * w + x] = Color.white;
+            }
+
+            var border = GenerateNineSliceBordersAction.ComputeBorder(pixels, w, h, 0.1f);
+
+            Assert.AreEqual(leftPad, border.x);
+            Assert.AreEqual(0f, border.y);
             Assert.AreEqual(0f, border.z);
             Assert.AreEqual(0f, border.w);
         }
@@ -208,17 +213,20 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void NineSliceBorders_ComputeBorder_BelowAlphaThreshold_TreatedAsTransparent()
+        public void NineSliceBorders_ComputeBorder_TwoPixelPaddingAllSides_ReturnsSymmetricBorder()
         {
-            const int w = 6, h = 6;
+            const int w = 10, h = 10, pad = 2;
             var pixels = new Color[w * h];
-            pixels[0] = new Color(1f, 1f, 1f, 0.05f); // alpha below threshold 0.1
-            pixels[w * h - 1] = Color.white;           // only bottom-right corner truly opaque
+
+            for (var y = pad; y < h - pad; y++)
+            {
+                for (var x = pad; x < w - pad; x++)
+                    pixels[y * w + x] = Color.white;
+            }
 
             var border = GenerateNineSliceBordersAction.ComputeBorder(pixels, w, h, 0.1f);
 
-            // opaque region is just the last pixel at (w-1, h-1)
-            Assert.AreEqual(new Vector4(w - 1, h - 1, 0f, 0f), border);
+            Assert.AreEqual(new Vector4(pad, pad, pad, pad), border);
         }
 
         // ── helpers ───────────────────────────────────────────────────────────────
@@ -226,7 +234,10 @@ namespace Kodlon.AssetRouter.Tests
         private static (Color[] pixels, int w, int h) AllOpaque(int w, int h)
         {
             var pixels = new Color[w * h];
-            for (var i = 0; i < pixels.Length; i++) pixels[i] = Color.white;
+
+            for (var i = 0; i < pixels.Length; i++)
+                pixels[i] = Color.white;
+
             return (pixels, w, h);
         }
     }

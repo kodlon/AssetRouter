@@ -8,8 +8,8 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal readonly struct RuleMatch
     {
-        public readonly BaseImportRule Rule;
         public readonly Match Match;
+        public readonly BaseImportRule Rule;
 
         public RuleMatch(BaseImportRule rule, Match match)
         {
@@ -37,6 +37,7 @@ namespace Kodlon.AssetRouter.Logic
                     continue;
 
                 var m = PatternMatcher.Match(rule, assetPath);
+
                 if (m != null)
                     return new RuleMatch(rule, m);
             }
@@ -60,10 +61,13 @@ namespace Kodlon.AssetRouter.Logic
             {
                 for (var i = 0; i < db.monitoredExtensions.Count; i++)
                 {
-                    if (db.monitoredExtensions[i] == null) continue;
+                    if (db.monitoredExtensions[i] == null)
+                        continue;
+
                     if (db.monitoredExtensions[i].Equals(extension, StringComparison.OrdinalIgnoreCase))
                     {
                         monitored = true;
+
                         break;
                     }
                 }

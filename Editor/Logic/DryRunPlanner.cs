@@ -17,7 +17,11 @@ namespace Kodlon.AssetRouter.Logic
             if (db == null)
                 return result;
 
-            var guids = AssetDatabase.FindAssets("", new[] { "Assets" });
+            var guids = AssetDatabase.FindAssets("", new[]
+            {
+                "Assets"
+            });
+
             var total = guids.Length;
 
             try
@@ -26,8 +30,7 @@ namespace Kodlon.AssetRouter.Logic
                 {
                     if (i % ProgressBarUpdateEveryNAssets == 0)
                     {
-                        if (EditorUtility.DisplayCancelableProgressBar(
-                                "Asset Router — Scanning",
+                        if (EditorUtility.DisplayCancelableProgressBar("Asset Router — Scanning",
                                 $"{i} / {total} assets",
                                 (float)i / Math.Max(total, 1)))
                             break;
@@ -46,15 +49,16 @@ namespace Kodlon.AssetRouter.Logic
                     if (ruleMatch == null)
                     {
                         result.Add(new DryRunEntry(path, null, null, false));
+
                         continue;
                     }
 
-                    var rule           = ruleMatch.Value.Rule;
+                    var rule = ruleMatch.Value.Rule;
                     var resolvedFolder = TargetResolver.Resolve(rule.targetFolder, ruleMatch.Value.Match);
-                    var targetFolder   = PathUtility.NormalizeAssetPath(resolvedFolder) + "/";
-                    var currentFolder  = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(path) ?? "") + "/";
+                    var targetFolder = PathUtility.NormalizeAssetPath(resolvedFolder) + "/";
+                    var currentFolder = PathUtility.NormalizeAssetPath(Path.GetDirectoryName(path) ?? "") + "/";
                     var alreadyInPlace = string.Equals(currentFolder, targetFolder, StringComparison.OrdinalIgnoreCase);
-                    var targetPath     = alreadyInPlace ? null : targetFolder + Path.GetFileName(path);
+                    var targetPath = alreadyInPlace ? null : targetFolder + Path.GetFileName(path);
 
                     result.Add(new DryRunEntry(path, rule, targetPath, alreadyInPlace));
                 }

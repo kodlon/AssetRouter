@@ -11,7 +11,10 @@ namespace Kodlon.AssetRouter.Logic
     {
         private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(50);
 
-        /// <summary>Returns the regex Match for capture group access, or null on no match / error.</summary>
+        /// <summary>
+        /// Returns the regex Match for capture group access, or null on no match
+        /// / error.
+        /// </summary>
         public static Match Match(BaseImportRule rule, string assetPath)
         {
             if (string.IsNullOrEmpty(rule?.pattern))
@@ -29,17 +32,18 @@ namespace Kodlon.AssetRouter.Logic
             try
             {
                 var m = regex.Match(target);
+
                 return m.Success ? m : null;
             }
             catch (RegexMatchTimeoutException)
             {
                 Debug.LogWarning($"[AssetRouter] Pattern '{rule.pattern}' timed out matching '{target}'. Simplify the pattern.");
+
                 return null;
             }
         }
 
-        public static bool Matches(BaseImportRule rule, string assetPath)
-            => Match(rule, assetPath) != null;
+        public static bool Matches(BaseImportRule rule, string assetPath) => Match(rule, assetPath) != null;
 
         public static bool TryGetRegexError(string pattern, out string error)
         {
@@ -47,40 +51,15 @@ namespace Kodlon.AssetRouter.Logic
             {
                 _ = new Regex(pattern, RegexOptions.None, MatchTimeout);
                 error = null;
+
                 return false;
             }
             catch (ArgumentException e)
             {
                 error = e.Message;
+
                 return true;
             }
-        }
-
-        private static Regex GetOrCompile(BaseImportRule rule)
-        {
-            if (rule._compiledFor == rule.pattern && rule._compiledForMode == rule.patternMode)
-                return rule._compiledPattern;
-
-            var regexSource = rule.patternMode == PatternMode.Glob
-                ? GlobToRegex(rule.pattern)
-                : rule.pattern;
-
-            try
-            {
-                rule._compiledPattern = new Regex(
-                    regexSource,
-                    RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                    MatchTimeout);
-            }
-            catch (ArgumentException e)
-            {
-                Debug.LogWarning($"[AssetRouter] Invalid pattern '{rule.pattern}': {e.Message}");
-                rule._compiledPattern = null;
-            }
-
-            rule._compiledFor = rule.pattern;
-            rule._compiledForMode = rule.patternMode;
-            return rule._compiledPattern;
         }
 
         internal static string GlobToRegex(string glob)
@@ -103,9 +82,7 @@ namespace Kodlon.AssetRouter.Logic
                         i++;
                     }
                     else
-                    {
                         sb.Append("(.*)");
-                    }
                 }
                 else if (glob[i] == '*')
                 {
@@ -125,7 +102,35 @@ namespace Kodlon.AssetRouter.Logic
             }
 
             sb.Append("$");
+
             return sb.ToString();
+        }
+
+        private static Regex GetOrCompile(BaseImportRule rule)
+        {
+            if (rule._compiledFor == rule.pattern && rule._compiledForMode == rule.patternMode)
+                return rule._compiledPattern;
+
+            var regexSource = rule.patternMode == PatternMode.Glob
+                ? GlobToRegex(rule.pattern)
+                : rule.pattern;
+
+            try
+            {
+                rule._compiledPattern = new Regex(regexSource,
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                    MatchTimeout);
+            }
+            catch (ArgumentException e)
+            {
+                Debug.LogWarning($"[AssetRouter] Invalid pattern '{rule.pattern}': {e.Message}");
+                rule._compiledPattern = null;
+            }
+
+            rule._compiledFor = rule.pattern;
+            rule._compiledForMode = rule.patternMode;
+
+            return rule._compiledPattern;
         }
     }
 }

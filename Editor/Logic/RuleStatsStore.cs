@@ -17,18 +17,25 @@ namespace Kodlon.AssetRouter.Logic
     internal sealed class RuleStatsFile
     {
         public int v = 1; // schema version
-        public List<RuleStatEntry> entries = new List<RuleStatEntry>();
+        public List<RuleStatEntry> entries = new();
     }
 
     internal static class RuleStatsStore
     {
-        /// <summary>Test-only override so tests don't read/write the real project's stats file.</summary>
+        /// <summary>
+        /// Test-only override so tests don't read/write the real project's stats
+        /// file.
+        /// </summary>
         internal static string OverrideStatsPathForTests;
 
         private static string StatsPath =>
-            OverrideStatsPathForTests ?? Path.Combine(
-                Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
+            OverrideStatsPathForTests ?? Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
                 "Library", "AssetRouter", "stats.json");
+
+        public static void Clear()
+        {
+            WriteFile(new RuleStatsFile());
+        }
 
         public static void IncrementBatch(List<string> ruleNames)
         {
@@ -43,11 +50,13 @@ namespace Kodlon.AssetRouter.Logic
                     continue;
 
                 RuleStatEntry entry = null;
+
                 for (var i = 0; i < file.entries.Count; i++)
                 {
                     if (string.Equals(file.entries[i].ruleName, name, StringComparison.OrdinalIgnoreCase))
                     {
                         entry = file.entries[i];
+
                         break;
                     }
                 }
@@ -57,9 +66,10 @@ namespace Kodlon.AssetRouter.Logic
                     entry = new RuleStatEntry
                     {
                         ruleName = name,
-                        count    = 0,
-                        since    = DateTime.UtcNow.ToString("o")
+                        count = 0,
+                        since = DateTime.UtcNow.ToString("o")
                     };
+
                     file.entries.Add(entry);
                 }
 
@@ -81,11 +91,6 @@ namespace Kodlon.AssetRouter.Logic
             }
 
             return result;
-        }
-
-        public static void Clear()
-        {
-            WriteFile(new RuleStatsFile());
         }
 
         private static RuleStatsFile ReadFile()
@@ -123,8 +128,16 @@ namespace Kodlon.AssetRouter.Logic
             catch (Exception e)
             {
                 Debug.LogWarning($"[AssetRouter] Failed to write stats: {e.Message}");
+
                 if (File.Exists(tmp))
-                    try { File.Delete(tmp); } catch (Exception) { /* best-effort */ }
+                    try
+                    {
+                        File.Delete(tmp);
+                    }
+                    catch (Exception)
+                    {
+                        /* best-effort */
+                    }
             }
         }
     }

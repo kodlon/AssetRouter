@@ -9,19 +9,20 @@ namespace Kodlon.AssetRouter.Logic
     internal static class UndoEngine
     {
         public const string UndoSessionSource = "Undo";
-        public const string RecycleFolder     = "Assets/_AssetRouterRecycle";
+        public const string RecycleFolder = "Assets/_AssetRouterRecycle";
 
         public static UndoResult Revert(OperationSession session)
         {
             if (session?.entries == null || session.entries.Count == 0)
                 return new UndoResult(0, 0);
 
-            var entries         = session.entries;
+            var entries = session.entries;
             var revertedEntries = new List<OperationLogEntry>(entries.Count);
-            var restored        = 0;
-            var recycled        = 0;
-            var failed          = 0;
-            var cancelled       = false;
+            var restored = 0;
+            var recycled = 0;
+            var failed = 0;
+            var cancelled = false;
+
             // Destinations picked in this batch. AssetPathToGUID doesn't see MoveAsset results
             // until StopAssetEditing, so we track picks locally to avoid two files colliding on
             // the same recycle target.
@@ -31,6 +32,7 @@ namespace Kodlon.AssetRouter.Logic
             // does not register with the asset database until Stop, and any MoveAsset targeting the
             // fresh folder fails with "Parent directory is not in asset database".
             var needsRecycle = false;
+
             foreach (var e in entries)
             {
                 if (IsProjectRoot(e.from))
@@ -38,10 +40,12 @@ namespace Kodlon.AssetRouter.Logic
                 else
                     PathUtility.EnsureFolderExists(PathUtility.NormalizeAssetPath(Path.GetDirectoryName(e.from) ?? string.Empty));
             }
+
             if (needsRecycle)
                 PathUtility.EnsureFolderExists(RecycleFolder);
 
             AssetDatabase.StartAssetEditing();
+
             try
             {
                 for (var i = entries.Count - 1; i >= 0; i--)
@@ -52,6 +56,7 @@ namespace Kodlon.AssetRouter.Logic
                     {
                         cancelled = true;
                         failed += i + 1;
+
                         break;
                     }
 
@@ -59,10 +64,11 @@ namespace Kodlon.AssetRouter.Logic
                     {
                         Debug.LogWarning($"[AssetRouter] Undo: asset no longer at \"{entry.to}\" — skipping.");
                         failed++;
+
                         continue;
                     }
 
-                    var toRecycle   = IsProjectRoot(entry.from);
+                    var toRecycle = IsProjectRoot(entry.from);
                     var destination = toRecycle ? ResolveRecyclePath(entry.to, takenInBatch) : entry.from;
                     takenInBatch.Add(destination);
 
@@ -72,10 +78,15 @@ namespace Kodlon.AssetRouter.Logic
                     {
                         Debug.LogWarning($"[AssetRouter] Undo failed: {entry.to} -> {destination}: {error}");
                         failed++;
+
                         continue;
                     }
 
-                    if (toRecycle) recycled++; else restored++;
+                    if (toRecycle)
+                        recycled++;
+                    else
+                        restored++;
+
                     revertedEntries.Add(new OperationLogEntry(entry.to, destination, entry.ruleName));
                 }
             }
@@ -94,9 +105,12 @@ namespace Kodlon.AssetRouter.Logic
 
             var head = cancelled ? "Undo cancelled." : "Undo complete.";
             var summary = $"{head} Restored: {restored}, Recycled: {recycled}, Failed: {failed}";
+
             if (deletedAssets > 0 || deletedFolders > 0 || failedCleanup > 0)
+            {
                 summary += $" · Cleanup: {deletedAssets} asset(s), {deletedFolders} folder(s)"
-                         + (failedCleanup > 0 ? $", {failedCleanup} left behind" : string.Empty);
+                           + (failedCleanup > 0 ? $", {failedCleanup} left behind" : string.Empty);
+            }
 
             Debug.Log($"[AssetRouter] {summary}");
 
@@ -106,32 +120,11 @@ namespace Kodlon.AssetRouter.Logic
             return new UndoResult(restored + recycled, failed);
         }
 
-        private static bool IsProjectRoot(string assetPath)
-        {
-            if (string.IsNullOrEmpty(assetPath)) return false;
-            var parent = Path.GetDirectoryName(PathUtility.NormalizeAssetPath(assetPath))?.Replace('\\', '/');
-            return string.Equals(parent, "Assets", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static string ResolveRecyclePath(string sourcePath, HashSet<string> takenInBatch)
-        {
-            var proposed = $"{RecycleFolder}/{Path.GetFileName(sourcePath)}";
-            var unique   = AssetDatabase.GenerateUniqueAssetPath(proposed);
-
-            // GenerateUniqueAssetPath consults AssetDatabase state, which does not yet reflect
-            // MoveAsset results within the current StartAssetEditing batch. Loop until we get a
-            // path that no earlier iteration has already claimed for this run.
-            while (takenInBatch.Contains(unique))
-                unique = AssetDatabase.GenerateUniqueAssetPath(unique);
-
-            return unique;
-        }
-
         private static (int assets, int folders, int failed) CleanupSideEffects(OperationSession session)
         {
-            var assets  = 0;
+            var assets = 0;
             var folders = 0;
-            var failed  = 0;
+            var failed = 0;
 
             if (session.createdAssets != null)
             {
@@ -140,8 +133,13 @@ namespace Kodlon.AssetRouter.Logic
                     if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(path)))
                         continue;
 
-                    if (AssetDatabase.DeleteAsset(path)) assets++;
-                    else { Debug.LogWarning($"[AssetRouter] Undo cleanup: failed to delete \"{path}\"."); failed++; }
+                    if (AssetDatabase.DeleteAsset(path))
+                        assets++;
+                    else
+                    {
+                        Debug.LogWarning($"[AssetRouter] Undo cleanup: failed to delete \"{path}\".");
+                        failed++;
+                    }
                 }
             }
 
@@ -156,12 +154,21 @@ namespace Kodlon.AssetRouter.Logic
                     if (string.IsNullOrEmpty(folder) || !AssetDatabase.IsValidFolder(folder))
                         continue;
 
-                    var contents = AssetDatabase.FindAssets(string.Empty, new[] { folder });
+                    var contents = AssetDatabase.FindAssets(string.Empty, new[]
+                    {
+                        folder
+                    });
+
                     if (contents != null && contents.Length > 0)
                         continue;
 
-                    if (AssetDatabase.DeleteAsset(folder)) folders++;
-                    else { Debug.LogWarning($"[AssetRouter] Undo cleanup: failed to delete empty folder \"{folder}\"."); failed++; }
+                    if (AssetDatabase.DeleteAsset(folder))
+                        folders++;
+                    else
+                    {
+                        Debug.LogWarning($"[AssetRouter] Undo cleanup: failed to delete empty folder \"{folder}\".");
+                        failed++;
+                    }
                 }
             }
 
@@ -170,11 +177,40 @@ namespace Kodlon.AssetRouter.Logic
 
         private static int Depth(string path)
         {
-            if (string.IsNullOrEmpty(path)) return 0;
+            if (string.IsNullOrEmpty(path))
+                return 0;
+
             var count = 1;
+
             for (var i = 0; i < path.Length; i++)
-                if (path[i] == '/') count++;
+                if (path[i] == '/')
+                    count++;
+
             return count;
+        }
+
+        private static bool IsProjectRoot(string assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath))
+                return false;
+
+            var parent = Path.GetDirectoryName(PathUtility.NormalizeAssetPath(assetPath))?.Replace('\\', '/');
+
+            return string.Equals(parent, "Assets", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string ResolveRecyclePath(string sourcePath, HashSet<string> takenInBatch)
+        {
+            var proposed = $"{RecycleFolder}/{Path.GetFileName(sourcePath)}";
+            var unique = AssetDatabase.GenerateUniqueAssetPath(proposed);
+
+            // GenerateUniqueAssetPath consults AssetDatabase state, which does not yet reflect
+            // MoveAsset results within the current StartAssetEditing batch. Loop until we get a
+            // path that no earlier iteration has already claimed for this run.
+            while (takenInBatch.Contains(unique))
+                unique = AssetDatabase.GenerateUniqueAssetPath(unique);
+
+            return unique;
         }
     }
 }

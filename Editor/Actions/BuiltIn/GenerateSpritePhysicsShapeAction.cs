@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-
 #if UNITY_2D_SPRITE
 using UnityEditor.U2D.Sprites;
 #endif
@@ -9,16 +8,20 @@ using UnityEditor.U2D.Sprites;
 namespace Kodlon.AssetRouter.Actions
 {
     /// <summary>
-    /// Derives a bounding rectangle from each sprite's opaque pixels and persists it as the physics shape
-    /// via <c>ISpritePhysicsOutlineDataProvider</c>, so it survives reimport and machine-to-machine transfer.
-    /// Requires Read/Write enabled on the texture and the 2D Sprite package (<c>com.unity.2d.sprite</c>).
+    /// Derives a bounding rectangle from each sprite's opaque pixels and persists it
+    /// as the physics shape
+    /// via <c>ISpritePhysicsOutlineDataProvider</c>, so it survives reimport and
+    /// machine-to-machine transfer.
+    /// Requires Read/Write enabled on the texture and the 2D Sprite package (
+    /// <c>com.unity.2d.sprite</c>).
     /// Supports both Single and Multiple sprite import modes.
     /// </summary>
     [CreateAssetMenu(menuName = "Asset Router/Actions/Generate Sprite Physics Shape", fileName = "GenerateSpritePhysicsShapeAction")]
     public sealed class GenerateSpritePhysicsShapeAction : AssetImportActionAsset
     {
         /// <summary>
-        /// Pixels with alpha below this value are treated as transparent and excluded from the bounding box.
+        /// Pixels with alpha below this value are treated as transparent and excluded from
+        /// the bounding box.
         /// Range: 0 to 1.
         /// </summary>
         [Range(0f, 1f)]
@@ -29,8 +32,8 @@ namespace Kodlon.AssetRouter.Actions
         {
 #if UNITY_2D_SPRITE
             return importedAsset is Texture2D t && t.isReadable
-                   && AssetImporter.GetAtPath(ctx.AssetPath) is TextureImporter ti
-                   && ti.textureType == TextureImporterType.Sprite;
+                                                && AssetImporter.GetAtPath(ctx.AssetPath) is TextureImporter ti
+                                                && ti.textureType == TextureImporterType.Sprite;
 #else
             return false;
 #endif
@@ -45,6 +48,7 @@ namespace Kodlon.AssetRouter.Actions
             if (!texture.isReadable)
             {
                 ctx.Logger.LogWarning("AssetRouter", $"[AssetRouter] SpritePhysicsShape: Read/Write must be enabled on {ctx.AssetPath}");
+
                 return;
             }
 
@@ -55,21 +59,24 @@ namespace Kodlon.AssetRouter.Actions
             factories.Init();
 
             var dataProvider = factories.GetSpriteEditorDataProviderFromObject(importer);
+
             if (dataProvider == null)
                 return;
 
             dataProvider.InitSpriteEditorDataProvider();
 
             var outlineProvider = dataProvider.GetDataProvider<ISpritePhysicsOutlineDataProvider>();
+
             if (outlineProvider == null)
                 return;
 
             var spriteRects = dataProvider.GetSpriteRects();
+
             if (spriteRects == null || spriteRects.Length == 0)
                 return;
 
-            var pixels    = texture.GetPixels();
-            var texWidth  = texture.width;
+            var pixels = texture.GetPixels();
+            var texWidth = texture.width;
             var texHeight = texture.height;
             var appliedAny = false;
 
@@ -79,10 +86,10 @@ namespace Kodlon.AssetRouter.Actions
                 // instead of a single box spanning the whole texture.
                 var rect = ClampToTexture(spriteRect.rect, texWidth, texHeight);
 
-                var left   = FindLeft(pixels, texWidth, rect, alphaThreshold);
-                var right  = FindRight(pixels, texWidth, rect, alphaThreshold);
+                var left = FindLeft(pixels, texWidth, rect, alphaThreshold);
+                var right = FindRight(pixels, texWidth, rect, alphaThreshold);
                 var bottom = FindBottom(pixels, texWidth, rect, alphaThreshold);
-                var top    = FindTop(pixels, texWidth, rect, alphaThreshold);
+                var top = FindTop(pixels, texWidth, rect, alphaThreshold);
 
                 if (left > right || bottom > top)
                     continue;
@@ -96,10 +103,10 @@ namespace Kodlon.AssetRouter.Actions
 
                 var outline = new[]
                 {
-                    new Vector2(left      - rect.xMin - centerX, bottom    - rect.yMin - centerY),
-                    new Vector2(right + 1 - rect.xMin - centerX, bottom    - rect.yMin - centerY),
-                    new Vector2(right + 1 - rect.xMin - centerX, top   + 1 - rect.yMin - centerY),
-                    new Vector2(left      - rect.xMin - centerX, top   + 1 - rect.yMin - centerY),
+                    new Vector2(left - rect.xMin - centerX, bottom - rect.yMin - centerY),
+                    new Vector2(right + 1 - rect.xMin - centerX, bottom - rect.yMin - centerY),
+                    new Vector2(right + 1 - rect.xMin - centerX, top + 1 - rect.yMin - centerY),
+                    new Vector2(left - rect.xMin - centerX, top + 1 - rect.yMin - centerY)
                 };
 
                 // Without this guard, SaveAndReimport() below triggers another import pass, the rule
@@ -107,7 +114,11 @@ namespace Kodlon.AssetRouter.Actions
                 if (OutlineMatches(outlineProvider.GetOutlines(spriteRect.spriteID), outline))
                     continue;
 
-                outlineProvider.SetOutlines(spriteRect.spriteID, new List<Vector2[]> { outline });
+                outlineProvider.SetOutlines(spriteRect.spriteID, new List<Vector2[]>
+                {
+                    outline
+                });
+
                 appliedAny = true;
             }
 
@@ -130,12 +141,15 @@ namespace Kodlon.AssetRouter.Actions
                 return false;
 
             var current = existing[0];
+
             if (current == null || current.Length != outline.Length)
                 return false;
 
             for (var i = 0; i < outline.Length; i++)
+            {
                 if (current[i] != outline[i]) // Vector2's == is an approximate comparison
                     return false;
+            }
 
             return true;
         }
@@ -146,38 +160,55 @@ namespace Kodlon.AssetRouter.Actions
             var yMin = Mathf.Clamp(Mathf.RoundToInt(rect.yMin), 0, texHeight);
             var xMax = Mathf.Clamp(Mathf.RoundToInt(rect.xMax), 0, texWidth);
             var yMax = Mathf.Clamp(Mathf.RoundToInt(rect.yMax), 0, texHeight);
+
             return new RectInt(xMin, yMin, xMax - xMin, yMax - yMin);
         }
 
         private static int FindLeft(Color[] p, int texWidth, RectInt r, float t)
         {
             for (var x = r.xMin; x < r.xMax; x++)
+            {
                 for (var y = r.yMin; y < r.yMax; y++)
-                    if (p[y * texWidth + x].a >= t) return x;
+                    if (p[y * texWidth + x].a >= t)
+                        return x;
+            }
+
             return r.xMin;
         }
 
         private static int FindRight(Color[] p, int texWidth, RectInt r, float t)
         {
             for (var x = r.xMax - 1; x >= r.xMin; x--)
+            {
                 for (var y = r.yMin; y < r.yMax; y++)
-                    if (p[y * texWidth + x].a >= t) return x;
+                    if (p[y * texWidth + x].a >= t)
+                        return x;
+            }
+
             return r.xMax - 1;
         }
 
         private static int FindBottom(Color[] p, int texWidth, RectInt r, float t)
         {
             for (var y = r.yMin; y < r.yMax; y++)
+            {
                 for (var x = r.xMin; x < r.xMax; x++)
-                    if (p[y * texWidth + x].a >= t) return y;
+                    if (p[y * texWidth + x].a >= t)
+                        return y;
+            }
+
             return r.yMin;
         }
 
         private static int FindTop(Color[] p, int texWidth, RectInt r, float t)
         {
             for (var y = r.yMax - 1; y >= r.yMin; y--)
+            {
                 for (var x = r.xMin; x < r.xMax; x++)
-                    if (p[y * texWidth + x].a >= t) return y;
+                    if (p[y * texWidth + x].a >= t)
+                        return y;
+            }
+
             return r.yMax - 1;
         }
 #endif

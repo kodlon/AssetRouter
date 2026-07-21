@@ -1,24 +1,94 @@
 using System.Collections.Generic;
-using NUnit.Framework;
 using Kodlon.AssetRouter.Data;
 using Kodlon.AssetRouter.Logic;
+using NUnit.Framework;
 
 namespace Kodlon.AssetRouter.Tests
 {
     public class ConflictDetectorTests
     {
         [Test]
-        public void Detect_NoDuplicates_ReturnsEmpty()
+        public void Detect_AfterInvalidate_ReturnsSameResults()
         {
             var rules = new List<BaseImportRule>
             {
                 MakeRule("T_*"),
-                MakeRule("UI_*")
+                MakeRule("T_*_D.png")
+            };
+
+            var before = ConflictDetector.Detect(rules);
+            ConflictDetector.InvalidateSampleCache();
+            var after = ConflictDetector.Detect(rules);
+
+            Assert.AreEqual(before.Count, after.Count);
+
+            for (var i = 0; i < before.Count; i++)
+            {
+                Assert.AreEqual(before[i].Type, after[i].Type);
+                Assert.AreEqual(before[i].IndexA, after[i].IndexA);
+                Assert.AreEqual(before[i].IndexB, after[i].IndexB);
+            }
+        }
+
+        [Test]
+        public void Detect_CalledTwice_ReturnsSameResults()
+        {
+            var rules = new List<BaseImportRule>
+            {
+                MakeRule("T_*"),
+                MakeRule("T_*_D.png")
+            };
+
+            var first = ConflictDetector.Detect(rules);
+            var second = ConflictDetector.Detect(rules);
+
+            Assert.AreEqual(first.Count, second.Count);
+
+            for (var i = 0; i < first.Count; i++)
+            {
+                Assert.AreEqual(first[i].Type, second[i].Type);
+                Assert.AreEqual(first[i].IndexA, second[i].IndexA);
+                Assert.AreEqual(first[i].IndexB, second[i].IndexB);
+            }
+        }
+
+        [Test]
+        public void Detect_DisabledRule_IsIgnored()
+        {
+            var rules = new List<BaseImportRule>
+            {
+                MakeRule("T_*"),
+                MakeRule("T_*", false)
+            };
+
+            Assert.IsEmpty(ConflictDetector.Detect(rules));
+        }
+
+        [Test]
+        public void Detect_DuplicateCaseInsensitive()
+        {
+            var rules = new List<BaseImportRule>
+            {
+                MakeRule("T_*"),
+                MakeRule("t_*")
             };
 
             var conflicts = ConflictDetector.Detect(rules);
 
-            Assert.IsEmpty(conflicts);
+            Assert.AreEqual(1, conflicts.Count);
+            Assert.AreEqual(ConflictType.Duplicate, conflicts[0].Type);
+        }
+
+        [Test]
+        public void Detect_EmptyPattern_IsIgnored()
+        {
+            var rules = new List<BaseImportRule>
+            {
+                MakeRule("T_*"),
+                MakeRule("")
+            };
+
+            Assert.IsEmpty(ConflictDetector.Detect(rules));
         }
 
         [Test]
@@ -39,18 +109,23 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void Detect_DuplicateCaseInsensitive()
+        public void Detect_NoDuplicates_ReturnsEmpty()
         {
             var rules = new List<BaseImportRule>
             {
                 MakeRule("T_*"),
-                MakeRule("t_*")
+                MakeRule("UI_*")
             };
 
             var conflicts = ConflictDetector.Detect(rules);
 
-            Assert.AreEqual(1, conflicts.Count);
-            Assert.AreEqual(ConflictType.Duplicate, conflicts[0].Type);
+            Assert.IsEmpty(conflicts);
+        }
+
+        [Test]
+        public void Detect_NullList_ReturnsEmpty()
+        {
+            Assert.IsEmpty(ConflictDetector.Detect(null));
         }
 
         [Test]
@@ -69,85 +144,20 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void Detect_DisabledRule_IsIgnored()
-        {
-            var rules = new List<BaseImportRule>
-            {
-                MakeRule("T_*"),
-                MakeRule("T_*", enabled: false)
-            };
-
-            Assert.IsEmpty(ConflictDetector.Detect(rules));
-        }
-
-        [Test]
-        public void Detect_EmptyPattern_IsIgnored()
-        {
-            var rules = new List<BaseImportRule>
-            {
-                MakeRule("T_*"),
-                MakeRule("")
-            };
-
-            Assert.IsEmpty(ConflictDetector.Detect(rules));
-        }
-
-        [Test]
         public void Detect_SingleRule_ReturnsEmpty()
         {
-            Assert.IsEmpty(ConflictDetector.Detect(new List<BaseImportRule> { MakeRule("T_*") }));
-        }
-
-        [Test]
-        public void Detect_NullList_ReturnsEmpty()
-        {
-            Assert.IsEmpty(ConflictDetector.Detect(null));
-        }
-
-        [Test]
-        public void Detect_CalledTwice_ReturnsSameResults()
-        {
-            var rules = new List<BaseImportRule>
+            Assert.IsEmpty(ConflictDetector.Detect(new List<BaseImportRule>
             {
-                MakeRule("T_*"),
-                MakeRule("T_*_D.png")
-            };
-
-            var first  = ConflictDetector.Detect(rules);
-            var second = ConflictDetector.Detect(rules);
-
-            Assert.AreEqual(first.Count, second.Count);
-            for (var i = 0; i < first.Count; i++)
-            {
-                Assert.AreEqual(first[i].Type,   second[i].Type);
-                Assert.AreEqual(first[i].IndexA, second[i].IndexA);
-                Assert.AreEqual(first[i].IndexB, second[i].IndexB);
-            }
-        }
-
-        [Test]
-        public void Detect_AfterInvalidate_ReturnsSameResults()
-        {
-            var rules = new List<BaseImportRule>
-            {
-                MakeRule("T_*"),
-                MakeRule("T_*_D.png")
-            };
-
-            var before = ConflictDetector.Detect(rules);
-            ConflictDetector.InvalidateSampleCache();
-            var after = ConflictDetector.Detect(rules);
-
-            Assert.AreEqual(before.Count, after.Count);
-            for (var i = 0; i < before.Count; i++)
-            {
-                Assert.AreEqual(before[i].Type,   after[i].Type);
-                Assert.AreEqual(before[i].IndexA, after[i].IndexA);
-                Assert.AreEqual(before[i].IndexB, after[i].IndexB);
-            }
+                MakeRule("T_*")
+            }));
         }
 
         private static ImportRule MakeRule(string pattern, bool enabled = true) =>
-            new() { pattern = pattern, patternMode = PatternMode.Glob, isEnabled = enabled };
+            new()
+            {
+                pattern = pattern,
+                patternMode = PatternMode.Glob,
+                isEnabled = enabled
+            };
     }
 }

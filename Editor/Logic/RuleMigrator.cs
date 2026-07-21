@@ -32,10 +32,14 @@ namespace Kodlon.AssetRouter.Logic
         }
 
         /// <summary>
-        /// Migrates a specific set of rules (e.g. freshly imported from JSON) using their own source schema
-        /// version, independent of the target database's current <see cref="ImporterSettingsDatabase.schemaVersion"/>.
-        /// Safe to call even when the target database is already at the latest schema — migration is
-        /// idempotent (guarded by whether each rule's <c>pattern</c> is already populated).
+        /// Migrates a specific set of rules (e.g. freshly imported from JSON) using their
+        /// own source schema
+        /// version, independent of the target database's current
+        /// <see cref="ImporterSettingsDatabase.schemaVersion" />.
+        /// Safe to call even when the target database is already at the latest schema —
+        /// migration is
+        /// idempotent (guarded by whether each rule's <c>pattern</c> is already
+        /// populated).
         /// </summary>
         public static void MigrateImportedRules(List<BaseImportRule> rules, int fromSchemaVersion)
         {
@@ -70,10 +74,17 @@ namespace Kodlon.AssetRouter.Logic
                     continue;
 
                 var sb = new StringBuilder();
-                if (!string.IsNullOrEmpty(prefix)) sb.Append(prefix);
+
+                if (!string.IsNullOrEmpty(prefix))
+                    sb.Append(prefix);
+
                 sb.Append('*');
-                if (!string.IsNullOrEmpty(suffix)) sb.Append(suffix);
-                if (!string.IsNullOrEmpty(ext)) sb.Append(ext);
+
+                if (!string.IsNullOrEmpty(suffix))
+                    sb.Append(suffix);
+
+                if (!string.IsNullOrEmpty(ext))
+                    sb.Append(ext);
 
                 rule.pattern = sb.ToString();
                 rule.patternMode = PatternMode.Glob;

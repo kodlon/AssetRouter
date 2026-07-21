@@ -4,89 +4,14 @@ using System.IO;
 using System.Text;
 using Kodlon.AssetRouter.Logic;
 using UnityEditor;
-using UnityEngine;
 
 namespace Kodlon.AssetRouter.Editor
 {
     internal static class ActionScaffoldingWizard
     {
-        [MenuItem("Assets/Create/Asset Router/New Action.../Basic Action")]
-        private static void CreateBasicAction()
-            => Scaffold("NewBasicAction", BasicActionTemplate);
-
-        [MenuItem("Assets/Create/Asset Router/New Action.../Texture Filter Action")]
-        private static void CreateTextureFilterAction()
-            => Scaffold("NewTextureFilterAction", TextureFilterActionTemplate);
-
-        [MenuItem("Assets/Create/Asset Router/New Action.../Sprite Factory Action")]
-        private static void CreateSpriteFactoryAction()
-            => Scaffold("NewSpriteFactoryAction", SpriteFactoryActionTemplate);
-
-        [MenuItem("Assets/Create/Asset Router/New Action.../Prefab Factory Action")]
-        private static void CreatePrefabFactoryAction()
-            => Scaffold("NewPrefabFactoryAction", PrefabFactoryActionTemplate);
-
-        private static void Scaffold(string defaultName, string template)
-        {
-            var savePath = EditorUtility.SaveFilePanelInProject(
-                "Save new action",
-                defaultName,
-                "cs",
-                "Choose where to save the new action script.");
-
-            if (string.IsNullOrEmpty(savePath))
-                return;
-
-            var className  = SanitizeIdentifier(Path.GetFileNameWithoutExtension(savePath), defaultName);
-            var ns         = SanitizeIdentifier(PlayerSettings.productName, "Game") + ".AssetRouter";
-            var content    = template
-                .Replace("{{ACTION_NAME}}", className)
-                .Replace("{{NAMESPACE}}", ns);
-
-            File.WriteAllText(PathUtility.ToAbsolute(savePath), content);
-            AssetDatabase.Refresh();
-        }
-
-        private static readonly HashSet<string> ReservedKeywords = new(StringComparer.Ordinal)
-        {
-            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked", "class",
-            "const", "continue", "decimal", "default", "delegate", "do", "double", "else", "enum", "event",
-            "explicit", "extern", "false", "finally", "fixed", "float", "for", "foreach", "goto", "if",
-            "implicit", "in", "int", "interface", "internal", "is", "lock", "long", "namespace", "new",
-            "null", "object", "operator", "out", "override", "params", "private", "protected", "public",
-            "readonly", "ref", "return", "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
-            "string", "struct", "switch", "this", "throw", "true", "try", "typeof", "uint", "ulong",
-            "unchecked", "unsafe", "ushort", "using", "virtual", "void", "volatile", "while"
-        };
-
-        /// <summary>
-        /// Strips characters that are not valid in a C# identifier, guards against a leading digit or empty
-        /// result, and escapes reserved keywords (e.g. a file named "class.cs" would otherwise generate an
-        /// uncompilable "class class : ...").
-        /// </summary>
-        private static string SanitizeIdentifier(string raw, string fallback)
-        {
-            var sb = new StringBuilder();
-
-            if (!string.IsNullOrEmpty(raw))
-                foreach (var c in raw)
-                    if (char.IsLetterOrDigit(c) || c == '_')
-                        sb.Append(c);
-
-            if (sb.Length == 0)
-                return fallback;
-
-            if (char.IsDigit(sb[0]))
-                sb.Insert(0, '_');
-
-            var result = sb.ToString();
-            return ReservedKeywords.Contains(result) ? "_" + result : result;
-        }
-
         // ── Templates ─────────────────────────────────────────────────────────────
 
-        private const string BasicActionTemplate =
-@"using UnityEditor;
+        private const string BasicActionTemplate = @"using UnityEditor;
 using UnityEngine;
 using Kodlon.AssetRouter.Actions;
 
@@ -105,8 +30,7 @@ namespace {{NAMESPACE}}
 }
 ";
 
-        private const string TextureFilterActionTemplate =
-@"using UnityEditor;
+        private const string TextureFilterActionTemplate = @"using UnityEditor;
 using UnityEngine;
 using Kodlon.AssetRouter.Actions;
 
@@ -132,8 +56,7 @@ namespace {{NAMESPACE}}
 }
 ";
 
-        private const string SpriteFactoryActionTemplate =
-@"using System.IO;
+        private const string SpriteFactoryActionTemplate = @"using System.IO;
 using UnityEditor;
 using UnityEngine;
 using Kodlon.AssetRouter.Actions;
@@ -172,8 +95,7 @@ namespace {{NAMESPACE}}
 }
 ";
 
-        private const string PrefabFactoryActionTemplate =
-@"using System.IO;
+        private const string PrefabFactoryActionTemplate = @"using System.IO;
 using UnityEditor;
 using UnityEngine;
 using Kodlon.AssetRouter.Actions;
@@ -218,5 +140,150 @@ namespace {{NAMESPACE}}
     }
 }
 ";
+
+        private static readonly HashSet<string> ReservedKeywords = new(StringComparer.Ordinal)
+        {
+            "abstract",
+            "as",
+            "base",
+            "bool",
+            "break",
+            "byte",
+            "case",
+            "catch",
+            "char",
+            "checked",
+            "class",
+            "const",
+            "continue",
+            "decimal",
+            "default",
+            "delegate",
+            "do",
+            "double",
+            "else",
+            "enum",
+            "event",
+            "explicit",
+            "extern",
+            "false",
+            "finally",
+            "fixed",
+            "float",
+            "for",
+            "foreach",
+            "goto",
+            "if",
+            "implicit",
+            "in",
+            "int",
+            "interface",
+            "internal",
+            "is",
+            "lock",
+            "long",
+            "namespace",
+            "new",
+            "null",
+            "object",
+            "operator",
+            "out",
+            "override",
+            "params",
+            "private",
+            "protected",
+            "public",
+            "readonly",
+            "ref",
+            "return",
+            "sbyte",
+            "sealed",
+            "short",
+            "sizeof",
+            "stackalloc",
+            "static",
+            "string",
+            "struct",
+            "switch",
+            "this",
+            "throw",
+            "true",
+            "try",
+            "typeof",
+            "uint",
+            "ulong",
+            "unchecked",
+            "unsafe",
+            "ushort",
+            "using",
+            "virtual",
+            "void",
+            "volatile",
+            "while"
+        };
+
+        [MenuItem("Assets/Create/Asset Router/New Action.../Basic Action")]
+        private static void CreateBasicAction() => Scaffold("NewBasicAction", BasicActionTemplate);
+
+        [MenuItem("Assets/Create/Asset Router/New Action.../Prefab Factory Action")]
+        private static void CreatePrefabFactoryAction() => Scaffold("NewPrefabFactoryAction", PrefabFactoryActionTemplate);
+
+        [MenuItem("Assets/Create/Asset Router/New Action.../Sprite Factory Action")]
+        private static void CreateSpriteFactoryAction() => Scaffold("NewSpriteFactoryAction", SpriteFactoryActionTemplate);
+
+        [MenuItem("Assets/Create/Asset Router/New Action.../Texture Filter Action")]
+        private static void CreateTextureFilterAction() => Scaffold("NewTextureFilterAction", TextureFilterActionTemplate);
+
+        /// <summary>
+        /// Strips characters that are not valid in a C# identifier, guards against a
+        /// leading digit or empty
+        /// result, and escapes reserved keywords (e.g. a file named "class.cs" would
+        /// otherwise generate an
+        /// uncompilable "class class : ...").
+        /// </summary>
+        private static string SanitizeIdentifier(string raw, string fallback)
+        {
+            var sb = new StringBuilder();
+
+            if (!string.IsNullOrEmpty(raw))
+            {
+                foreach (var c in raw)
+                {
+                    if (char.IsLetterOrDigit(c) || c == '_')
+                        sb.Append(c);
+                }
+            }
+
+            if (sb.Length == 0)
+                return fallback;
+
+            if (char.IsDigit(sb[0]))
+                sb.Insert(0, '_');
+
+            var result = sb.ToString();
+
+            return ReservedKeywords.Contains(result) ? "_" + result : result;
+        }
+
+        private static void Scaffold(string defaultName, string template)
+        {
+            var savePath = EditorUtility.SaveFilePanelInProject("Save new action",
+                defaultName,
+                "cs",
+                "Choose where to save the new action script.");
+
+            if (string.IsNullOrEmpty(savePath))
+                return;
+
+            var className = SanitizeIdentifier(Path.GetFileNameWithoutExtension(savePath), defaultName);
+            var ns = SanitizeIdentifier(PlayerSettings.productName, "Game") + ".AssetRouter";
+
+            var content = template
+                .Replace("{{ACTION_NAME}}", className)
+                .Replace("{{NAMESPACE}}", ns);
+
+            File.WriteAllText(PathUtility.ToAbsolute(savePath), content);
+            AssetDatabase.Refresh();
+        }
     }
 }

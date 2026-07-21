@@ -5,9 +5,9 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal readonly struct AssetMoveCandidate
     {
+        public readonly Match Match;
         public readonly string Path;
         public readonly BaseImportRule Rule;
-        public readonly Match Match;
 
         public AssetMoveCandidate(string path, BaseImportRule rule, Match match)
         {

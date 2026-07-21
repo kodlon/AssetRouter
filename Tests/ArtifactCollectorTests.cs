@@ -1,25 +1,29 @@
-using NUnit.Framework;
 using Kodlon.AssetRouter.Logic;
+using NUnit.Framework;
 
 namespace Kodlon.AssetRouter.Tests
 {
     /// <summary>
-    /// Guards the artifact-tracking side of the Undo pipeline. If dedup regresses or ordering breaks,
-    /// Undo either double-deletes (harmless but noisy) or leaves orphans (the exact bug this system
+    /// Guards the artifact-tracking side of the Undo pipeline. If dedup regresses or
+    /// ordering breaks,
+    /// Undo either double-deletes (harmless but noisy) or leaves orphans (the exact
+    /// bug this system
     /// exists to fix).
     /// </summary>
     public class ArtifactCollectorTests
     {
         [Test]
-        public void OnAssetCreated_DuplicatePath_IsDeduped()
+        public void HasAny_FlipsOnFirstEntry()
         {
             var c = new ArtifactCollector();
+            Assert.IsFalse(c.HasAny);
 
-            c.OnAssetCreated("Assets/Foo.mat");
-            c.OnAssetCreated("Assets/Foo.mat");
+            c.OnFoldersCreated(new[]
+            {
+                "Assets/X"
+            });
 
-            Assert.AreEqual(1, c.Assets.Count);
-            Assert.AreEqual("Assets/Foo.mat", c.Assets[0]);
+            Assert.IsTrue(c.HasAny);
         }
 
         [Test]
@@ -34,6 +38,18 @@ namespace Kodlon.AssetRouter.Tests
             c.OnAssetCreated("assets/foo.MAT");
 
             Assert.AreEqual(1, c.Assets.Count);
+        }
+
+        [Test]
+        public void OnAssetCreated_DuplicatePath_IsDeduped()
+        {
+            var c = new ArtifactCollector();
+
+            c.OnAssetCreated("Assets/Foo.mat");
+            c.OnAssetCreated("Assets/Foo.mat");
+
+            Assert.AreEqual(1, c.Assets.Count);
+            Assert.AreEqual("Assets/Foo.mat", c.Assets[0]);
         }
 
         [Test]
@@ -57,7 +73,12 @@ namespace Kodlon.AssetRouter.Tests
             c.OnAssetCreated("Assets/B.mat");
             c.OnAssetCreated("Assets/C.mat");
 
-            CollectionAssert.AreEqual(new[] { "Assets/A.mat", "Assets/B.mat", "Assets/C.mat" }, c.Assets);
+            CollectionAssert.AreEqual(new[]
+            {
+                "Assets/A.mat",
+                "Assets/B.mat",
+                "Assets/C.mat"
+            }, c.Assets);
         }
 
         [Test]
@@ -67,8 +88,17 @@ namespace Kodlon.AssetRouter.Tests
             // record it once per rule or Undo's cleanup pass wastes work checking already-gone paths.
             var c = new ArtifactCollector();
 
-            c.OnFoldersCreated(new[] { "Assets/Art", "Assets/Art/Textures" });
-            c.OnFoldersCreated(new[] { "Assets/Art", "Assets/Art/Audio" });
+            c.OnFoldersCreated(new[]
+            {
+                "Assets/Art",
+                "Assets/Art/Textures"
+            });
+
+            c.OnFoldersCreated(new[]
+            {
+                "Assets/Art",
+                "Assets/Art/Audio"
+            });
 
             Assert.AreEqual(3, c.Folders.Count);
             CollectionAssert.Contains(c.Folders, "Assets/Art");
@@ -85,16 +115,6 @@ namespace Kodlon.AssetRouter.Tests
 
             Assert.AreEqual(0, c.Folders.Count);
             Assert.IsFalse(c.HasAny);
-        }
-
-        [Test]
-        public void HasAny_FlipsOnFirstEntry()
-        {
-            var c = new ArtifactCollector();
-            Assert.IsFalse(c.HasAny);
-
-            c.OnFoldersCreated(new[] { "Assets/X" });
-            Assert.IsTrue(c.HasAny);
         }
     }
 }

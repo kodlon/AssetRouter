@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
 using UnityEditor;
@@ -13,10 +12,17 @@ namespace Kodlon.AssetRouter.Logic
         public static void Execute(BaseImportRule rule, string assetPath, ImporterSettingsDatabase db, IArtifactSink sink = null)
         {
             var asset = AssetDatabase.LoadAssetAtPath<Object>(assetPath);
-            Execute(rule, asset, assetPath, db, sink);
+
+            Execute(rule, asset, assetPath, db,
+                sink);
         }
 
-        public static void Execute(BaseImportRule rule, Object asset, string assetPath, ImporterSettingsDatabase db, IArtifactSink sink = null)
+        public static void Execute(
+            BaseImportRule rule,
+            Object asset,
+            string assetPath,
+            ImporterSettingsDatabase db,
+            IArtifactSink sink = null)
         {
             if (rule is not ImportRule importRule)
                 return;
@@ -26,7 +32,8 @@ namespace Kodlon.AssetRouter.Logic
             if (actions == null || actions.Count == 0)
                 return;
 
-            var ctx = new AssetImportContext(assetPath, rule, db, logger: null, sink: sink);
+            var ctx = new AssetImportContext(assetPath, rule, db, null,
+                sink);
 
             for (var i = 0; i < actions.Count; i++)
             {

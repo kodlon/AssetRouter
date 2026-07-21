@@ -9,59 +9,6 @@ namespace Kodlon.AssetRouter.Data
 {
     internal static class DefaultDatabaseFactory
     {
-        public static void PopulateDefaults(ImporterSettingsDatabase db)
-        {
-            db.schemaVersion = ImporterSettingsDatabase.LatestSchemaVersion;
-            db.enableAutoImport = true;
-            db.showPopupForUnknownFiles = true;
-            db.monitoredExtensions = CreateMonitoredExtensions();
-            db.ignoredFolders = CreateIgnoredFolders();
-            db.rules = CreateDefaultRules();
-        }
-
-        /// <summary>
-        /// Registers every action instance in db.rules as a sub-asset of <paramref name="db"/>.
-        /// Must be called AFTER <c>AssetDatabase.CreateAsset(db, path)</c> because
-        /// <c>AddObjectToAsset</c> requires the host asset to already exist on disk.
-        /// </summary>
-        public static void EmbedSubAssets(ImporterSettingsDatabase db)
-        {
-            if (!EditorUtility.IsPersistent(db))
-                return;
-
-            foreach (var rule in db.rules)
-            {
-                if (rule is not ImportRule importRule || importRule.postImportActions == null)
-                    continue;
-
-                foreach (var action in importRule.postImportActions)
-                {
-                    if (action == null || AssetDatabase.IsSubAsset(action))
-                        continue;
-
-                    AssetDatabase.AddObjectToAsset(action, db);
-                }
-            }
-
-            EditorUtility.SetDirty(db);
-        }
-
-        public static List<string> CreateMonitoredExtensions() => new()
-        {
-            ".fbx", ".obj",
-            ".png", ".jpg", ".jpeg", ".tga", ".psd", ".tiff", ".exr", ".hdr",
-            ".wav", ".mp3", ".ogg", ".aif", ".aiff"
-        };
-
-        public static List<string> CreateIgnoredFolders() => new()
-        {
-            "Assets/Editor/",
-            "Assets/Plugins/",
-            "Assets/StreamingAssets/",
-            "Assets/AssetRouter/",
-            "Packages/"
-        };
-
         public static List<BaseImportRule> CreateDefaultRules()
         {
             // baseMaterial left null → resolves to the active pipeline's default at import time.
@@ -101,7 +48,10 @@ namespace Kodlon.AssetRouter.Data
                     pattern = "T_*",
                     targetFolder = "Assets/Art/Textures/",
                     preset = LoadPreset("TextureImporter"),
-                    postImportActions = new List<AssetImportActionAsset> { materialAction }
+                    postImportActions = new List<AssetImportActionAsset>
+                    {
+                        materialAction
+                    }
                 },
                 new ImportRule
                 {
@@ -120,6 +70,74 @@ namespace Kodlon.AssetRouter.Data
                     preset = LoadPreset("AudioImporter_Music")
                 }
             };
+        }
+
+        public static List<string> CreateIgnoredFolders() =>
+            new()
+            {
+                "Assets/Editor/",
+                "Assets/Plugins/",
+                "Assets/StreamingAssets/",
+                "Assets/AssetRouter/",
+                "Packages/"
+            };
+
+        public static List<string> CreateMonitoredExtensions() =>
+            new()
+            {
+                ".fbx",
+                ".obj",
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".tga",
+                ".psd",
+                ".tiff",
+                ".exr",
+                ".hdr",
+                ".wav",
+                ".mp3",
+                ".ogg",
+                ".aif",
+                ".aiff"
+            };
+
+        /// <summary>
+        /// Registers every action instance in db.rules as a sub-asset of
+        /// <paramref name="db" />.
+        /// Must be called AFTER <c>AssetDatabase.CreateAsset(db, path)</c> because
+        /// <c>AddObjectToAsset</c> requires the host asset to already exist on disk.
+        /// </summary>
+        public static void EmbedSubAssets(ImporterSettingsDatabase db)
+        {
+            if (!EditorUtility.IsPersistent(db))
+                return;
+
+            foreach (var rule in db.rules)
+            {
+                if (rule is not ImportRule importRule || importRule.postImportActions == null)
+                    continue;
+
+                foreach (var action in importRule.postImportActions)
+                {
+                    if (action == null || AssetDatabase.IsSubAsset(action))
+                        continue;
+
+                    AssetDatabase.AddObjectToAsset(action, db);
+                }
+            }
+
+            EditorUtility.SetDirty(db);
+        }
+
+        public static void PopulateDefaults(ImporterSettingsDatabase db)
+        {
+            db.schemaVersion = ImporterSettingsDatabase.LatestSchemaVersion;
+            db.enableAutoImport = true;
+            db.showPopupForUnknownFiles = true;
+            db.monitoredExtensions = CreateMonitoredExtensions();
+            db.ignoredFolders = CreateIgnoredFolders();
+            db.rules = CreateDefaultRules();
         }
 
         private static Preset LoadPreset(string presetName)

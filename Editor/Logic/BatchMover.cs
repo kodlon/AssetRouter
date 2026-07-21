@@ -13,18 +13,19 @@ namespace Kodlon.AssetRouter.Logic
             if (entries == null || entries.Count == 0)
                 return new BatchResult(0, 0, 0, 0);
 
-            var moved          = 0;
-            var reimported     = 0;
-            var skipped        = 0;
-            var errored        = 0;
-            var logEntries     = new List<OperationLogEntry>();
+            var moved = 0;
+            var reimported = 0;
+            var skipped = 0;
+            var errored = 0;
+            var logEntries = new List<OperationLogEntry>();
             var forceReimports = new List<DryRunEntry>();
+
             // Everything that ends up here gets its preset (re)applied and its rule's post-import actions
             // run — mirroring what the live auto-import pipeline does. Without this, "Apply Selected"/
             // "Force Re-import In-Place" would silently skip both, unlike routing a freshly-dropped file.
             var toProcess = new List<(BaseImportRule Rule, string Path, bool ForceReimport)>();
             var artifactCollector = new ArtifactCollector();
-            var total   = entries.Count;
+            var total = entries.Count;
             var current = 0;
 
             foreach (var entry in entries)
@@ -38,6 +39,7 @@ namespace Kodlon.AssetRouter.Logic
 
             AssetDatabase.StartAssetEditing();
             var cancelled = false;
+
             try
             {
                 foreach (var entry in entries)
@@ -47,22 +49,24 @@ namespace Kodlon.AssetRouter.Logic
                     if (cancelled)
                     {
                         skipped++;
+
                         continue;
                     }
 
                     if (!entry.Selected || entry.MatchedRule == null)
                     {
                         skipped++;
+
                         continue;
                     }
 
-                    if (EditorUtility.DisplayCancelableProgressBar(
-                            "Asset Router — Applying",
+                    if (EditorUtility.DisplayCancelableProgressBar("Asset Router — Applying",
                             entry.AssetPath,
                             (float)current / total))
                     {
                         cancelled = true;
                         skipped++;
+
                         continue;
                     }
 
@@ -81,6 +85,7 @@ namespace Kodlon.AssetRouter.Logic
                     if (string.IsNullOrEmpty(targetPath))
                     {
                         skipped++;
+
                         continue;
                     }
 
@@ -114,6 +119,7 @@ namespace Kodlon.AssetRouter.Logic
             foreach (var (rule, path, forceReimport) in toProcess)
             {
                 PipelineOutputGuard.BeginRun(path);
+
                 try
                 {
                     ApplyPresetAndReimport(rule, path, forceReimport);
@@ -131,12 +137,14 @@ namespace Kodlon.AssetRouter.Logic
 
             var result = new BatchResult(moved, reimported, skipped, errored);
             Debug.Log($"[AssetRouter] Batch complete. {result}");
+
             return result;
         }
 
         private static void ApplyPresetAndReimport(BaseImportRule rule, string assetPath, bool forceReimport)
         {
             var importer = AssetImporter.GetAtPath(assetPath);
+
             if (importer == null)
                 return;
 

@@ -7,12 +7,177 @@ using Kodlon.AssetRouter.Logic;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Kodlon.AssetRouter.View
 {
     internal sealed partial class AssetRouterWindow
     {
         private const int PatternPreviewScanLimit = 500;
+
+        private static string BuildPatternPreview(BaseImportRule rule)
+        {
+            if (rule.patternMode == PatternMode.Regex
+                && PatternMatcher.TryGetRegexError(rule.pattern, out var error))
+                return $"⚠ {error}";
+
+            var hasTokens = !string.IsNullOrEmpty(rule.targetFolder) && rule.targetFolder.Contains('{');
+            var lines = new List<string>(3);
+            var hasScope = !string.IsNullOrEmpty(rule.scopeFolder);
+            var scopeIsReal = hasScope && AssetDatabase.IsValidFolder(rule.scopeFolder);
+
+            var searchIn = scopeIsReal
+                ? new[]
+                {
+                    rule.scopeFolder
+                }
+                : new[]
+                {
+                    "Assets"
+                };
+
+            var guids = AssetDatabase.FindAssets("", searchIn);
+            var limit = Mathf.Min(guids.Length, PatternPreviewScanLimit);
+
+            for (var i = 0; i < limit && lines.Count < 3; i++)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
+
+                // Extra guard for the fallback case (scopeFolder set but non-existent) — Unity's
+                // FindAssets fell back to searching "Assets" root, so filter matches manually.
+                if (hasScope && !scopeIsReal && !PathUtility.IsUnderFolder(path, rule.scopeFolder))
+                    continue;
+
+                var m = PatternMatcher.Match(rule, path);
+
+                if (m == null)
+                    continue;
+
+                var fileName = Path.GetFileName(path);
+
+                if (hasTokens)
+                {
+                    if (!TargetResolver.TryValidate(rule.targetFolder, m, out var tokenErr) && lines.Count == 0)
+                        return $"⚠ {tokenErr}";
+
+                    var resolved = TargetResolver.Resolve(rule.targetFolder, m);
+                    lines.Add($"{fileName}  →  {resolved}");
+                }
+                else
+                    lines.Add(fileName);
+            }
+
+            if (lines.Count == 0)
+                return "— no matches found in project";
+
+            return hasTokens
+                ? "✓ e.g.\n" + string.Join("\n", lines)
+                : "✓ e.g. " + string.Join(", ", lines);
+        }
+
+        private void CleanUpActionSubAssets(IList<AssetImportActionAsset> actions)
+        {
+            if (actions == null)
+                return;
+
+            foreach (var action in actions)
+            {
+                if (action == null || !AssetDatabase.IsSubAsset(action))
+                    continue;
+
+                if (!IsReferencedByOtherRule(action))
+                {
+                    AssetDatabase.RemoveObjectFromAsset(action);
+                    DestroyImmediate(action, true);
+                }
+            }
+
+            AssetDatabase.SaveAssets();
+        }
+
+        private void CreateAndAddAction(Type actionType, ReorderableList list)
+        {
+            var newAction = CreateInstance(actionType) as AssetImportActionAsset;
+
+            if (newAction == null)
+                return;
+
+            newAction.name = ObjectNames.NicifyVariableName(actionType.Name);
+            AssetDatabase.AddObjectToAsset(newAction, _database);
+            EditorUtility.SetDirty(_database);
+
+            _serializedDb.Update();
+            var newIndex = list.serializedProperty.arraySize;
+            list.serializedProperty.arraySize++;
+            list.serializedProperty.GetArrayElementAtIndex(newIndex).objectReferenceValue = newAction;
+            _serializedDb.ApplyModifiedProperties();
+        }
+
+        private void DrawActionsListFor(SerializedProperty ruleElement)
+        {
+            var actionsProp = ruleElement.FindPropertyRelative("postImportActions");
+
+            if (actionsProp == null)
+                return;
+
+            EnsureActionsListBuilt(actionsProp);
+            _actionsList?.DoLayoutList();
+        }
+
+        private void DrawPatternPreview(BaseImportRule rule)
+        {
+            if (string.IsNullOrEmpty(rule.pattern))
+                return;
+
+            // \x1f (unit separator) avoids key collisions from naive concatenation of adjacent fields.
+            // Must include every field BuildPatternPreview's result depends on — pattern, patternMode,
+            // matchAgainstFullPath, targetFolder, scopeFolder — or toggling one without touching the
+            // pattern text leaves a stale preview.
+            var previewKey = string.Join("\x1f",
+                rule.pattern, rule.patternMode, rule.matchAgainstFullPath, rule.targetFolder,
+                rule.scopeFolder);
+
+            if (previewKey != _lastPreviewKey)
+            {
+                _lastPreviewKey = previewKey;
+                _cachedPreview = null;
+                _previewRebuildTime = EditorApplication.timeSinceStartup + PreviewDebounceSeconds;
+            }
+
+            if (_cachedPreview == null && _previewRebuildTime > 0
+                                       && EditorApplication.timeSinceStartup >= _previewRebuildTime)
+            {
+                _cachedPreview = BuildPatternPreview(rule);
+                _previewRebuildTime = -1;
+            }
+
+            if (string.IsNullOrEmpty(_cachedPreview))
+                return;
+
+            var isError = _cachedPreview.StartsWith("⚠");
+
+            var style = new GUIStyle(EditorStyles.miniLabel)
+            {
+                normal =
+                {
+                    textColor = isError ? new Color(0.9f, 0.3f, 0.3f) : new Color(0.4f, 0.8f, 0.4f)
+                },
+                wordWrap = true
+            };
+
+            EditorGUI.indentLevel++;
+            EditorGUILayout.LabelField(_cachedPreview, style);
+            EditorGUI.indentLevel--;
+        }
+
+        private void DrawRuleSharingButtons(ImportRule rule)
+        {
+            if (GUILayout.Button("Copy Rule to Clipboard", GUILayout.ExpandWidth(false)))
+            {
+                GUIUtility.systemCopyBuffer = JsonExporter.ExportRule(rule);
+                Debug.Log($"[AssetRouter] Rule \"{rule.ruleName}\" copied to clipboard.");
+            }
+        }
 
         private void DrawSelectedRuleDetails()
         {
@@ -43,28 +208,32 @@ namespace Kodlon.AssetRouter.View
 
                 SectionLabel("Pattern");
                 Field(element, "patternMode", "Mode");
+
                 Field(element, "pattern", "Pattern",
-                    tooltip: "Glob (e.g. T_*_D.png) or Regex. " +
-                             "Patterns with path separators (e.g. Assets/**) require 'Match Full Path' to be enabled.");
+                    "Glob (e.g. T_*_D.png) or Regex. " +
+                    "Patterns with path separators (e.g. Assets/**) require 'Match Full Path' to be enabled.");
+
                 Field(element, "matchAgainstFullPath", "Match Full Path",
-                    tooltip: "When enabled, the pattern is compared against the full asset path " +
-                             "(e.g. Assets/Art/T_Rock.png) instead of just the filename (T_Rock.png). " +
-                             "Required for path-based patterns such as Assets/**.");
+                    "When enabled, the pattern is compared against the full asset path " +
+                    "(e.g. Assets/Art/T_Rock.png) instead of just the filename (T_Rock.png). " +
+                    "Required for path-based patterns such as Assets/**.");
+
                 Field(element, "scopeFolder", "Scope Folder",
-                    tooltip: "When set, this rule only applies to assets inside this folder. " +
-                             "Leave empty to match in all monitored folders. E.g. Assets/Art/Raw/");
+                    "When set, this rule only applies to assets inside this folder. " +
+                    "Leave empty to match in all monitored folders. E.g. Assets/Art/Raw/");
 
                 DrawPatternPreview(ruleRef);
 
                 SectionLabel("Target");
+
                 Field(element, "targetFolder", "Target Folder",
-                    tooltip: "Destination folder for matched assets. Supports capture group tokens:\n" +
-                             "  {1}, {2}, … — positional (Glob: each * is a capture group, left-to-right)\n" +
-                             "  {name}      — named  (Regex: use (?<name>…) syntax)\n" +
-                             "  {{ / }}     — literal brace escapes\n" +
-                             "  ?           — single-char wildcard, NOT a capture (does not produce {n})\n" +
-                             "Example: pattern T_Char_*_* with target Assets/Art/Characters/{1}/ routes\n" +
-                             "T_Char_Hero_D.png → Assets/Art/Characters/Hero/");
+                    "Destination folder for matched assets. Supports capture group tokens:\n" +
+                    "  {1}, {2}, … — positional (Glob: each * is a capture group, left-to-right)\n" +
+                    "  {name}      — named  (Regex: use (?<name>…) syntax)\n" +
+                    "  {{ / }}     — literal brace escapes\n" +
+                    "  ?           — single-char wildcard, NOT a capture (does not produce {n})\n" +
+                    "Example: pattern T_Char_*_* with target Assets/Art/Characters/{1}/ routes\n" +
+                    "T_Char_Hero_D.png → Assets/Art/Characters/Hero/");
 
                 SectionLabel("Settings");
                 Field(element, "preset", "Import Preset");
@@ -82,25 +251,17 @@ namespace Kodlon.AssetRouter.View
             }
         }
 
-        private void DrawActionsListFor(SerializedProperty ruleElement)
-        {
-            var actionsProp = ruleElement.FindPropertyRelative("postImportActions");
-            if (actionsProp == null) return;
-
-            EnsureActionsListBuilt(actionsProp);
-            _actionsList?.DoLayoutList();
-        }
-
         private void EnsureActionsListBuilt(SerializedProperty actionsProp)
         {
             if (_actionsList != null && _actionsForRuleIndex == _selectedIndex)
                 return;
 
             _actionsForRuleIndex = _selectedIndex;
-            _actionsList = new ReorderableList(_serializedDb, actionsProp, true, true, true, true);
 
-            _actionsList.drawHeaderCallback = rect =>
-                EditorGUI.LabelField(rect, "Post-Import Actions");
+            _actionsList = new ReorderableList(_serializedDb, actionsProp, true, true,
+                true, true);
+
+            _actionsList.drawHeaderCallback = rect => EditorGUI.LabelField(rect, "Post-Import Actions");
 
             _actionsList.elementHeight = EditorGUIUtility.singleLineHeight + 4f;
 
@@ -119,8 +280,11 @@ namespace Kodlon.AssetRouter.View
 
                 foreach (var type in types)
                 {
-                    if (type.IsAbstract) continue;
+                    if (type.IsAbstract)
+                        continue;
+
                     var capturedType = type;
+
                     menu.AddItem(new GUIContent(ObjectNames.NicifyVariableName(type.Name)), false,
                         () => CreateAndAddAction(capturedType, list));
                 }
@@ -134,10 +298,12 @@ namespace Kodlon.AssetRouter.View
             _actionsList.onRemoveCallback = list =>
             {
                 var idx = list.index;
-                if (idx < 0 || idx >= actionsProp.arraySize) return;
+
+                if (idx < 0 || idx >= actionsProp.arraySize)
+                    return;
 
                 var actionProp = actionsProp.GetArrayElementAtIndex(idx);
-                var actionObj  = actionProp.objectReferenceValue;
+                var actionObj = actionProp.objectReferenceValue;
 
                 // Null the reference before DeleteArrayElementAtIndex (Unity requirement for Object refs).
                 actionProp.objectReferenceValue = null;
@@ -155,135 +321,21 @@ namespace Kodlon.AssetRouter.View
             };
         }
 
-        private void CreateAndAddAction(Type actionType, ReorderableList list)
+        private static void Field(SerializedProperty parent, string propName, string label, string tooltip = null)
         {
-            var newAction = CreateInstance(actionType) as AssetImportActionAsset;
-            if (newAction == null) return;
+            var prop = parent.FindPropertyRelative(propName);
 
-            newAction.name = ObjectNames.NicifyVariableName(actionType.Name);
-            AssetDatabase.AddObjectToAsset(newAction, _database);
-            EditorUtility.SetDirty(_database);
-
-            _serializedDb.Update();
-            var newIndex = list.serializedProperty.arraySize;
-            list.serializedProperty.arraySize++;
-            list.serializedProperty.GetArrayElementAtIndex(newIndex).objectReferenceValue = newAction;
-            _serializedDb.ApplyModifiedProperties();
-        }
-
-        private void DrawPatternPreview(BaseImportRule rule)
-        {
-            if (string.IsNullOrEmpty(rule.pattern))
+            if (prop == null)
                 return;
 
-            // \x1f (unit separator) avoids key collisions from naive concatenation of adjacent fields.
-            // Must include every field BuildPatternPreview's result depends on — pattern, patternMode,
-            // matchAgainstFullPath, targetFolder, scopeFolder — or toggling one without touching the
-            // pattern text leaves a stale preview.
-            var previewKey = string.Join("\x1f",
-                rule.pattern, rule.patternMode, rule.matchAgainstFullPath, rule.targetFolder, rule.scopeFolder);
-
-            if (previewKey != _lastPreviewKey)
-            {
-                _lastPreviewKey     = previewKey;
-                _cachedPreview      = null;
-                _previewRebuildTime = EditorApplication.timeSinceStartup + PreviewDebounceSeconds;
-            }
-
-            if (_cachedPreview == null && _previewRebuildTime > 0
-                && EditorApplication.timeSinceStartup >= _previewRebuildTime)
-            {
-                _cachedPreview      = BuildPatternPreview(rule);
-                _previewRebuildTime = -1;
-            }
-
-            if (string.IsNullOrEmpty(_cachedPreview))
-                return;
-
-            var isError = _cachedPreview.StartsWith("⚠");
-            var style = new GUIStyle(EditorStyles.miniLabel)
-            {
-                normal = { textColor = isError ? new Color(0.9f, 0.3f, 0.3f) : new Color(0.4f, 0.8f, 0.4f) },
-                wordWrap = true
-            };
-
-            EditorGUI.indentLevel++;
-            EditorGUILayout.LabelField(_cachedPreview, style);
-            EditorGUI.indentLevel--;
+            var content = tooltip != null ? new GUIContent(label, tooltip) : new GUIContent(label);
+            EditorGUILayout.PropertyField(prop, content);
         }
 
-        private static string BuildPatternPreview(BaseImportRule rule)
+        private bool IsReferencedByOtherRule(Object actionObj)
         {
-            if (rule.patternMode == PatternMode.Regex
-                && PatternMatcher.TryGetRegexError(rule.pattern, out var error))
-                return $"⚠ {error}";
-
-            var hasTokens   = !string.IsNullOrEmpty(rule.targetFolder) && rule.targetFolder.Contains('{');
-            var lines       = new List<string>(3);
-            var hasScope    = !string.IsNullOrEmpty(rule.scopeFolder);
-            var scopeIsReal = hasScope && AssetDatabase.IsValidFolder(rule.scopeFolder);
-            var searchIn    = scopeIsReal ? new[] { rule.scopeFolder } : new[] { "Assets" };
-            var guids       = AssetDatabase.FindAssets("", searchIn);
-            var limit       = Mathf.Min(guids.Length, PatternPreviewScanLimit);
-
-            for (var i = 0; i < limit && lines.Count < 3; i++)
-            {
-                var path = AssetDatabase.GUIDToAssetPath(guids[i]);
-                // Extra guard for the fallback case (scopeFolder set but non-existent) — Unity's
-                // FindAssets fell back to searching "Assets" root, so filter matches manually.
-                if (hasScope && !scopeIsReal && !PathUtility.IsUnderFolder(path, rule.scopeFolder))
-                    continue;
-
-                var m = PatternMatcher.Match(rule, path);
-                if (m == null)
-                    continue;
-
-                var fileName = Path.GetFileName(path);
-
-                if (hasTokens)
-                {
-                    if (!TargetResolver.TryValidate(rule.targetFolder, m, out var tokenErr) && lines.Count == 0)
-                        return $"⚠ {tokenErr}";
-
-                    var resolved = TargetResolver.Resolve(rule.targetFolder, m);
-                    lines.Add($"{fileName}  →  {resolved}");
-                }
-                else
-                {
-                    lines.Add(fileName);
-                }
-            }
-
-            if (lines.Count == 0)
-                return "— no matches found in project";
-
-            return hasTokens
-                ? "✓ e.g.\n" + string.Join("\n", lines)
-                : "✓ e.g. " + string.Join(", ", lines);
-        }
-
-        private void CleanUpActionSubAssets(IList<AssetImportActionAsset> actions)
-        {
-            if (actions == null) return;
-
-            foreach (var action in actions)
-            {
-                if (action == null || !AssetDatabase.IsSubAsset(action))
-                    continue;
-
-                if (!IsReferencedByOtherRule(action))
-                {
-                    AssetDatabase.RemoveObjectFromAsset(action);
-                    DestroyImmediate(action, true);
-                }
-            }
-
-            AssetDatabase.SaveAssets();
-        }
-
-        private bool IsReferencedByOtherRule(UnityEngine.Object actionObj)
-        {
-            if (_database?.rules == null) return false;
+            if (_database?.rules == null)
+                return false;
 
             foreach (var r in _database.rules)
             {
@@ -298,23 +350,6 @@ namespace Kodlon.AssetRouter.View
             }
 
             return false;
-        }
-
-        private void DrawRuleSharingButtons(ImportRule rule)
-        {
-            if (GUILayout.Button("Copy Rule to Clipboard", GUILayout.ExpandWidth(false)))
-            {
-                GUIUtility.systemCopyBuffer = JsonExporter.ExportRule(rule);
-                Debug.Log($"[AssetRouter] Rule \"{rule.ruleName}\" copied to clipboard.");
-            }
-        }
-
-        private static void Field(SerializedProperty parent, string propName, string label, string tooltip = null)
-        {
-            var prop = parent.FindPropertyRelative(propName);
-            if (prop == null) return;
-            var content = tooltip != null ? new GUIContent(label, tooltip) : new GUIContent(label);
-            EditorGUILayout.PropertyField(prop, content);
         }
 
         private static void SectionLabel(string text)

@@ -9,10 +9,10 @@ namespace Kodlon.AssetRouter.View
 {
     internal sealed class HistoryView
     {
-        private List<OperationSession> _sessions;
-        private int    _selectedIndex = -1;
-        private Vector2 _sessionsScroll;
         private Vector2 _entriesScroll;
+        private int _selectedIndex = -1;
+        private List<OperationSession> _sessions;
+        private Vector2 _sessionsScroll;
 
         public void Draw()
         {
@@ -47,12 +47,14 @@ namespace Kodlon.AssetRouter.View
             if (_sessions == null)
             {
                 EditorGUILayout.HelpBox("Click Refresh to load history.", MessageType.Info);
+
                 return;
             }
 
             if (_sessions.Count == 0)
             {
                 EditorGUILayout.HelpBox("No operation history found.", MessageType.Info);
+
                 return;
             }
 
@@ -67,12 +69,12 @@ namespace Kodlon.AssetRouter.View
 
                     for (var i = _sessions.Count - 1; i >= 0; i--)
                     {
-                        var s      = _sessions[i];
-                        var moves  = s.entries?.Count ?? 0;
-                        var arts   = s.createdAssets?.Count  ?? 0;
-                        var dirs   = s.createdFolders?.Count ?? 0;
-                        var extras = (arts > 0 || dirs > 0) ? $"  +{arts}a/{dirs}f" : string.Empty;
-                        var label  = $"{FormatLocalTimestamp(s.timestamp)}  [{s.source}]  ({moves}){extras}";
+                        var s = _sessions[i];
+                        var moves = s.entries?.Count ?? 0;
+                        var arts = s.createdAssets?.Count ?? 0;
+                        var dirs = s.createdFolders?.Count ?? 0;
+                        var extras = arts > 0 || dirs > 0 ? $"  +{arts}a/{dirs}f" : string.Empty;
+                        var label = $"{FormatLocalTimestamp(s.timestamp)}  [{s.source}]  ({moves}){extras}";
 
                         var style = i == _selectedIndex ? EditorStyles.boldLabel : EditorStyles.miniLabel;
 
@@ -100,7 +102,7 @@ namespace Kodlon.AssetRouter.View
                                 EditorGUILayout.LabelField($"{e.from}  →  {e.to}", EditorStyles.miniLabel);
                         }
 
-                        if ((session.createdAssets  != null && session.createdAssets.Count  > 0)
+                        if ((session.createdAssets != null && session.createdAssets.Count > 0)
                             || (session.createdFolders != null && session.createdFolders.Count > 0))
                         {
                             GUILayout.Space(6f);
@@ -123,26 +125,52 @@ namespace Kodlon.AssetRouter.View
                         EditorGUILayout.EndScrollView();
                     }
                     else
-                    {
                         EditorGUILayout.LabelField("Select a session on the left.", EditorStyles.miniLabel);
-                    }
                 }
             }
         }
 
-        private void Refresh()
+        private void ClearHistory()
         {
-            _sessions      = OperationLog.ReadAll();
+            if (!EditorUtility.DisplayDialog("Clear History",
+                    "This will permanently delete all operation history.\nThis action cannot be undone.",
+                    "Clear",
+                    "Cancel"))
+                return;
+
+            OperationLog.Clear();
+            _sessions = null;
             _selectedIndex = -1;
         }
 
-        private void UndoSelected()
+        private static void EmptyRecycle()
         {
-            if (_sessions == null || _selectedIndex < 0 || _selectedIndex >= _sessions.Count)
+            if (!AssetDatabase.IsValidFolder(UndoEngine.RecycleFolder))
+            {
+                EditorUtility.DisplayDialog("Empty Recycle", "The recycle folder is already empty.", "OK");
+
+                return;
+            }
+
+            var contents = AssetDatabase.FindAssets(string.Empty, new[]
+            {
+                UndoEngine.RecycleFolder
+            });
+
+            if (contents == null || contents.Length == 0)
+            {
+                AssetDatabase.DeleteAsset(UndoEngine.RecycleFolder);
+
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog("Empty Recycle",
+                    $"Delete {contents.Length} asset(s) in {UndoEngine.RecycleFolder}?\nThis cannot be undone.",
+                    "Delete",
+                    "Cancel"))
                 return;
 
-            UndoEngine.Revert(_sessions[_selectedIndex]);
-            Refresh();
+            AssetDatabase.DeleteAsset(UndoEngine.RecycleFolder);
         }
 
         // Log writes ISO-8601 UTC; convert to local for display.
@@ -158,43 +186,19 @@ namespace Kodlon.AssetRouter.View
             return rawTimestamp.Length >= 19 ? rawTimestamp.Substring(0, 19) : rawTimestamp;
         }
 
-        private static void EmptyRecycle()
+        private void Refresh()
         {
-            if (!AssetDatabase.IsValidFolder(UndoEngine.RecycleFolder))
-            {
-                EditorUtility.DisplayDialog("Empty Recycle", "The recycle folder is already empty.", "OK");
-                return;
-            }
-
-            var contents = AssetDatabase.FindAssets(string.Empty, new[] { UndoEngine.RecycleFolder });
-            if (contents == null || contents.Length == 0)
-            {
-                AssetDatabase.DeleteAsset(UndoEngine.RecycleFolder);
-                return;
-            }
-
-            if (!EditorUtility.DisplayDialog(
-                    "Empty Recycle",
-                    $"Delete {contents.Length} asset(s) in {UndoEngine.RecycleFolder}?\nThis cannot be undone.",
-                    "Delete",
-                    "Cancel"))
-                return;
-
-            AssetDatabase.DeleteAsset(UndoEngine.RecycleFolder);
+            _sessions = OperationLog.ReadAll();
+            _selectedIndex = -1;
         }
 
-        private void ClearHistory()
+        private void UndoSelected()
         {
-            if (!EditorUtility.DisplayDialog(
-                    "Clear History",
-                    "This will permanently delete all operation history.\nThis action cannot be undone.",
-                    "Clear",
-                    "Cancel"))
+            if (_sessions == null || _selectedIndex < 0 || _selectedIndex >= _sessions.Count)
                 return;
 
-            OperationLog.Clear();
-            _sessions      = null;
-            _selectedIndex = -1;
+            UndoEngine.Revert(_sessions[_selectedIndex]);
+            Refresh();
         }
     }
 }

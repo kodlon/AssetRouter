@@ -9,15 +9,16 @@ namespace Kodlon.AssetRouter.View
     internal sealed class DryRunView
     {
         private List<DryRunEntry> _entries;
+        private bool _forceReimport;
         private Vector2 _scroll;
         private bool _showNoMatch;
-        private bool _forceReimport;
 
         public void Draw(ImporterSettingsDatabase db)
         {
             if (db == null)
             {
                 EditorGUILayout.HelpBox("No database selected.", MessageType.Info);
+
                 return;
             }
 
@@ -39,7 +40,7 @@ namespace Kodlon.AssetRouter.View
 
                 GUILayout.FlexibleSpace();
 
-                _showNoMatch  = GUILayout.Toggle(_showNoMatch,  "Show unmatched",   GUILayout.Width(120f));
+                _showNoMatch = GUILayout.Toggle(_showNoMatch, "Show unmatched", GUILayout.Width(120f));
                 _forceReimport = GUILayout.Toggle(_forceReimport, "Force re-import", GUILayout.Width(115f));
             }
 
@@ -49,33 +50,40 @@ namespace Kodlon.AssetRouter.View
             {
                 EditorGUILayout.HelpBox("Click \"Scan Project\" to preview routing changes.", MessageType.Info);
                 DrawReimportAllButton(db);
+
                 return;
             }
 
-            var toMove = 0; var inPlace = 0; var noMatch = 0;
+            var toMove = 0;
+            var inPlace = 0;
+            var noMatch = 0;
             var selected = 0;
 
             foreach (var e in _entries)
             {
-                if (e.MatchedRule == null)      noMatch++;
-                else if (e.AlreadyInPlace)      inPlace++;
-                else                            toMove++;
-                if (e.Selected)                 selected++;
+                if (e.MatchedRule == null)
+                    noMatch++;
+                else if (e.AlreadyInPlace)
+                    inPlace++;
+                else
+                    toMove++;
+
+                if (e.Selected)
+                    selected++;
             }
 
-            EditorGUILayout.LabelField(
-                $"Scan results:  {toMove} to move   {inPlace} in place   {noMatch} unmatched",
+            EditorGUILayout.LabelField($"Scan results:  {toMove} to move   {inPlace} in place   {noMatch} unmatched",
                 EditorStyles.miniLabel);
 
             GUILayout.Space(2f);
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("",       GUILayout.Width(20f));
-                GUILayout.Label("File",   GUILayout.Width(155f));
-                GUILayout.Label("Current Folder",  GUILayout.Width(160f));
-                GUILayout.Label("Target Folder",   GUILayout.Width(160f));
-                GUILayout.Label("Rule",   GUILayout.ExpandWidth(true));
+                GUILayout.Label("", GUILayout.Width(20f));
+                GUILayout.Label("File", GUILayout.Width(155f));
+                GUILayout.Label("Current Folder", GUILayout.Width(160f));
+                GUILayout.Label("Target Folder", GUILayout.Width(160f));
+                GUILayout.Label("Rule", GUILayout.ExpandWidth(true));
             }
 
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
@@ -94,20 +102,16 @@ namespace Kodlon.AssetRouter.View
                     else
                         GUILayout.Label(string.Empty, GUILayout.Width(20f));
 
-                    var nameStyle = entry.AlreadyInPlace
-                        ? EditorStyles.miniLabel
-                        : entry.MatchedRule != null
-                            ? EditorStyles.boldLabel
-                            : EditorStyles.miniLabel;
+                    var nameStyle = entry.AlreadyInPlace ? EditorStyles.miniLabel :
+                        entry.MatchedRule != null ? EditorStyles.boldLabel : EditorStyles.miniLabel;
 
-                    EditorGUILayout.LabelField(entry.FileName,      nameStyle,            GUILayout.Width(155f));
+                    EditorGUILayout.LabelField(entry.FileName, nameStyle, GUILayout.Width(155f));
                     EditorGUILayout.LabelField(entry.CurrentFolder, EditorStyles.miniLabel, GUILayout.Width(160f));
 
-                    var targetText = entry.MatchedRule == null ? "—"
-                        : entry.AlreadyInPlace ? "(in place)"
-                        : entry.TargetPath ?? "—";
+                    var targetText = entry.MatchedRule == null ? "—" :
+                        entry.AlreadyInPlace ? "(in place)" : entry.TargetPath ?? "—";
 
-                    EditorGUILayout.LabelField(targetText,                     EditorStyles.miniLabel, GUILayout.Width(160f));
+                    EditorGUILayout.LabelField(targetText, EditorStyles.miniLabel, GUILayout.Width(160f));
                     EditorGUILayout.LabelField(entry.MatchedRule?.ruleName ?? "—", EditorStyles.miniLabel);
                 }
             }
@@ -129,26 +133,19 @@ namespace Kodlon.AssetRouter.View
             }
         }
 
+        private void ApplySelected(ImporterSettingsDatabase db)
+        {
+            if (_entries == null)
+                return;
+
+            BatchMover.Move(_entries, db, _forceReimport);
+            _entries = null;
+        }
+
         private void DrawReimportAllButton(ImporterSettingsDatabase db)
         {
             if (GUILayout.Button("Force Re-import In-Place", GUILayout.Height(28f)))
                 ReimportInPlace(db);
-        }
-
-        private void SetSelection(bool value)
-        {
-            if (_entries == null) return;
-
-            foreach (var e in _entries)
-                if (e.MatchedRule != null)
-                    e.Selected = value;
-        }
-
-        private void ApplySelected(ImporterSettingsDatabase db)
-        {
-            if (_entries == null) return;
-            BatchMover.Move(_entries, db, _forceReimport);
-            _entries = null;
         }
 
         private void ReimportInPlace(ImporterSettingsDatabase db)
@@ -160,8 +157,20 @@ namespace Kodlon.AssetRouter.View
             foreach (var e in all)
                 e.Selected = e.MatchedRule != null && e.AlreadyInPlace;
 
-            BatchMover.Move(all, db, forceReimportInPlace: true);
+            BatchMover.Move(all, db, true);
             _entries = null;
+        }
+
+        private void SetSelection(bool value)
+        {
+            if (_entries == null)
+                return;
+
+            foreach (var e in _entries)
+            {
+                if (e.MatchedRule != null)
+                    e.Selected = value;
+            }
         }
     }
 }

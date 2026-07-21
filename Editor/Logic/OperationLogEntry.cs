@@ -14,8 +14,8 @@ namespace Kodlon.AssetRouter.Logic
 
         public OperationLogEntry(string from, string to, string ruleName)
         {
-            this.from     = from;
-            this.to       = to;
+            this.from = from;
+            this.to = to;
             this.ruleName = ruleName;
         }
     }
@@ -37,6 +37,6 @@ namespace Kodlon.AssetRouter.Logic
     {
         // v2 added createdAssets / createdFolders. Older files parse fine — missing fields land as null.
         public int v = 2;
-        public List<OperationSession> sessions = new List<OperationSession>();
+        public List<OperationSession> sessions = new();
     }
 }

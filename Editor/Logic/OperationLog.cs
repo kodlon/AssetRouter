@@ -9,13 +9,31 @@ namespace Kodlon.AssetRouter.Logic
     {
         private const int MaxSessions = 500;
 
-        /// <summary>Test-only override so tests don't read/write the real project's operation log.</summary>
+        /// <summary>
+        /// Test-only override so tests don't read/write the real project's
+        /// operation log.
+        /// </summary>
         internal static string OverrideLogPathForTests;
 
         private static string LogPath =>
-            OverrideLogPathForTests ?? Path.Combine(
-                Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
+            OverrideLogPathForTests ?? Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? string.Empty,
                 "Library", "AssetRouter", "log.json");
+
+        public static void Clear() => WriteLogFile(new OperationLogFile());
+
+        public static List<OperationSession> ReadAll()
+        {
+            var sessions = ReadLogFile().sessions ?? new List<OperationSession>();
+
+            // v=1 sessions have no createdAssets/createdFolders — JsonUtility leaves them null.
+            foreach (var s in sessions)
+            {
+                s.createdAssets ??= new List<string>();
+                s.createdFolders ??= new List<string>();
+            }
+
+            return sessions;
+        }
 
         public static void RecordBatch(
             List<OperationLogEntry> entries,
@@ -27,13 +45,14 @@ namespace Kodlon.AssetRouter.Logic
                 return;
 
             var log = ReadLogFile();
+
             log.sessions.Add(new OperationSession
             {
-                timestamp      = DateTime.UtcNow.ToString("o"),
-                source         = source,
-                entries        = new List<OperationLogEntry>(entries),
-                createdAssets  = createdAssets  == null ? new List<string>() : new List<string>(createdAssets),
-                createdFolders = createdFolders == null ? new List<string>() : new List<string>(createdFolders),
+                timestamp = DateTime.UtcNow.ToString("o"),
+                source = source,
+                entries = new List<OperationLogEntry>(entries),
+                createdAssets = createdAssets == null ? new List<string>() : new List<string>(createdAssets),
+                createdFolders = createdFolders == null ? new List<string>() : new List<string>(createdFolders)
             });
 
             if (log.sessions.Count > MaxSessions)
@@ -41,22 +60,6 @@ namespace Kodlon.AssetRouter.Logic
 
             WriteLogFile(log);
         }
-
-        public static List<OperationSession> ReadAll()
-        {
-            var sessions = ReadLogFile().sessions ?? new List<OperationSession>();
-
-            // v=1 sessions have no createdAssets/createdFolders — JsonUtility leaves them null.
-            foreach (var s in sessions)
-            {
-                s.createdAssets  ??= new List<string>();
-                s.createdFolders ??= new List<string>();
-            }
-
-            return sessions;
-        }
-
-        public static void Clear() => WriteLogFile(new OperationLogFile());
 
         private static OperationLogFile ReadLogFile()
         {
@@ -68,19 +71,31 @@ namespace Kodlon.AssetRouter.Logic
             try
             {
                 var json = File.ReadAllText(path);
+
                 return JsonUtility.FromJson<OperationLogFile>(json) ?? new OperationLogFile();
             }
             catch (Exception e)
             {
                 var corruptPath = path + ".corrupt";
                 var corruptSaved = false;
-                try { File.Copy(path, corruptPath, overwrite: true); corruptSaved = true; } catch (Exception) { /* best-effort */ }
+
+                try
+                {
+                    File.Copy(path, corruptPath, true);
+                    corruptSaved = true;
+                }
+                catch (Exception)
+                {
+                    /* best-effort */
+                }
 
                 var corruptNote = corruptSaved
                     ? $"Corrupt copy saved to: {corruptPath}"
                     : "Could not save corrupt copy (disk full or permissions).";
-                Debug.LogWarning($"[AssetRouter] Operation log was corrupted and has been reset. " +
+
+                Debug.LogWarning("[AssetRouter] Operation log was corrupted and has been reset. " +
                                  $"{corruptNote}\n{e.Message}");
+
                 return new OperationLogFile();
             }
         }
@@ -89,11 +104,12 @@ namespace Kodlon.AssetRouter.Logic
         {
             var path = LogPath;
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var tmp  = path + ".tmp";
+            var tmp = path + ".tmp";
 
             try
             {
                 File.WriteAllText(tmp, JsonUtility.ToJson(log, true));
+
                 if (File.Exists(path))
                     File.Replace(tmp, path, path + ".bak");
                 else
@@ -104,7 +120,14 @@ namespace Kodlon.AssetRouter.Logic
                 Debug.LogWarning($"[AssetRouter] Failed to write operation log: {e.Message}");
 
                 if (File.Exists(tmp))
-                    try { File.Delete(tmp); } catch (Exception) { /* best-effort */ }
+                    try
+                    {
+                        File.Delete(tmp);
+                    }
+                    catch (Exception)
+                    {
+                        /* best-effort */
+                    }
             }
         }
     }

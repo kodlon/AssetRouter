@@ -9,14 +9,15 @@ namespace Kodlon.AssetRouter.View
 {
     internal sealed class NamingValidatorView
     {
-        private List<DryRunEntry> _violations;
         private Vector2 _scroll;
+        private List<DryRunEntry> _violations;
 
         public void Draw(ImporterSettingsDatabase db)
         {
             if (db == null)
             {
                 EditorGUILayout.HelpBox("No database selected.", MessageType.Info);
+
                 return;
             }
 
@@ -39,12 +40,14 @@ namespace Kodlon.AssetRouter.View
             if (_violations == null)
             {
                 EditorGUILayout.HelpBox("Click \"Scan Project\" to find monitored assets that match no import rule.", MessageType.Info);
+
                 return;
             }
 
             if (_violations.Count == 0)
             {
                 EditorGUILayout.HelpBox("All monitored assets match at least one rule.", MessageType.None);
+
                 return;
             }
 
@@ -53,7 +56,7 @@ namespace Kodlon.AssetRouter.View
 
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label("File",           GUILayout.Width(220f));
+                GUILayout.Label("File", GUILayout.Width(220f));
                 GUILayout.Label("Current Folder", GUILayout.ExpandWidth(true));
             }
 
@@ -63,24 +66,12 @@ namespace Kodlon.AssetRouter.View
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.LabelField(entry.FileName,      EditorStyles.miniLabel, GUILayout.Width(220f));
+                    EditorGUILayout.LabelField(entry.FileName, EditorStyles.miniLabel, GUILayout.Width(220f));
                     EditorGUILayout.LabelField(entry.CurrentFolder, EditorStyles.miniLabel);
                 }
             }
 
             EditorGUILayout.EndScrollView();
-        }
-
-        private static List<DryRunEntry> Scan(ImporterSettingsDatabase db)
-        {
-            var all        = DryRunPlanner.Scan(db);
-            var violations = new List<DryRunEntry>(all.Count);
-
-            foreach (var entry in all)
-                if (entry.MatchedRule == null)
-                    violations.Add(entry);
-
-            return violations;
         }
 
         private void CopyToClipboard()
@@ -89,10 +80,25 @@ namespace Kodlon.AssetRouter.View
                 return;
 
             var sb = new StringBuilder();
+
             foreach (var entry in _violations)
                 sb.AppendLine(entry.AssetPath);
 
             GUIUtility.systemCopyBuffer = sb.ToString();
+        }
+
+        private static List<DryRunEntry> Scan(ImporterSettingsDatabase db)
+        {
+            var all = DryRunPlanner.Scan(db);
+            var violations = new List<DryRunEntry>(all.Count);
+
+            foreach (var entry in all)
+            {
+                if (entry.MatchedRule == null)
+                    violations.Add(entry);
+            }
+
+            return violations;
         }
     }
 }

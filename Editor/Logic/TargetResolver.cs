@@ -7,11 +7,25 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal static class TargetResolver
     {
+        // Characters Windows forbids in a file/folder name (besides the path separators, handled separately).
+        private static readonly char[] InvalidNameChars =
+        {
+            '<',
+            '>',
+            ':',
+            '"',
+            '|',
+            '?',
+            '*'
+        };
+
         /// <summary>
-        /// Resolves {n} (positional) and {name} (named) capture group tokens in <paramref name="template"/>.
+        /// Resolves {n} (positional) and {name} (named) capture group tokens in
+        /// <paramref name="template" />.
         /// <c>{{</c> and <c>}}</c> are escape sequences for literal braces.
-        /// Returns <paramref name="template"/> unchanged when no <c>{</c> characters are present or
-        /// <paramref name="match"/> is null / unsuccessful.
+        /// Returns <paramref name="template" /> unchanged when no <c>{</c> characters are
+        /// present or
+        /// <paramref name="match" /> is null / unsuccessful.
         /// </summary>
         public static string Resolve(string template, Match match)
         {
@@ -34,14 +48,17 @@ namespace Kodlon.AssetRouter.Logic
                     {
                         sb.Append('{');
                         i += 2;
+
                         continue;
                     }
 
                     var end = template.IndexOf('}', i + 1);
+
                     if (end < 0)
                     {
                         sb.Append(c);
                         i++;
+
                         continue;
                     }
 
@@ -52,13 +69,13 @@ namespace Kodlon.AssetRouter.Logic
                     {
                         if (idx < 0 || idx >= match.Groups.Count)
                         {
-                            Debug.LogWarning($"[AssetRouter] TargetResolver: token '{{{token}}}' — group index {idx} not found in pattern captures. Token kept literally.");
+                            Debug.LogWarning(
+                                $"[AssetRouter] TargetResolver: token '{{{token}}}' — group index {idx} not found in pattern captures. Token kept literally.");
+
                             value = null;
                         }
                         else if (match.Groups[idx].Success)
-                        {
                             value = Sanitize(match.Groups[idx].Value, token);
-                        }
                         else
                         {
                             // Group exists in the pattern but simply didn't participate in this match
@@ -70,19 +87,18 @@ namespace Kodlon.AssetRouter.Logic
                     else
                     {
                         var group = match.Groups[token];
+
                         if (group.Name != token)
                         {
-                            Debug.LogWarning($"[AssetRouter] TargetResolver: token '{{{token}}}' — named group '{token}' not found in pattern captures. Token kept literally.");
+                            Debug.LogWarning(
+                                $"[AssetRouter] TargetResolver: token '{{{token}}}' — named group '{token}' not found in pattern captures. Token kept literally.");
+
                             value = null;
                         }
                         else if (group.Success)
-                        {
                             value = Sanitize(group.Value, token);
-                        }
                         else
-                        {
                             value = "";
-                        }
                     }
 
                     if (value != null)
@@ -105,10 +121,13 @@ namespace Kodlon.AssetRouter.Logic
             }
 
             var raw = sb.ToString();
+
             if (raw.IndexOf("//", StringComparison.Ordinal) < 0)
                 return raw;
+
             while (raw.Contains("//"))
                 raw = raw.Replace("//", "/");
+
             return raw;
         }
 
@@ -123,6 +142,7 @@ namespace Kodlon.AssetRouter.Logic
                 return true;
 
             var i = 0;
+
             while (i < template.Length)
             {
                 var c = template[i];
@@ -132,13 +152,16 @@ namespace Kodlon.AssetRouter.Logic
                     if (i + 1 < template.Length && template[i + 1] == '{')
                     {
                         i += 2;
+
                         continue;
                     }
 
                     var end = template.IndexOf('}', i + 1);
+
                     if (end < 0)
                     {
                         i++;
+
                         continue;
                     }
 
@@ -152,15 +175,18 @@ namespace Kodlon.AssetRouter.Logic
                         if (idx < 0 || idx >= match.Groups.Count)
                         {
                             error = $"token '{{{token}}}' not found in pattern captures";
+
                             return false;
                         }
                     }
                     else
                     {
                         var group = match.Groups[token];
+
                         if (group.Name != token)
                         {
                             error = $"token '{{{token}}}' not found in pattern captures";
+
                             return false;
                         }
                     }
@@ -168,20 +194,13 @@ namespace Kodlon.AssetRouter.Logic
                     i = end + 1;
                 }
                 else if (c == '}' && i + 1 < template.Length && template[i + 1] == '}')
-                {
                     i += 2;
-                }
                 else
-                {
                     i++;
-                }
             }
 
             return true;
         }
-
-        // Characters Windows forbids in a file/folder name (besides the path separators, handled separately).
-        private static readonly char[] InvalidNameChars = { '<', '>', ':', '"', '|', '?', '*' };
 
         private static string Sanitize(string value, string token)
         {
@@ -202,6 +221,7 @@ namespace Kodlon.AssetRouter.Logic
                 if (trimmed == ".." || trimmed == ".")
                 {
                     Debug.LogWarning($"[AssetRouter] TargetResolver: captured value for token '{{{token}}}' contains path traversal — token kept literally.");
+
                     return null;
                 }
 
@@ -211,16 +231,21 @@ namespace Kodlon.AssetRouter.Logic
                 // A leading dot (e.g. capture ".hidden") is stripped too — Unity ignores such folders
                 // outright, so MoveAsset would just fail with a handled warning further down the line.
                 var part = trimmed.Trim('.');
+
                 foreach (var c in InvalidNameChars)
                     part = part.Replace(c.ToString(), "");
 
                 if (part.Length == 0 && rawPart.Length > 0)
                 {
-                    Debug.LogWarning($"[AssetRouter] TargetResolver: captured value for token '{{{token}}}' became empty after removing characters invalid in a Windows folder/file name — token kept literally.");
+                    Debug.LogWarning(
+                        $"[AssetRouter] TargetResolver: captured value for token '{{{token}}}' became empty after removing characters invalid in a Windows folder/file name — token kept literally.");
+
                     return null;
                 }
 
-                if (sb.Length > 0) sb.Append('/');
+                if (sb.Length > 0)
+                    sb.Append('/');
+
                 sb.Append(part);
             }
 

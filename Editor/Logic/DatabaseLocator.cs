@@ -10,14 +10,6 @@ namespace Kodlon.AssetRouter.Logic
         private static bool AmbiguityWarned; // survives InvalidateCache — reset only on domain reload
         private static ImporterSettingsDatabase Cached;
 
-        // Statics are not reset on reload when Domain Reload is disabled — invalidate explicitly.
-        [InitializeOnLoadMethod]
-        private static void RegisterReloadHook()
-        {
-            AssemblyReloadEvents.beforeAssemblyReload -= InvalidateCache;
-            AssemblyReloadEvents.beforeAssemblyReload += InvalidateCache;
-        }
-
         public static ImporterSettingsDatabase FindDatabase(bool logIfAmbiguous = false)
         {
             if (Cached != null)
@@ -49,6 +41,7 @@ namespace Kodlon.AssetRouter.Logic
                     AmbiguityWarned = true;
 
                     var paths = new string[guids.Length];
+
                     for (var i = 0; i < guids.Length; i++)
                         paths[i] = AssetDatabase.GUIDToAssetPath(guids[i]);
 
@@ -69,6 +62,14 @@ namespace Kodlon.AssetRouter.Logic
         {
             Cached = null;
             AlreadySearched = false;
+        }
+
+        // Statics are not reset on reload when Domain Reload is disabled — invalidate explicitly.
+        [InitializeOnLoadMethod]
+        private static void RegisterReloadHook()
+        {
+            AssemblyReloadEvents.beforeAssemblyReload -= InvalidateCache;
+            AssemblyReloadEvents.beforeAssemblyReload += InvalidateCache;
         }
     }
 }

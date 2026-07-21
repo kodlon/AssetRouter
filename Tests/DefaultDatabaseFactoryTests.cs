@@ -1,7 +1,8 @@
-using NUnit.Framework;
+using System.Collections.Generic;
 using System.Linq;
 using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
+using NUnit.Framework;
 using UnityEngine;
 
 namespace Kodlon.AssetRouter.Tests
@@ -12,6 +13,7 @@ namespace Kodlon.AssetRouter.Tests
         public void CreateDefaultRules_ContainsCharacterTexturesRule()
         {
             var rules = DefaultDatabaseFactory.CreateDefaultRules();
+
             try
             {
                 var rule = rules.OfType<ImportRule>().FirstOrDefault(r => r.ruleName == "Character Textures");
@@ -30,6 +32,7 @@ namespace Kodlon.AssetRouter.Tests
         public void CreateDefaultRules_ContainsLocationTexturesRule()
         {
             var rules = DefaultDatabaseFactory.CreateDefaultRules();
+
             try
             {
                 var rule = rules.OfType<ImportRule>().FirstOrDefault(r => r.ruleName == "Location Textures");
@@ -37,25 +40,6 @@ namespace Kodlon.AssetRouter.Tests
                 Assert.AreEqual(PatternMode.Regex, rule.patternMode);
                 Assert.AreEqual(@"^T_Loc_(?<loc>\w+)_.*", rule.pattern);
                 Assert.AreEqual("Assets/Art/Locations/{loc}/", rule.targetFolder);
-            }
-            finally
-            {
-                DestroyActionInstances(rules);
-            }
-        }
-
-        [Test]
-        public void CreateDefaultRules_SpecificRulesBeforeGenericTRule()
-        {
-            var rules = DefaultDatabaseFactory.CreateDefaultRules();
-            var charIdx    = rules.FindIndex(r => r.ruleName == "Character Textures");
-            var locIdx     = rules.FindIndex(r => r.ruleName == "Location Textures");
-            var generalIdx = rules.FindIndex(r => r.ruleName == "General Textures");
-
-            try
-            {
-                Assert.Less(charIdx,    generalIdx, "Character Textures must come before General Textures");
-                Assert.Less(locIdx,     generalIdx, "Location Textures must come before General Textures");
             }
             finally
             {
@@ -75,8 +59,28 @@ namespace Kodlon.AssetRouter.Tests
                 Assert.IsNotNull(rule.postImportActions, "postImportActions must not be null");
                 Assert.AreEqual(1, rule.postImportActions.Count, "General Textures must have exactly one action");
                 Assert.IsNotNull(rule.postImportActions[0], "action must not be null");
+
                 Assert.IsInstanceOf<CreateMaterialFromTextureAction>(rule.postImportActions[0],
                     "action must be CreateMaterialFromTextureAction");
+            }
+            finally
+            {
+                DestroyActionInstances(rules);
+            }
+        }
+
+        [Test]
+        public void CreateDefaultRules_SpecificRulesBeforeGenericTRule()
+        {
+            var rules = DefaultDatabaseFactory.CreateDefaultRules();
+            var charIdx = rules.FindIndex(r => r.ruleName == "Character Textures");
+            var locIdx = rules.FindIndex(r => r.ruleName == "Location Textures");
+            var generalIdx = rules.FindIndex(r => r.ruleName == "General Textures");
+
+            try
+            {
+                Assert.Less(charIdx, generalIdx, "Character Textures must come before General Textures");
+                Assert.Less(locIdx, generalIdx, "Location Textures must come before General Textures");
             }
             finally
             {
@@ -95,11 +99,14 @@ namespace Kodlon.AssetRouter.Tests
             CollectionAssert.Contains(extensions, ".obj", ".obj is required for static-mesh workflows.");
         }
 
-        private static void DestroyActionInstances(System.Collections.Generic.List<BaseImportRule> rules)
+        private static void DestroyActionInstances(List<BaseImportRule> rules)
         {
             foreach (var rule in rules.OfType<ImportRule>())
+            {
                 foreach (var action in rule.postImportActions)
-                    if (action != null) Object.DestroyImmediate(action);
+                    if (action != null)
+                        Object.DestroyImmediate(action);
+            }
         }
     }
 }

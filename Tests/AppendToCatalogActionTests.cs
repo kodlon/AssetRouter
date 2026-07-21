@@ -20,18 +20,19 @@ namespace Kodlon.AssetRouter.Tests
         {
             // ScriptableObject.CreateInstance is the correct way to create action instances in tests.
             // Do NOT use new() — ScriptableObjects require Unity's lifecycle.
-            _action   = ScriptableObject.CreateInstance<AppendToCatalogAction>();
-            _catalog  = ScriptableObject.CreateInstance<AssetCatalog>();
+            _action = ScriptableObject.CreateInstance<AppendToCatalogAction>();
+            _catalog = ScriptableObject.CreateInstance<AssetCatalog>();
             _database = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
         }
 
-        [TearDown]
-        public void TearDown()
+        [Test]
+        public void CanRunOn_ReturnsFalse_WhenAssetIsNull()
         {
-            // Always destroy ScriptableObject instances created in tests to avoid leaks.
-            Object.DestroyImmediate(_action);
-            Object.DestroyImmediate(_catalog);
-            Object.DestroyImmediate(_database);
+            _action.catalog = _catalog;
+
+            var result = _action.CanRunOn(null, MakeContext());
+
+            Assert.IsFalse(result);
         }
 
         // --- CanRunOn tests ---
@@ -42,16 +43,6 @@ namespace Kodlon.AssetRouter.Tests
             _action.catalog = null;
 
             var result = _action.CanRunOn(Texture2D.whiteTexture, MakeContext());
-
-            Assert.IsFalse(result);
-        }
-
-        [Test]
-        public void CanRunOn_ReturnsFalse_WhenAssetIsNull()
-        {
-            _action.catalog = _catalog;
-
-            var result = _action.CanRunOn(null, MakeContext());
 
             Assert.IsFalse(result);
         }
@@ -103,15 +94,26 @@ namespace Kodlon.AssetRouter.Tests
             Assert.DoesNotThrow(() => _action.Execute(Texture2D.whiteTexture, MakeContext()));
         }
 
+        [TearDown]
+        public void TearDown()
+        {
+            // Always destroy ScriptableObject instances created in tests to avoid leaks.
+            Object.DestroyImmediate(_action);
+            Object.DestroyImmediate(_catalog);
+            Object.DestroyImmediate(_database);
+        }
+
         // --- Helper ---
 
         // Build a minimal context for tests. Provide a custom path when the action uses ctx.AssetPath.
-        private AssetImportContext MakeContext(string assetPath = "Assets/Art/T_Rock.png")
-            => new AssetImportContext(
-                assetPath: assetPath,
-                rule: new ImportRule { ruleName = "Test Rule", targetFolder = "Assets/Art/" },
-                database: _database,
-                logger: Debug.unityLogger
-            );
+        private AssetImportContext MakeContext(string assetPath = "Assets/Art/T_Rock.png") =>
+            new(assetPath,
+                new ImportRule
+                {
+                    ruleName = "Test Rule",
+                    targetFolder = "Assets/Art/"
+                },
+                _database,
+                Debug.unityLogger);
     }
 }

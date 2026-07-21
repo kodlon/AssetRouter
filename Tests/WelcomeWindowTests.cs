@@ -1,7 +1,7 @@
+using Kodlon.AssetRouter.View;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
-using Kodlon.AssetRouter.View;
 
 namespace Kodlon.AssetRouter.Tests
 {

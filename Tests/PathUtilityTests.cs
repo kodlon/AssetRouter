@@ -1,42 +1,22 @@
 using System.IO;
-using NUnit.Framework;
 using Kodlon.AssetRouter.Logic;
+using NUnit.Framework;
 using UnityEngine;
 
 namespace Kodlon.AssetRouter.Tests
 {
     public class PathUtilityTests
     {
-        // ── NormalizeAssetPath ────────────────────────────────────────────────────
-
         [Test]
-        public void NormalizeAssetPath_Null_ReturnsEmpty()
+        public void IsUnderFolder_CaseInsensitive()
         {
-            Assert.AreEqual(string.Empty, PathUtility.NormalizeAssetPath(null));
+            Assert.IsTrue(PathUtility.IsUnderFolder("Assets/PLUGINS/x.png", "Assets/Plugins"));
         }
 
         [Test]
-        public void NormalizeAssetPath_Empty_ReturnsEmpty()
+        public void IsUnderFolder_DeepChild_ReturnsTrue()
         {
-            Assert.AreEqual(string.Empty, PathUtility.NormalizeAssetPath(""));
-        }
-
-        [Test]
-        public void NormalizeAssetPath_BackslashSeparators_AreConvertedToForwardSlash()
-        {
-            Assert.AreEqual("Assets/Sub/file.png", PathUtility.NormalizeAssetPath(@"Assets\Sub\file.png"));
-        }
-
-        [Test]
-        public void NormalizeAssetPath_TrailingSlash_IsRemoved()
-        {
-            Assert.AreEqual("Assets/Sub", PathUtility.NormalizeAssetPath("Assets/Sub/"));
-        }
-
-        [Test]
-        public void NormalizeAssetPath_AlreadyNormal_IsUnchanged()
-        {
-            Assert.AreEqual("Assets/Sub/file.png", PathUtility.NormalizeAssetPath("Assets/Sub/file.png"));
+            Assert.IsTrue(PathUtility.IsUnderFolder("Assets/Plugins/Deep/Nested/x.png", "Assets/Plugins"));
         }
 
         // ── IsUnderFolder ─────────────────────────────────────────────────────────
@@ -48,21 +28,17 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void IsUnderFolder_DeepChild_ReturnsTrue()
-        {
-            Assert.IsTrue(PathUtility.IsUnderFolder("Assets/Plugins/Deep/Nested/x.png", "Assets/Plugins"));
-        }
-
-        [Test]
         public void IsUnderFolder_FolderWithTrailingSlash_NormalisedCorrectly()
         {
             Assert.IsTrue(PathUtility.IsUnderFolder("Assets/Plugins/x.png", "Assets/Plugins/"));
         }
 
         [Test]
-        public void IsUnderFolder_UnrelatedFolder_ReturnsFalse()
+        public void IsUnderFolder_PluginsCustom_NotUnderPlugins()
         {
-            Assert.IsFalse(PathUtility.IsUnderFolder("Assets/Art/x.png", "Assets/Plugins"));
+            // Concrete regression: "Assets/Plugins" is an ignored folder; assets in
+            // "Assets/PluginsCustom" must not be considered ignored.
+            Assert.IsFalse(PathUtility.IsUnderFolder("Assets/PluginsCustom/x.png", "Assets/Plugins"));
         }
 
         [Test]
@@ -75,17 +51,41 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void IsUnderFolder_PluginsCustom_NotUnderPlugins()
+        public void IsUnderFolder_UnrelatedFolder_ReturnsFalse()
         {
-            // Concrete regression: "Assets/Plugins" is an ignored folder; assets in
-            // "Assets/PluginsCustom" must not be considered ignored.
-            Assert.IsFalse(PathUtility.IsUnderFolder("Assets/PluginsCustom/x.png", "Assets/Plugins"));
+            Assert.IsFalse(PathUtility.IsUnderFolder("Assets/Art/x.png", "Assets/Plugins"));
         }
 
         [Test]
-        public void IsUnderFolder_CaseInsensitive()
+        public void NormalizeAssetPath_AlreadyNormal_IsUnchanged()
         {
-            Assert.IsTrue(PathUtility.IsUnderFolder("Assets/PLUGINS/x.png", "Assets/Plugins"));
+            Assert.AreEqual("Assets/Sub/file.png", PathUtility.NormalizeAssetPath("Assets/Sub/file.png"));
+        }
+
+        [Test]
+        public void NormalizeAssetPath_BackslashSeparators_AreConvertedToForwardSlash()
+        {
+            Assert.AreEqual("Assets/Sub/file.png", PathUtility.NormalizeAssetPath(@"Assets\Sub\file.png"));
+        }
+
+        [Test]
+        public void NormalizeAssetPath_Empty_ReturnsEmpty()
+        {
+            Assert.AreEqual(string.Empty, PathUtility.NormalizeAssetPath(""));
+        }
+
+        // ── NormalizeAssetPath ────────────────────────────────────────────────────
+
+        [Test]
+        public void NormalizeAssetPath_Null_ReturnsEmpty()
+        {
+            Assert.AreEqual(string.Empty, PathUtility.NormalizeAssetPath(null));
+        }
+
+        [Test]
+        public void NormalizeAssetPath_TrailingSlash_IsRemoved()
+        {
+            Assert.AreEqual("Assets/Sub", PathUtility.NormalizeAssetPath("Assets/Sub/"));
         }
 
         // ── ToAbsolute ────────────────────────────────────────────────────────────
@@ -98,8 +98,7 @@ namespace Kodlon.AssetRouter.Tests
             // asset path argument. Now uses Path.GetDirectoryName(Application.dataPath) instead.
             var result = PathUtility.ToAbsolute("Assets/Assets/file.png");
 
-            var expected = Path.Combine(
-                Path.GetDirectoryName(Application.dataPath)!,
+            var expected = Path.Combine(Path.GetDirectoryName(Application.dataPath)!,
                 "Assets", "Assets", "file.png");
 
             Assert.AreEqual(expected, result);

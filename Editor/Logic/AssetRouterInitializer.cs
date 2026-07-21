@@ -7,12 +7,13 @@ namespace Kodlon.AssetRouter.Logic
     {
         static AssetRouterInitializer()
         {
-            EditorApplication.delayCall        -= Initialize;
-            EditorApplication.delayCall        += Initialize;
+            EditorApplication.delayCall -= Initialize;
+            EditorApplication.delayCall += Initialize;
+
             // Also run the migrator when the project changes (e.g. a new DB is created
             // while Domain Reload is disabled and the static constructor doesn't re-fire).
-            EditorApplication.projectChanged   -= RunMigratorIfNeeded;
-            EditorApplication.projectChanged   += RunMigratorIfNeeded;
+            EditorApplication.projectChanged -= RunMigratorIfNeeded;
+            EditorApplication.projectChanged += RunMigratorIfNeeded;
         }
 
         private static void Initialize()

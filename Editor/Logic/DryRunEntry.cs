@@ -5,22 +5,23 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal sealed class DryRunEntry
     {
+        public readonly bool AlreadyInPlace;
         public readonly string AssetPath;
         public readonly BaseImportRule MatchedRule;
         public readonly string TargetPath;
-        public readonly bool AlreadyInPlace;
         public bool Selected;
 
-        public string FileName     => Path.GetFileName(AssetPath);
         public string CurrentFolder => PathUtility.NormalizeAssetPath(Path.GetDirectoryName(AssetPath) ?? "");
+
+        public string FileName => Path.GetFileName(AssetPath);
 
         public DryRunEntry(string assetPath, BaseImportRule rule, string targetPath, bool alreadyInPlace)
         {
-            AssetPath    = assetPath;
-            MatchedRule  = rule;
-            TargetPath   = targetPath;
+            AssetPath = assetPath;
+            MatchedRule = rule;
+            TargetPath = targetPath;
             AlreadyInPlace = alreadyInPlace;
-            Selected     = rule != null && !alreadyInPlace;
+            Selected = rule != null && !alreadyInPlace;
         }
     }
 }

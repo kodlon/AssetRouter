@@ -1,8 +1,8 @@
-using NUnit.Framework;
 using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
 using Kodlon.AssetRouter.Logic;
 using Newtonsoft.Json.Linq;
+using NUnit.Framework;
 using UnityEngine;
 
 namespace Kodlon.AssetRouter.Tests
@@ -15,28 +15,11 @@ namespace Kodlon.AssetRouter.Tests
         public void SetUp()
         {
             _db = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
+
             // CreateInstance calls Reset() which populates defaults — clear explicitly.
             _db.rules.Clear();
             _db.monitoredExtensions.Clear();
             _db.ignoredFolders.Clear();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            Object.DestroyImmediate(_db);
-        }
-
-        [Test]
-        public void Export_ProducesValidJson()
-        {
-            _db.rules.Add(new ImportRule { ruleName = "Textures", pattern = "T_*", targetFolder = "Assets/Art" });
-
-            var json = JsonExporter.Export(_db);
-
-            Assert.IsNotNull(json);
-            Assert.IsNotEmpty(json);
-            Assert.DoesNotThrow(() => JObject.Parse(json));
         }
 
         [Test]
@@ -53,9 +36,118 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
+        public void Export_ProducesValidJson()
+        {
+            _db.rules.Add(new ImportRule
+            {
+                ruleName = "Textures",
+                pattern = "T_*",
+                targetFolder = "Assets/Art"
+            });
+
+            var json = JsonExporter.Export(_db);
+
+            Assert.IsNotNull(json);
+            Assert.IsNotEmpty(json);
+            Assert.DoesNotThrow(() => JObject.Parse(json));
+        }
+
+        [Test]
+        public void Export_RegexRule_PreservesPatternMode()
+        {
+            _db.rules.Add(new ImportRule
+            {
+                ruleName = "RegexRule",
+                pattern = @"^T_.+\.png$",
+                patternMode = PatternMode.Regex
+            });
+
+            var json = JsonExporter.Export(_db);
+            var db2 = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
+            db2.rules.Clear();
+            JsonImporter.Import(db2, json);
+
+            var restored = db2.rules[0] as ImportRule;
+            Assert.AreEqual(PatternMode.Regex, restored?.patternMode);
+            Assert.AreEqual(@"^T_.+\.png$", restored?.pattern);
+
+            Object.DestroyImmediate(db2);
+        }
+
+        [Test]
+        public void ExportRule_PreservesActionTypeAndValueFields()
+        {
+            var pivotAction = ScriptableObject.CreateInstance<SetPivotAction>();
+            pivotAction.pivot = new Vector2(0.25f, 0.75f);
+
+            var rule = new ImportRule
+            {
+                ruleName = "PivotRule",
+                pattern = "T_*"
+            };
+
+            rule.postImportActions.Add(pivotAction);
+
+            var json = JsonExporter.ExportRule(rule);
+            var ok = JsonImporter.TryImportRuleFromJson(json, out var imported, out _);
+
+            Assert.IsTrue(ok);
+            Assert.AreEqual(1, imported.postImportActions.Count);
+            var restored = imported.postImportActions[0] as SetPivotAction;
+            Assert.IsNotNull(restored);
+            Assert.AreEqual(new Vector2(0.25f, 0.75f), restored.pivot);
+
+            Object.DestroyImmediate(pivotAction);
+            Object.DestroyImmediate(restored);
+        }
+
+        [Test]
+        public void ExportRule_ThenImportRule_PreservesFields()
+        {
+            var rule = new ImportRule
+            {
+                ruleName = "Textures",
+                isEnabled = false,
+                pattern = "T_*_D.png",
+                patternMode = PatternMode.Regex,
+                matchAgainstFullPath = true,
+                scopeFolder = "Assets/Raw/",
+                targetFolder = "Assets/Art/Textures/"
+            };
+
+            var json = JsonExporter.ExportRule(rule);
+            var ok = JsonImporter.TryImportRuleFromJson(json, out var imported, out _);
+
+            Assert.IsTrue(ok);
+            Assert.AreEqual("Textures", imported.ruleName);
+            Assert.IsFalse(imported.isEnabled);
+            Assert.AreEqual("T_*_D.png", imported.pattern);
+            Assert.AreEqual(PatternMode.Regex, imported.patternMode);
+            Assert.IsTrue(imported.matchAgainstFullPath);
+            Assert.AreEqual("Assets/Raw/", imported.scopeFolder);
+            Assert.AreEqual("Assets/Art/Textures/", imported.targetFolder);
+        }
+
+        [Test]
+        public void ExportRule_WithNullPreset_WritesNullPresetField()
+        {
+            var rule = new ImportRule
+            {
+                ruleName = "NoPreset",
+                pattern = "*.png"
+            };
+
+            var json = JsonExporter.ExportRule(rule);
+            var jObj = JObject.Parse(json);
+
+            Assert.IsTrue(jObj.ContainsKey("preset"));
+            Assert.AreEqual(JTokenType.Null, jObj["preset"].Type);
+        }
+
+        [Test]
         public void Import_RestoresGeneralSettings()
         {
-            _db.enableAutoImport        = true;
+            _db.enableAutoImport = true;
             _db.showPopupForUnknownFiles = false;
             var json = JsonExporter.Export(_db);
 
@@ -63,7 +155,7 @@ namespace Kodlon.AssetRouter.Tests
             db2.rules.Clear();
             JsonImporter.Import(db2, json);
 
-            Assert.AreEqual(true,  db2.enableAutoImport);
+            Assert.AreEqual(true, db2.enableAutoImport);
             Assert.AreEqual(false, db2.showPopupForUnknownFiles);
 
             Object.DestroyImmediate(db2);
@@ -89,39 +181,6 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void RoundTrip_PreservesRuleFields()
-        {
-            var rule = new ImportRule
-            {
-                ruleName             = "Textures",
-                isEnabled            = true,
-                pattern              = "T_*",
-                patternMode          = PatternMode.Glob,
-                matchAgainstFullPath = false,
-                targetFolder         = "Assets/Art/Textures"
-            };
-            _db.rules.Add(rule);
-
-            var json = JsonExporter.Export(_db);
-
-            var db2 = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
-            db2.rules.Clear();
-            JsonImporter.Import(db2, json);
-
-            Assert.AreEqual(1, db2.rules.Count);
-            var restored = db2.rules[0] as ImportRule;
-            Assert.IsNotNull(restored);
-            Assert.AreEqual("Textures",          restored.ruleName);
-            Assert.AreEqual("T_*",               restored.pattern);
-            Assert.AreEqual(PatternMode.Glob,    restored.patternMode);
-            Assert.AreEqual("Assets/Art/Textures", restored.targetFolder);
-            Assert.IsTrue(restored.isEnabled);
-            Assert.IsFalse(restored.matchAgainstFullPath);
-
-            Object.DestroyImmediate(db2);
-        }
-
-        [Test]
         public void RoundTrip_EmptyRuleList_ProducesEmptyRuleList()
         {
             var json = JsonExporter.Export(_db);
@@ -138,9 +197,23 @@ namespace Kodlon.AssetRouter.Tests
         [Test]
         public void RoundTrip_MultipleRules_PreservesOrder()
         {
-            _db.rules.Add(new ImportRule { ruleName = "A", pattern = "A_*" });
-            _db.rules.Add(new ImportRule { ruleName = "B", pattern = "B_*" });
-            _db.rules.Add(new ImportRule { ruleName = "C", pattern = "C_*" });
+            _db.rules.Add(new ImportRule
+            {
+                ruleName = "A",
+                pattern = "A_*"
+            });
+
+            _db.rules.Add(new ImportRule
+            {
+                ruleName = "B",
+                pattern = "B_*"
+            });
+
+            _db.rules.Add(new ImportRule
+            {
+                ruleName = "C",
+                pattern = "C_*"
+            });
 
             var json = JsonExporter.Export(_db);
 
@@ -157,52 +230,53 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void ExportRule_ThenImportRule_PreservesFields()
+        public void RoundTrip_PreservesRuleFields()
         {
             var rule = new ImportRule
             {
-                ruleName             = "Textures",
-                isEnabled            = false,
-                pattern              = "T_*_D.png",
-                patternMode          = PatternMode.Regex,
-                matchAgainstFullPath = true,
-                scopeFolder          = "Assets/Raw/",
-                targetFolder         = "Assets/Art/Textures/"
+                ruleName = "Textures",
+                isEnabled = true,
+                pattern = "T_*",
+                patternMode = PatternMode.Glob,
+                matchAgainstFullPath = false,
+                targetFolder = "Assets/Art/Textures"
             };
 
-            var json = JsonExporter.ExportRule(rule);
-            var ok   = JsonImporter.TryImportRuleFromJson(json, out var imported, out _);
+            _db.rules.Add(rule);
 
-            Assert.IsTrue(ok);
-            Assert.AreEqual("Textures",             imported.ruleName);
-            Assert.IsFalse(imported.isEnabled);
-            Assert.AreEqual("T_*_D.png",            imported.pattern);
-            Assert.AreEqual(PatternMode.Regex,      imported.patternMode);
-            Assert.IsTrue(imported.matchAgainstFullPath);
-            Assert.AreEqual("Assets/Raw/",          imported.scopeFolder);
-            Assert.AreEqual("Assets/Art/Textures/", imported.targetFolder);
+            var json = JsonExporter.Export(_db);
+
+            var db2 = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
+            db2.rules.Clear();
+            JsonImporter.Import(db2, json);
+
+            Assert.AreEqual(1, db2.rules.Count);
+            var restored = db2.rules[0] as ImportRule;
+            Assert.IsNotNull(restored);
+            Assert.AreEqual("Textures", restored.ruleName);
+            Assert.AreEqual("T_*", restored.pattern);
+            Assert.AreEqual(PatternMode.Glob, restored.patternMode);
+            Assert.AreEqual("Assets/Art/Textures", restored.targetFolder);
+            Assert.IsTrue(restored.isEnabled);
+            Assert.IsFalse(restored.matchAgainstFullPath);
+
+            Object.DestroyImmediate(db2);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            Object.DestroyImmediate(_db);
         }
 
         [Test]
-        public void ExportRule_PreservesActionTypeAndValueFields()
+        public void TryImportRuleFromJson_DatabaseJson_ReturnsFalseWithError()
         {
-            var pivotAction = ScriptableObject.CreateInstance<SetPivotAction>();
-            pivotAction.pivot = new Vector2(0.25f, 0.75f);
+            var dbJson = JsonExporter.Export(_db);
+            var ok = JsonImporter.TryImportRuleFromJson(dbJson, out _, out var err);
 
-            var rule = new ImportRule { ruleName = "PivotRule", pattern = "T_*" };
-            rule.postImportActions.Add(pivotAction);
-
-            var json = JsonExporter.ExportRule(rule);
-            var ok   = JsonImporter.TryImportRuleFromJson(json, out var imported, out _);
-
-            Assert.IsTrue(ok);
-            Assert.AreEqual(1, imported.postImportActions.Count);
-            var restored = imported.postImportActions[0] as SetPivotAction;
-            Assert.IsNotNull(restored);
-            Assert.AreEqual(new Vector2(0.25f, 0.75f), restored.pivot);
-
-            Object.DestroyImmediate(pivotAction);
-            Object.DestroyImmediate(restored);
+            Assert.IsFalse(ok);
+            Assert.IsNotEmpty(err);
         }
 
         [Test]
@@ -212,28 +286,6 @@ namespace Kodlon.AssetRouter.Tests
 
             Assert.IsFalse(ok);
             Assert.IsNotEmpty(err);
-        }
-
-        [Test]
-        public void TryImportRuleFromJson_DatabaseJson_ReturnsFalseWithError()
-        {
-            var dbJson = JsonExporter.Export(_db);
-            var ok     = JsonImporter.TryImportRuleFromJson(dbJson, out _, out var err);
-
-            Assert.IsFalse(ok);
-            Assert.IsNotEmpty(err);
-        }
-
-        [Test]
-        public void ExportRule_WithNullPreset_WritesNullPresetField()
-        {
-            var rule = new ImportRule { ruleName = "NoPreset", pattern = "*.png" };
-
-            var json = JsonExporter.ExportRule(rule);
-            var jObj = JObject.Parse(json);
-
-            Assert.IsTrue(jObj.ContainsKey("preset"));
-            Assert.AreEqual(JTokenType.Null, jObj["preset"].Type);
         }
 
         [Test]
@@ -269,28 +321,6 @@ namespace Kodlon.AssetRouter.Tests
             Assert.IsNull(action.catalog);
 
             Object.DestroyImmediate(imported.postImportActions[0]);
-        }
-
-        [Test]
-        public void Export_RegexRule_PreservesPatternMode()
-        {
-            _db.rules.Add(new ImportRule
-            {
-                ruleName    = "RegexRule",
-                pattern     = @"^T_.+\.png$",
-                patternMode = PatternMode.Regex
-            });
-
-            var json = JsonExporter.Export(_db);
-            var db2  = ScriptableObject.CreateInstance<ImporterSettingsDatabase>();
-            db2.rules.Clear();
-            JsonImporter.Import(db2, json);
-
-            var restored = db2.rules[0] as ImportRule;
-            Assert.AreEqual(PatternMode.Regex, restored?.patternMode);
-            Assert.AreEqual(@"^T_.+\.png$",   restored?.pattern);
-
-            Object.DestroyImmediate(db2);
         }
     }
 }
