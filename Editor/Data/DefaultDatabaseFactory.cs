@@ -48,7 +48,7 @@ namespace Kodlon.AssetRouter.Data
 
         public static List<string> CreateMonitoredExtensions() => new()
         {
-            ".fbx", ".obj", ".dae", ".3ds",
+            ".fbx", ".obj",
             ".png", ".jpg", ".jpeg", ".tga", ".psd", ".tiff", ".exr", ".hdr",
             ".wav", ".mp3", ".ogg", ".aif", ".aiff"
         };
@@ -64,9 +64,9 @@ namespace Kodlon.AssetRouter.Data
 
         public static List<BaseImportRule> CreateDefaultRules()
         {
-            var pivotAction = ScriptableObject.CreateInstance<SetPivotAction>();
-            pivotAction.name = "Set Pivot";
-            pivotAction.pivot = new Vector2(0.5f, 0.5f);
+            // baseMaterial left null → resolves to the active pipeline's default at import time.
+            var materialAction = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
+            materialAction.name = "Create Material From Texture";
 
             return new List<BaseImportRule>
             {
@@ -76,8 +76,7 @@ namespace Kodlon.AssetRouter.Data
                     patternMode = PatternMode.Glob,
                     pattern = "UI_*",
                     targetFolder = "Assets/Art/UI/",
-                    preset = LoadPreset("TextureImporter_UI"),
-                    postImportActions = new List<AssetImportActionAsset> { pivotAction }
+                    preset = LoadPreset("TextureImporter_UI")
                 },
                 new ImportRule
                 {
@@ -101,7 +100,8 @@ namespace Kodlon.AssetRouter.Data
                     patternMode = PatternMode.Glob,
                     pattern = "T_*",
                     targetFolder = "Assets/Art/Textures/",
-                    preset = LoadPreset("TextureImporter")
+                    preset = LoadPreset("TextureImporter"),
+                    postImportActions = new List<AssetImportActionAsset> { materialAction }
                 },
                 new ImportRule
                 {

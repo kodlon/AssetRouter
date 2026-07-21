@@ -52,13 +52,15 @@ namespace Kodlon.AssetRouter.Tests
         }
 
         [Test]
-        public void CreateMaterialFromTexture_CanRunOn_NullBaseMaterial_ReturnsFalse()
+        public void CreateMaterialFromTexture_CanRunOn_NullBaseMaterial_UsesPipelineDefaultFallback()
         {
+            // Built-in RP Default-Material is always available in the Editor, so the null-baseMaterial
+            // path always resolves.
             var action = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
             var tex    = new Texture2D(4, 4);
             var ctx    = new AssetImportContext("Assets/T_Rock.png", null, null);
 
-            Assert.IsFalse(action.CanRunOn(tex, ctx));
+            Assert.IsTrue(action.CanRunOn(tex, ctx));
 
             Object.DestroyImmediate(tex);
             Object.DestroyImmediate(action);
@@ -298,6 +300,34 @@ namespace Kodlon.AssetRouter.Tests
                 Assert.IsNotNull(
                     AssetDatabase.LoadAssetAtPath<Material>(SubFolder + "/T_Char_Hero_D_Mat.mat"),
                     "Output must be in the resolved subfolder, not in a token-named folder.");
+            }
+            finally
+            {
+                Object.DestroyImmediate(texture);
+                Object.DestroyImmediate(baseMat);
+                Object.DestroyImmediate(action);
+            }
+        }
+
+        [Test]
+        public void CreateMaterialFromTexture_RelativeOutputFolder_OutputInSubfolderOfAsset()
+        {
+            var rule    = new ImportRule { targetFolder = TokenTarget };
+            var ctx     = new AssetImportContext(FakeAsset, rule, null);
+            var baseMat = new Material(Shader.Find("Sprites/Default"));
+            var texture = new Texture2D(4, 4);
+            var action  = ScriptableObject.CreateInstance<CreateMaterialFromTextureAction>();
+            action.baseMaterial      = baseMat;
+            action.outputFolder      = "Materials";
+            action.namePattern       = "{assetName}_Mat";
+            action.overwriteExisting = true;
+
+            try
+            {
+                action.Execute(texture, ctx);
+                Assert.IsNotNull(
+                    AssetDatabase.LoadAssetAtPath<Material>(SubFolder + "/Materials/T_Char_Hero_D_Mat.mat"),
+                    "Relative outputFolder must resolve as a subfolder of the imported texture's folder.");
             }
             finally
             {

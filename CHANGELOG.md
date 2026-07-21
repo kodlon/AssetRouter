@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`CreateMaterialFromTextureAction` — pipeline-default fallback.** When `baseMaterial` is null the action now resolves to the active SRP's `RenderPipelineAsset.defaultMaterial` (URP/HDRP) or the Built-in RP `Default-Material`, so the default `General Textures` rule produces a `.mat` out of the box without manual configuration. Texture assignment also falls back from the configured `textureProperty` to `Material.mainTexture` when the property isn't on the shader — makes `_MainTex` (Standard) and `_BaseMap` (URP Lit) work with the same default.
+- **`CreateMaterialFromTextureAction.outputFolder` accepts relative paths.** Absolute (`Assets/...`) still works as before; a relative value like `Materials` resolves as a subfolder of the imported texture's folder. Default is now `Materials`, so materials group under `TextureFolder/Materials/` instead of being scattered next to textures.
+- **Default database — `General Textures` (`T_*`) now runs `CreateMaterialFromTextureAction`.** Dropping a `T_*.png` into the project creates a `Materials/T_*_Mat.mat` next to it automatically.
 - Undo cleans up assets and folders created by import actions (materials, prefabs, SOs, tile-palette entries). New `IArtifactSink` + `ArtifactCollector`; the 4 built-in Create actions and `PathUtility.EnsureFolderExists` feed into it. Log schema bumped to v2 with `createdAssets` / `createdFolders`; v1 files still load.
 - Undo now writes itself to the operation log with `source = "Undo"` (audit trail + de-facto redo when clicked again).
 - Recycle folder `Assets/_AssetRouterRecycle` — Undo of root-drop imports moves assets here instead of dumping them back at `Assets/` root. Files originally in a subfolder still restore in place.
@@ -24,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - Diagnostic Window — duplicated History, only worked while open, cleared on every assembly reload. A proper debug view is deferred.
+- **Legacy model formats from default monitored extensions.** `.3ds` and `.dae` were dropped; `.fbx` and `.obj` remain. The removed formats are effectively dead in modern Unity pipelines (`.3ds` is 30+ years old; `.dae`/Collada silently drops animation data). Users who need them can still add the extension back via the Settings window.
+- **`SetPivotAction` from default `UI Textures` rule.** Pivot on a full-image sprite is a no-op unless the sprite is set to `Custom` alignment first — kept the action in the codebase for users who need it, but out of defaults so a fresh database doesn't ship with a rule that silently does nothing.
 
 ### Added
 - **Clear Rule Statistics menu item.** `Tools > Asset Router > Clear Rule Statistics` resets the
