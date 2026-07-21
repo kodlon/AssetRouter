@@ -1,18 +1,12 @@
-// This file is a template for testing custom Asset Router actions.
-// Copy it, rename it to <YourActionName>Tests.cs, and replace AppendToCatalogAction
-// with your own action class.
-//
-// See Documentation~/testing-your-actions.md for the full guide.
-
 using Kodlon.AssetRouter.Actions;
 using Kodlon.AssetRouter.Data;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace Kodlon.AssetRouter.Tests.Actions
+namespace Kodlon.AssetRouter.Tests
 {
     [TestFixture]
-    public class _ExampleActionTest
+    public class AppendToCatalogActionTests
     {
         // The action under test. Created fresh for each test.
         private AppendToCatalogAction _action;

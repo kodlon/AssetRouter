@@ -342,7 +342,7 @@ These settings are stored per-database.
 The list of file extensions that Asset Router watches. Only files with a matching extension pass
 through the rule-matching logic. All other files are ignored regardless of name.
 
-Default extensions: `.fbx .obj .dae .3ds .png .jpg .jpeg .tga .psd .tiff .exr .hdr .wav .mp3 .ogg .aif .aiff`
+Default extensions: `.fbx .obj .png .jpg .jpeg .tga .psd .tiff .exr .hdr .wav .mp3 .ogg .aif .aiff`
 
 Each entry must include the dot.
 
@@ -361,17 +361,18 @@ Each entry must start with `Assets/`.
 
 The database created on first load contains six rules. Character Textures and Location Textures
 use Path Templating (see [Path Templating](#path-templating)) and demonstrate routing to per-asset
-subfolders. UI Textures carries a `Set Pivot` post-import action as a working example of the
-actions pipeline.
+subfolders. General Textures carries a `Create Material From Texture` post-import action as a
+working example of the actions pipeline — dropping a `T_*.png` produces a `Materials/T_*_Mat.mat`
+next to the texture automatically.
 
-| Rule Name | Pattern | Mode | Target Folder | Preset |
-|-----------|---------|------|---------------|--------|
-| UI Textures | `UI_*` | Glob | `Assets/Art/UI/` | TextureImporter_UI |
-| Character Textures | `T_Char_*_*` | Glob | `Assets/Art/Characters/{1}/` | TextureImporter |
-| Location Textures | `^T_Loc_(?<loc>\w+)_.*` | Regex | `Assets/Art/Locations/{loc}/` | TextureImporter |
-| General Textures | `T_*` | Glob | `Assets/Art/Textures/` | TextureImporter |
-| Sound Effects | `SFX_*` | Glob | `Assets/Audio/SFX/` | AudioImporter |
-| Music | `Mus_*` | Glob | `Assets/Audio/Music/` | AudioImporter_Music |
+| Rule Name | Pattern | Mode | Target Folder | Preset | Post-Import Action |
+|-----------|---------|------|---------------|--------|-------------------|
+| UI Textures | `UI_*` | Glob | `Assets/Art/UI/` | TextureImporter_UI | — |
+| Character Textures | `T_Char_*_*` | Glob | `Assets/Art/Characters/{1}/` | TextureImporter | — |
+| Location Textures | `^T_Loc_(?<loc>\w+)_.*` | Regex | `Assets/Art/Locations/{loc}/` | TextureImporter | — |
+| General Textures | `T_*` | Glob | `Assets/Art/Textures/` | TextureImporter | Create Material From Texture |
+| Sound Effects | `SFX_*` | Glob | `Assets/Audio/SFX/` | AudioImporter | — |
+| Music | `Mus_*` | Glob | `Assets/Audio/Music/` | AudioImporter_Music | — |
 
 These are starting points. Rename, reorder, or delete them as needed.
 

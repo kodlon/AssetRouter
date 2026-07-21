@@ -17,9 +17,15 @@ Sets the sprite pivot on a texture asset and re-imports it.
 `CanRunOn` checks that the asset's `TextureImporter` exists and that `textureType == Sprite`.
 If the importer is not a texture or the texture type is not Sprite, the action is skipped.
 
-`Execute` reads the current `TextureImporterSettings`, compares `spritePivot` to the configured
-value, and returns early if they already match. When a change is needed, it writes the new settings
-back and calls `AssetDatabase.ImportAsset(path, ForceUpdate)` to apply them.
+`Execute` first checks the sprite import mode. On `SpriteImportMode.Multiple` it logs a warning
+and returns — per-sprite pivots must be set in the Sprite Editor, not on the top-level importer.
+
+Otherwise it reads the current `TextureImporterSettings` and returns early when
+`spriteAlignment == Custom` and `spritePivot` already matches the configured value. When a change
+is needed, it sets `spriteAlignment = Custom` (a pivot only takes visual effect under Custom
+alignment — writing it without this leaves the default Center alignment in place and the pivot is
+silently ignored), writes `spritePivot`, and calls
+`AssetDatabase.ImportAsset(path, ForceUpdate)` to apply the changes.
 
 ## Idempotency
 
@@ -28,15 +34,17 @@ the same configuration produces no second re-import.
 
 ## Edge cases
 
-The action only checks that `textureType == Sprite`. If the texture is Sprite type but sprite mode
-is Multiple and sub-sprites have individual pivots, those sub-sprite pivots are not affected.
-This action sets only the top-level `spritePivot` field.
+**Multiple sprite mode:** the action logs a warning and skips the asset. Sheets with multiple
+sub-sprites need per-sprite pivots set in the Sprite Editor, and there is no equivalent of the
+top-level `spritePivot` field for Multiple mode.
 
-If you set a pivot outside the (0, 0) to (1, 1) range, Unity accepts it (custom pivot modes allow
-this) but the behavior in physics and animation depends on your project setup.
+**Custom pivot outside (0, 0)..(1, 1):** Unity accepts values outside the normalised range, but the
+behavior in physics and animation depends on your project setup. Prefer values inside the range
+unless you specifically need an out-of-bounds pivot.
 
 ## Example
 
-A rule named "UI Textures" matches `UI_*`, target folder `Assets/Art/UI/`, preset `TextureImporter_UI`.
-Adding `SetPivotAction` with pivot (0.5, 0.5) ensures every UI sprite has center pivot on import,
-even when artists export them with a different default.
+A rule for gameplay sprites matches `Sprite_*`, target `Assets/Art/Sprites/`, preset
+`TextureImporter_Sprite` (Sprite mode = Single). Adding `SetPivotAction` with pivot (0.5, 0f)
+ensures every sprite exports with a bottom-center pivot on import, so characters "stand" on the
+tile below them without artists remembering to set it manually.

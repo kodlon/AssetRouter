@@ -29,7 +29,7 @@ namespace Kodlon.AssetRouter.Logic
             finally
             {
                 if (File.Exists(tmp))
-                    try { File.Delete(tmp); } catch { }
+                    try { File.Delete(tmp); } catch (Exception) { /* best-effort */ }
             }
         }
 

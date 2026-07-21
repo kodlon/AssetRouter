@@ -8,6 +8,8 @@ namespace Kodlon.AssetRouter.Logic
 {
     internal static class DryRunPlanner
     {
+        private const int ProgressBarUpdateEveryNAssets = 100;
+
         public static List<DryRunEntry> Scan(ImporterSettingsDatabase db)
         {
             var result = new List<DryRunEntry>();
@@ -22,7 +24,7 @@ namespace Kodlon.AssetRouter.Logic
             {
                 for (var i = 0; i < total; i++)
                 {
-                    if (i % 100 == 0)
+                    if (i % ProgressBarUpdateEveryNAssets == 0)
                     {
                         if (EditorUtility.DisplayCancelableProgressBar(
                                 "Asset Router — Scanning",

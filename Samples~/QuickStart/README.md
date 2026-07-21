@@ -27,14 +27,14 @@ Unity copies the sample into `Assets/Samples/Asset Router/<version>/Quick Start/
 Go to **Tools → Asset Router → Settings**.  
 The window shows the default database with six rules:
 
-| Rule | Pattern | Target folder |
-|------|---------|---------------|
-| UI Textures | `UI_*` | `Assets/Art/UI/` |
-| Character Textures | `T_Char_*_*` | `Assets/Art/Characters/{1}/` |
-| Location Textures | `^T_Loc_(?<loc>\w+)_.*` | `Assets/Art/Locations/{loc}/` |
-| General Textures | `T_*` | `Assets/Art/Textures/` |
-| Sound Effects | `SFX_*` | `Assets/Audio/SFX/` |
-| Music | `Mus_*` | `Assets/Audio/Music/` |
+| Rule | Pattern | Target folder | Post-import |
+|------|---------|---------------|-------------|
+| UI Textures | `UI_*` | `Assets/Art/UI/` | — |
+| Character Textures | `T_Char_*_*` | `Assets/Art/Characters/{1}/` | — |
+| Location Textures | `^T_Loc_(?<loc>\w+)_.*` | `Assets/Art/Locations/{loc}/` | — |
+| General Textures | `T_*` | `Assets/Art/Textures/` | Create Material From Texture |
+| Sound Effects | `SFX_*` | `Assets/Audio/SFX/` | — |
+| Music | `Mus_*` | `Assets/Audio/Music/` | — |
 
 ### Step 2 — Drop a file
 

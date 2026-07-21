@@ -17,20 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Undo now writes itself to the operation log with `source = "Undo"` (audit trail + de-facto redo when clicked again).
 - Recycle folder `Assets/_AssetRouterRecycle` — Undo of root-drop imports moves assets here instead of dumping them back at `Assets/` root. Files originally in a subfolder still restore in place.
 - History timestamps show in local time.
-
-### Fixed
-- `HandleUnknownAssets` no longer opens a modal dialog in batch/CI mode (`Application.isBatchMode` guard).
-- `DatabaseLocator` no longer silently picks the first DB when the project has more than one — auto-import is disabled with a `LogWarning` until only one `ImporterSettingsDatabase` remains. Warning fires once per domain reload (from the postprocessor path only); the migrator / initializer stay silent to avoid `projectChanged` spam.
-- One log line per import batch instead of one per file. `[AssetRouter] Moved N asset(s): a, b, c, …`. Also drops the per-preset "Preset applied" info line (kept the warning on type mismatch).
-- `BuildPatternPreview` scopes its `AssetDatabase.FindAssets` to `rule.scopeFolder` when set — was walking all of `Assets/` for 3 samples.
-- `AssetCatalog.Contains` / `AppendToCatalogAction` are O(1) now: `HashSet<Object>` cache rebuilt via `ISerializationCallbackReceiver`. Serialized list is unchanged; existing catalogs load without any migration.
-
-### Removed
-- Diagnostic Window — duplicated History, only worked while open, cleared on every assembly reload. A proper debug view is deferred.
-- **Legacy model formats from default monitored extensions.** `.3ds` and `.dae` were dropped; `.fbx` and `.obj` remain. The removed formats are effectively dead in modern Unity pipelines (`.3ds` is 30+ years old; `.dae`/Collada silently drops animation data). Users who need them can still add the extension back via the Settings window.
-- **`SetPivotAction` from default `UI Textures` rule.** Pivot on a full-image sprite is a no-op unless the sprite is set to `Custom` alignment first — kept the action in the codebase for users who need it, but out of defaults so a fresh database doesn't ship with a rule that silently does nothing.
-
-### Added
 - **Clear Rule Statistics menu item.** `Tools > Asset Router > Clear Rule Statistics` resets the
   per-rule match counters shown as `(N✓)` in the rules list, after a confirmation dialog. Previously
   the counters could not be cleared from the UI (`Library/AssetRouter/stats.json` had to be deleted
@@ -50,6 +36,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `importPackageCompleted`. Eliminates repeated `AssetDatabase.FindAssets` calls during the same Editor
   session. `BuildSamplePaths` also sorts the raw GUID list before truncation for deterministic overlap
   detection across machines.
+
+### Fixed
+- `HandleUnknownAssets` no longer opens a modal dialog in batch/CI mode (`Application.isBatchMode` guard).
+- `DatabaseLocator` no longer silently picks the first DB when the project has more than one — auto-import is disabled with a `LogWarning` until only one `ImporterSettingsDatabase` remains. Warning fires once per domain reload (from the postprocessor path only); the migrator / initializer stay silent to avoid `projectChanged` spam.
+- One log line per import batch instead of one per file. `[AssetRouter] Moved N asset(s): a, b, c, …`. Also drops the per-preset "Preset applied" info line (kept the warning on type mismatch).
+- `BuildPatternPreview` scopes its `AssetDatabase.FindAssets` to `rule.scopeFolder` when set — was walking all of `Assets/` for 3 samples.
+- `AssetCatalog.Contains` / `AppendToCatalogAction` are O(1) now: `HashSet<Object>` cache rebuilt via `ISerializationCallbackReceiver`. Serialized list is unchanged; existing catalogs load without any migration.
+
+### Removed
+- Diagnostic Window — duplicated History, only worked while open, cleared on every assembly reload. A proper debug view is deferred.
+- **Legacy model formats from default monitored extensions.** `.3ds` and `.dae` were dropped; `.fbx` and `.obj` remain. The removed formats are effectively dead in modern Unity pipelines (`.3ds` is 30+ years old; `.dae`/Collada silently drops animation data). Users who need them can still add the extension back via the Settings window.
+- **`SetPivotAction` from default `UI Textures` rule.** Pivot on a full-image sprite is a no-op unless the sprite is set to `Custom` alignment first — kept the action in the codebase for users who need it, but out of defaults so a fresh database doesn't ship with a rule that silently does nothing.
 
 ---
 
@@ -76,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.1] — 2026-06-30
 
 ### Added
-- **Epic 16 — Path Templating.**
+- **Path Templating.**
   Capture group tokens in `targetFolder` let a single rule route assets to different
   subdirectories based on their name without writing N×M rules.
   - **Token syntax in `targetFolder`:**
@@ -132,8 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.0] — 2026-06-27
 
 ### Added
-- **Epic 14 — Documentation overhaul (English + per-action docs).**
-  - `DOCUMENTATION_UA.md` — the original Ukrainian documentation (renamed from `DOCUMENTATION.md`).
+- **Documentation overhaul (English + per-action docs).**
   - `DOCUMENTATION_EN.md` — new primary English documentation (~500 lines): flow explanation,
     Settings window, all four tabs, pattern syntax (glob/regex with tables), JSON export/import,
     troubleshooting.
@@ -148,14 +145,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Documentation~/use-cases/` — three use-case guides: `mobile-team.md`, `legacy-cleanup.md`,
     `solo-developer.md`.
   - `Documentation~/testing-your-actions.md` — testing guide with asmdef setup and NUnit template.
-  - `Tests/Actions/_ExampleActionTest.cs` — exemplar test for `AppendToCatalogAction` (6 tests),
-    intentionally commented as a template for extension authors.
   - XMLDoc added to all public types: `IAssetImportAction`, `AssetImportActionAsset`,
     `AssetImportContext`, `PatternMode`, `BaseImportRule`, `ImportRule`, `ImporterSettingsDatabase`,
     `AssetCatalog`, `IAssetRouterPrefabSetup`, `IAssetRouterDataSetup`, and all 10 built-in actions.
-  - `CONTRIBUTING.md` — PR requirements: action without docs, API change without XMLDoc, and
-    CHANGELOG entry are all blockers. Serialization rules and atomic write rule documented.
-  - `RELEASE_CHECKLIST.md` — 12-item checklist across Code/Tests, Documentation, Version/Release.
 
 ### Changed
 - `package.json` version bumped to `0.9.0`.
@@ -165,20 +157,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.0] — 2026-06-26
 
 ### Added
-- **Epic 10 — Quality-of-life & observability.**
-  - **10.1 Per-folder rule scope.** `BaseImportRule` gains a `scopeFolder` field (default `""`).
+- **Quality-of-life & observability.**
+  - **Per-folder rule scope.** `BaseImportRule` gains a `scopeFolder` field (default `""`).
     When non-empty, `RuleValidator.FindMatchingRule` skips the rule if the asset is not inside that
     folder (via `PathUtility.IsUnderFolder`). Allows the same file-name pattern to route differently
     depending on which source folder an asset was dropped into. UI: "Scope Folder" field in the Pattern
     section of the rule detail panel. Three new tests in `RuleValidatorTests`.
-  - **10.2 Diagnostic Window.** `Tools > Asset Router > Diagnostic Window` — a live table of every
+  - **Diagnostic Window.** `Tools > Asset Router > Diagnostic Window` — a live table of every
     monitored asset processed by the postprocessor. Columns: timestamp, filename, matched rule, and
     action (no match / in place / moved / queued). The window registers with `DiagnosticLog.IsEnabled`
     on open and unregisters on close, so zero overhead when unused.
     - `Editor/Logic/DiagnosticLog.cs` — in-memory ring buffer (max 500 entries), cleared on assembly
       reload via `AssemblyReloadEvents.beforeAssemblyReload`.
     - `Editor/View/DiagnosticWindow.cs` — `EditorWindow` with auto-scroll toggle and Clear button.
-  - **10.3 Per-rule statistics.** How many times each rule matched since first use.
+  - **Per-rule statistics.** How many times each rule matched since first use.
     - `Editor/Logic/RuleStatsStore.cs` — persists counts to `Library/AssetRouter/stats.json` (atomic
       write via `File.Replace`). `IncrementBatch(List<string>)` does a single read + single write per
       import batch regardless of how many assets matched. `ReadAll()` returns a
@@ -187,12 +179,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       incremented in `OnPostprocessAllAssets`.
     - Asset Router window rule list shows `(N✓)` next to rules that have matched at least once.
     - Four new tests in `RuleStatsStoreTests.cs`.
-  - **10.4 Naming convention validator.** New "Validate" tab in the Asset Router window.
+  - **Naming convention validator.** New "Validate" tab in the Asset Router window.
     - Scans all monitored project assets via `DryRunPlanner.Scan` and lists those with no matching
       rule — read-only, no asset moves performed.
     - "Copy to Clipboard" button exports the violation list as newline-separated paths.
     - `Editor/View/NamingValidatorView.cs`.
-  - **10.6 Double-apply protection.** `OnPreprocessAsset` now checks `AssetsBeingMoved.Contains(assetPath)`
+  - **Double-apply protection.** `OnPreprocessAsset` now checks `AssetsBeingMoved.Contains(assetPath)`
     and returns early if the asset is currently being moved by the postprocessor. Prevents the preset
     from being applied a second time on the re-import that Unity triggers after `MoveAsset`.
 
@@ -209,7 +201,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.0] — 2026-06-24
 
 ### Added
-- **Epic 15 — Action library showcase spectrum.**
+- **Action library showcase spectrum.**
   - `Runtime/AssetRouter.Runtime.asmdef` — new Runtime assembly (no Editor constraint, `autoReferenced: true`). User MonoBehaviours and ScriptableObjects can now implement callback interfaces from outside the Editor assembly.
   - `IAssetRouterPrefabSetup` (Runtime) — `void SetupAssetRouter(Object importedAsset, string assetPath)` callback invoked by `CreatePrefabFromTemplateAction` after the prefab instance is created.
   - `IAssetRouterDataSetup` (Runtime) — same pattern for `CreateScriptableObjectFromTemplateAction`.
@@ -226,11 +218,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Samples~/LegacyActions/` — new sample containing `GenerateMeshColliderAction` and `RunMenuItemAction`, removed from the core package (see below). Includes `README.md` explaining the rationale and a standalone `LegacyActions.asmdef`.
   - `NewActionsTests.cs` — 15 new edit-mode tests: `CanRunOn` null-guard tests for all five new CanRunOn-testable actions + six pixel-analysis unit tests for `GenerateNineSliceBordersAction.ComputeBorder` (extracted as `internal static` for testability).
   - `package.json` `samples` array updated with the new "Legacy Actions" entry.
-- **Epic 13 — Test coverage closure** (uncommitted from v0.6.0).
+- **Test coverage closure.**
   - `PathUtilityTests.cs` — 9 tests: `NormalizeAssetPath` (null, backslashes, trailing slash), `IsUnderFolder` (prefix-collision regression for `Plugins` vs `PluginsCustom`, case-insensitive), `ToAbsolute` (double-"Assets" regression).
   - `TrimAudioSilenceActionTests.cs` — 14 tests: leading silence, trailing silence, both ends, all-silence, no-silence, malformed RIFF, RIFX big-endian rejection, `short.MinValue` overflow guard, output RIFF integrity.
   - `RuleValidatorTests.cs` — 7 additional tests: `ShouldProcess` with null db, null path, empty path, no extension, `PluginsCustom` prefix-collision; `FindMatchingRule` with null list, empty list, null entry in list.
-- `Documentation~/TEST.md` — manual smoke-test checklist (~90 min) covering install, routing, dry-run, history/undo, JSON, and all new actions.
 
 ### Removed
 - `GenerateMeshColliderAction` — moved to `Samples~/LegacyActions/` (3D-only; replaced by the Tier E factory actions for the target 2D use case).
@@ -253,7 +244,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-obvious Unity quirks and ordering constraints were kept.
 
 ### Fixed
-- **Epic 11 — Critical bugs & production hardening.**
+- **Critical bugs & production hardening.**
   - `AssetRouterPostprocessor`: `AssemblyReloadEvents.beforeAssemblyReload` lambda accumulated new
     subscriptions on every reload when Domain Reload is disabled. Replaced with named static
     `ClearGuards()` method and unsubscribe-first pattern.
@@ -315,7 +306,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0]
 
 ### Added
-- **Epic 7 — Git-friendly JSON export/import.**
+- **Git-friendly JSON export/import.**
   - `Export JSON` and `Import JSON` buttons added to the Asset Router window toolbar.
   - `JsonExporter.ExportToFile` serialises the full database (settings, extensions, ignored folders,
     all rules with their pattern, target, preset GUID, and postImportActions sub-asset refs) to an
@@ -325,7 +316,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Depends on `com.unity.nuget.newtonsoft-json 3.2.1` (added to `package.json` dependencies).
   - New tests: `JsonRoundTripTests` (7 cases covering general settings, extensions, rule fields,
     ordering, and Regex mode preservation).
-- **Epic 8 — Bundled presets + sample.**
+- **Bundled presets + sample.**
   - 6 new import presets (minimal, only override differentiating properties):
     - `TextureImporter_Sprite` — Sprite type, Single mode, tight mesh, alpha transparency
     - `TextureImporter_Lightmap` — Lightmap type, linear, 4096 px max
@@ -341,19 +332,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0]
 
 ### Added
-- **Epic 3 — Dry-run preview.** New "Dry Run" tab in the Asset Router window.
+- **Dry-run preview.** New "Dry Run" tab in the Asset Router window.
   - `DryRunPlanner` scans the project and builds a list of routing candidates without moving anything.
   - Table shows: file name, current folder, target folder, matched rule. Entries are pre-checked for actionable moves.
   - "Apply Selected" moves checked entries in a single `StartAssetEditing` batch.
   - "Select All / None" toggles for bulk selection.
   - "Show unmatched" toggle includes files with no matching rule in the table.
   - "Force re-import" toggle re-applies preset + actions to assets already in the correct folder.
-- **Epic 4 — Batch re-import.** "Re-import All Matched" button in the Dry Run tab scans and applies all
+- **Batch re-import.** "Re-import All Matched" button in the Dry Run tab scans and applies all
   matched assets in one click without showing the table first.
   - Cancellable progress bar via `EditorUtility.DisplayCancelableProgressBar`.
   - All moves executed inside `StartAssetEditing / StopAssetEditing` for up to 100× speedup on large sets.
   - Console summary: `Moved: X, Skipped: Y, Errored: Z`.
-- **Epic 6 — Operation Log + Undo.** New "History" tab in the Asset Router window.
+- **Operation Log + Undo.** New "History" tab in the Asset Router window.
   - Every batch of moves (auto-import and batch re-import) is recorded to `Library/AssetRouter/log.json`
     (JSON, versioned `{"v":1,...}`, atomic write via `.tmp` + rename).
   - History tab lists past sessions (timestamp, source, move count); click a session to see individual moves.
@@ -367,7 +358,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0]
 
 ### Added
-- **Epic 2 — Pluggable Import Actions.** Each `ImportRule` now has a `List<AssetImportActionAsset> postImportActions`
+- **Pluggable Import Actions.** Each `ImportRule` now has a `List<AssetImportActionAsset> postImportActions`
   that runs after the asset is moved and reimported at its target path.
   - `IAssetImportAction` interface + `AssetImportActionAsset` abstract ScriptableObject base class.
   - `AssetImportContext` readonly struct passed to every action (`AssetPath`, `Rule`, `Database`, `Logger`).
@@ -393,7 +384,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0]
 
 ### Added
-- **Epic 1 — Pattern matching.** `BaseImportRule` now has a single `pattern` field (glob or regex)
+- **Pattern matching.** `BaseImportRule` now has a single `pattern` field (glob or regex)
   and a `PatternMode` enum, replacing the old `prefix` / `suffix` / `extensionFilter` triplet.
   - `PatternMatcher` static class: glob→regex compiler, per-rule compiled `Regex` cache,
     50 ms timeout guard against ReDoS.
@@ -404,7 +395,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `[FormerlySerializedAs]` so old `.asset` files survive the upgrade without data loss.
   - Live pattern preview in the rule detail panel: shows up to 3 matching filenames from the
     project, or a red error message for invalid regex syntax.
-- **Epic 5 — Conflict detection.** `ConflictDetector` finds duplicate and overlapping rules.
+- **Conflict detection.** `ConflictDetector` finds duplicate and overlapping rules.
   - Duplicate: identical `pattern` + `patternMode` + `matchAgainstFullPath`.
   - Overlap: heuristic using a fixed set of representative asset paths.
   - Warning banner in the editor window when conflicts exist.

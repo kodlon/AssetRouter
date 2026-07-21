@@ -28,6 +28,8 @@ namespace Kodlon.AssetRouter.Logic
     [InitializeOnLoad]
     internal static class ConflictDetector
     {
+        private const int MaxProjectSampleAssets = 100;
+
         private static readonly string[] FixedSamplePaths =
         {
             "Assets/T_Rock_D.png",   "Assets/T_Rock_N.png",   "Assets/T_Wall.png",
@@ -125,7 +127,7 @@ namespace Kodlon.AssetRouter.Logic
 
             var guids = AssetDatabase.FindAssets("", new[] { "Assets" });
             Array.Sort(guids);
-            var limit = Math.Min(guids.Length, 100);
+            var limit = Math.Min(guids.Length, MaxProjectSampleAssets);
 
             for (var i = 0; i < limit; i++)
             {

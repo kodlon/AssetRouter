@@ -15,10 +15,11 @@ Lets non-programmers wire up callbacks entirely in the Inspector without writing
 
 ## How it works
 
-`CanRunOn` returns false when the event has zero persistent listeners
-(`_onImport.GetPersistentEventCount() == 0`). The action is silently skipped with no log entry.
+`CanRunOn` returns false when the serialized event is null or has zero persistent listeners
+(`_onImport != null && _onImport.GetPersistentEventCount() > 0`). In either case the action is
+silently skipped with no log entry.
 
-`Execute` calls `_onImport.Invoke(importedAsset)`. The imported asset is passed as the `Object`
+`Execute` calls `_onImport?.Invoke(importedAsset)`. The imported asset is passed as the `Object`
 argument to every listener.
 
 Listeners are configured in the Inspector on the action asset, the same way you configure

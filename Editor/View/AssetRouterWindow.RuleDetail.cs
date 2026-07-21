@@ -12,6 +12,8 @@ namespace Kodlon.AssetRouter.View
 {
     internal sealed partial class AssetRouterWindow
     {
+        private const int PatternPreviewScanLimit = 500;
+
         private void DrawSelectedRuleDetails()
         {
             if (_rulesList == null)
@@ -222,7 +224,7 @@ namespace Kodlon.AssetRouter.View
             var scopeIsReal = hasScope && AssetDatabase.IsValidFolder(rule.scopeFolder);
             var searchIn    = scopeIsReal ? new[] { rule.scopeFolder } : new[] { "Assets" };
             var guids       = AssetDatabase.FindAssets("", searchIn);
-            var limit       = Mathf.Min(guids.Length, 500);
+            var limit       = Mathf.Min(guids.Length, PatternPreviewScanLimit);
 
             for (var i = 0; i < limit && lines.Count < 3; i++)
             {

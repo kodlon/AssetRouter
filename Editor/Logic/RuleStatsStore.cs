@@ -16,7 +16,7 @@ namespace Kodlon.AssetRouter.Logic
     [Serializable]
     internal sealed class RuleStatsFile
     {
-        public int v = 1;
+        public int v = 1; // schema version
         public List<RuleStatEntry> entries = new List<RuleStatEntry>();
     }
 
@@ -124,7 +124,7 @@ namespace Kodlon.AssetRouter.Logic
             {
                 Debug.LogWarning($"[AssetRouter] Failed to write stats: {e.Message}");
                 if (File.Exists(tmp))
-                    try { File.Delete(tmp); } catch { }
+                    try { File.Delete(tmp); } catch (Exception) { /* best-effort */ }
             }
         }
     }

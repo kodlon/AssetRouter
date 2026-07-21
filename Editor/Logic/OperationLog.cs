@@ -74,7 +74,7 @@ namespace Kodlon.AssetRouter.Logic
             {
                 var corruptPath = path + ".corrupt";
                 var corruptSaved = false;
-                try { File.Copy(path, corruptPath, overwrite: true); corruptSaved = true; } catch { }
+                try { File.Copy(path, corruptPath, overwrite: true); corruptSaved = true; } catch (Exception) { /* best-effort */ }
 
                 var corruptNote = corruptSaved
                     ? $"Corrupt copy saved to: {corruptPath}"
@@ -104,7 +104,7 @@ namespace Kodlon.AssetRouter.Logic
                 Debug.LogWarning($"[AssetRouter] Failed to write operation log: {e.Message}");
 
                 if (File.Exists(tmp))
-                    try { File.Delete(tmp); } catch { /* best-effort */ }
+                    try { File.Delete(tmp); } catch (Exception) { /* best-effort */ }
             }
         }
     }

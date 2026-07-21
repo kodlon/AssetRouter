@@ -11,19 +11,21 @@ and saves the result as a `.mat` file.
 
 | Field | Type | What it controls | Default |
 |-------|------|-----------------|---------|
-| Base Material | Material | Material to copy shader and all property values from. Required. | None |
-| Texture Property | string | Shader property name to assign the texture to. | `_MainTex` |
-| Output Folder | string | Where to save the .mat file. Falls back to the imported asset's folder when empty. | "" |
+| Base Material | Material | Material to copy shader and all property values from. When null, resolves to the active render pipeline's default material — URP/HDRP `RenderPipelineAsset.defaultMaterial` or the Built-in RP `Default-Material`. | None |
+| Texture Property | string | Shader property name to assign the texture to. Falls back to `Material.mainTexture` when the shader has no such property. | `_MainTex` |
+| Output Folder | string | Absolute (`Assets/...`) — used as-is. Relative (`Materials`) — resolved as a subfolder of the imported texture's folder. Empty — the texture's folder directly. | `Materials` |
 | Name Pattern | string | File name without extension. `{assetName}` is replaced with the texture file name (no extension). | `{assetName}_Mat` |
 | Overwrite Existing | bool | When false, the action is skipped if a material already exists at the output path. | false |
 
 ## How it works
 
-`CanRunOn` checks that `importedAsset is Texture2D` and `baseMaterial != null`.
+`CanRunOn` returns true when `importedAsset is Texture2D` and a base material can be resolved
+(either the explicit `baseMaterial` or an SRP/Built-in default).
 
-`Execute` creates `new Material(baseMaterial)`, which copies the shader and all property values.
-It then calls `mat.SetTexture(textureProperty, texture)` and saves the material with
-`AssetDatabase.CreateAsset(mat, matPath)`.
+`Execute` creates `new Material(source)` where `source` is the resolved base material, which copies
+the shader and all property values. It then assigns the texture to `textureProperty` if the shader
+has that property, otherwise falls back to `Material.mainTexture`. Finally the material is saved
+with `AssetDatabase.CreateAsset(mat, matPath)`.
 
 ## Shader property names
 
@@ -37,8 +39,10 @@ Common property names by shader:
 | HDRP Lit | `_BaseColorMap` |
 | Custom | Check the shader source or the Inspector |
 
-If the property name does not exist in the shader, `SetTexture` silently does nothing. The material
-is still created and saved, but without the texture assigned.
+If the property name does not exist on the shader, the action falls back to `Material.mainTexture`.
+This respects the shader's `[MainTexture]` attribute — for example, URP Lit routes `mainTexture`
+to `_BaseMap` — so the default `_MainTex` value works out of the box on Standard, URP Lit, and
+any shader that annotates a main texture slot.
 
 ## Idempotency
 
@@ -47,8 +51,14 @@ exists. With `overwriteExisting` true, the material is recreated on every import
 
 ## Edge cases
 
-**Wrong property name:** the material is created but the texture is not assigned. No error is logged.
-Verify the property name in the shader or use the material Inspector's debug mode to see property names.
+**Wrong property name:** the action falls back to `Material.mainTexture` and the texture still lands
+on the shader's main slot when one is annotated. If the shader has no `mainTexture` mapping either,
+the material is created but the texture is not assigned — verify the property name in the shader or
+in the material Inspector's debug mode.
+
+**No base material and no pipeline default:** the action logs a warning and returns without creating
+anything. This only happens in exotic setups where `GraphicsSettings.currentRenderPipeline` is unset
+and `Default-Material.mat` is unavailable.
 
 **Multiple textures:** this action assigns one texture to one property. To assign textures to
 multiple properties, add multiple `CreateMaterialFromTextureAction` instances with different

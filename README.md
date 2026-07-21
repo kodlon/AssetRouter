@@ -50,14 +50,14 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 
 ## Default rules
 
-| Pattern | Mode | Target folder | Preset |
-|---------|------|--------------|--------|
-| `UI_*` | Glob | `Assets/Art/UI/` | TextureImporter_UI |
-| `T_Char_*_*` | Glob | `Assets/Art/Characters/{1}/` | TextureImporter |
-| `^T_Loc_(?<loc>\w+)_.*` | Regex | `Assets/Art/Locations/{loc}/` | TextureImporter |
-| `T_*` | Glob | `Assets/Art/Textures/` | TextureImporter |
-| `SFX_*` | Glob | `Assets/Audio/SFX/` | AudioImporter |
-| `Mus_*` | Glob | `Assets/Audio/Music/` | AudioImporter_Music |
+| Pattern | Mode | Target folder | Preset | Post-import |
+|---------|------|--------------|--------|-------------|
+| `UI_*` | Glob | `Assets/Art/UI/` | TextureImporter_UI | — |
+| `T_Char_*_*` | Glob | `Assets/Art/Characters/{1}/` | TextureImporter | — |
+| `^T_Loc_(?<loc>\w+)_.*` | Regex | `Assets/Art/Locations/{loc}/` | TextureImporter | — |
+| `T_*` | Glob | `Assets/Art/Textures/` | TextureImporter | Create Material From Texture |
+| `SFX_*` | Glob | `Assets/Audio/SFX/` | AudioImporter | — |
+| `Mus_*` | Glob | `Assets/Audio/Music/` | AudioImporter_Music | — |
 
 ---
 
@@ -88,13 +88,13 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 │   ├── Actions/    # IAssetImportAction, AssetImportActionAsset, 11 built-in actions
 │   ├── Data/       # BaseImportRule, ImportRule, ImporterSettingsDatabase
 │   ├── Logic/      # PatternMatcher, RuleValidator, Postprocessor, Initializer, DryRunPlanner
-│   ├── View/       # AssetRouterWindow, DryRunView, HistoryView, NamingValidatorView
+│   ├── View/       # AssetRouterWindow, DryRunView, HistoryView, NamingValidatorView, WelcomeWindow
 │   └── Wizard/     # ActionScaffoldingWizard (code generator)
 ├── Runtime/        # AssetCatalog, IAssetRouterPrefabSetup, IAssetRouterDataSetup
 ├── Presets/        # 10 bundled .preset files
-├── Tests/          # NUnit edit-mode tests (12 test files)
+├── Tests/          # NUnit edit-mode tests
 ├── Samples~/
-│   ├── QuickStart/ # Tutorial sample with example files
+│   ├── QuickStart/ # Written walkthrough of the auto-import flow
 │   └── LegacyActions/ # GenerateMeshColliderAction, RunMenuItemAction
 └── Documentation~/
 ```

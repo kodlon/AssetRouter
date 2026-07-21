@@ -134,14 +134,16 @@ right place with the right import settings.
 
 ## Step 5. See a post-import action in play
 
-Rules can do more than move files. Click the **UI Textures** rule in the list and scroll down to
-the **Post-Import Actions** section in the rule details. It contains one entry: **Set Pivot**.
-This action centers the sprite pivot after every import matched by the rule.
+Rules can do more than move files. Click the **General Textures** rule in the list and scroll down
+to the **Post-Import Actions** section in the rule details. It contains one entry: **Create Material
+From Texture**. This action creates a ready-to-use material for every texture matched by the rule,
+so you never have to right-click → Create → Material for a fresh diffuse texture again.
 
-<!-- SCREENSHOT: UI Textures rule details with the Set Pivot entry in Post-Import Actions -->
+<!-- SCREENSHOT: General Textures rule details with the Create Material From Texture entry in Post-Import Actions -->
 
-Test it. Rename a picture to `UI_Button.png` and drop it into the project. It moves to
-`Assets/Art/UI/` and its sprite pivot is set to (0.5, 0.5).
+Test it. Rename a picture to `T_Rock_D.png` (if you skipped Step 4) and drop it into the project.
+It moves to `Assets/Art/Textures/`, and a matching `T_Rock_D_Mat.mat` appears in
+`Assets/Art/Textures/Materials/` with the texture already assigned to the shader's main slot.
 
 This is how any action attaches to any rule: select the rule, click **+** under
 **Post-Import Actions**, and pick an action type from the menu. The package ships with eleven
@@ -216,7 +218,7 @@ re-check the **History** and **Validate** tabs.
 ## Where to go next
 
 - [UI Reference](ui-reference.md) describes every window, tab, and button.
-- [Feature Catalog](features.md) lists all 27 features with before and after examples.
+- [Feature Catalog](features.md) lists every feature with before and after examples.
 - [Full Reference](DOCUMENTATION_EN.md) covers pattern syntax, path templating, JSON export, and troubleshooting.
 - Sorting an existing messy project: use the Dry Run tab, see [Cleaning up a legacy project](use-cases/legacy-cleanup.md).
 - Writing your own action: see [Writing Your Own Action](api/extension-points.md).

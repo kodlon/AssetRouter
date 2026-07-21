@@ -16,9 +16,11 @@ Adds the imported asset to an `AssetCatalog` ScriptableObject. Duplicate entries
 
 `CanRunOn` checks that `catalog != null` and `importedAsset != null`.
 
-`Execute` checks `catalog.entries.Contains(importedAsset)` and returns early if the asset is
-already in the list. Otherwise it adds the asset, calls `EditorUtility.SetDirty(catalog)`,
-and saves the catalog immediately with `AssetDatabase.SaveAssetIfDirty`.
+`Execute` calls `catalog.Add(importedAsset)` and returns early if the asset is already in the
+catalog. `AssetCatalog.Add` uses an internal `HashSet<Object>` cache (rebuilt on
+`OnAfterDeserialize`) for O(1) dedup, so the check stays fast even on large catalogs. On a fresh
+add, it calls `EditorUtility.SetDirty(catalog)` and saves the catalog immediately with
+`AssetDatabase.SaveAssetIfDirty`.
 
 ## Idempotency
 
@@ -34,8 +36,8 @@ include it as a serialized field on a MonoBehaviour (runtime).
 
 ## Edge cases
 
-**Performance:** `List.Contains` runs in O(N). On catalogs with 10 000 or more entries, each import
-adds a linear scan. For large catalogs, consider a custom action using a `HashSet` lookup.
+**Performance:** dedup is O(1) via `AssetCatalog._lookup` (a `HashSet<Object>` rebuilt on
+deserialize). Even large catalogs add a single hash lookup per import.
 
 **Multiple catalogs:** you can add multiple `AppendToCatalogAction` instances to the same rule,
 each pointing to a different catalog, to register the asset in several places at once.

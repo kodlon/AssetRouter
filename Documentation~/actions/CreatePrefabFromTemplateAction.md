@@ -25,11 +25,18 @@ Texture2D, Mesh, or AudioClip that the prefab needs a reference to.
 is false and a prefab already exists at that path, the action returns without doing anything.
 
 Otherwise it calls `PrefabUtility.InstantiatePrefab(templatePrefab)` to create an instance in
-the scene, then calls `GetComponentInChildren<IAssetRouterPrefabSetup>()` and invokes
-`SetupAssetRouter(importedAsset, ctx.AssetPath)` on the first matching component.
+the scene, then iterates every component returned by
+`GetComponentsInChildren<IAssetRouterPrefabSetup>(true)` (inactive children included) and invokes
+`SetupAssetRouter(importedAsset, ctx.AssetPath)` on each one.
+
+Before saving, the instance is unpacked completely (`PrefabUtility.UnpackPrefabInstance` with
+`PrefabUnpackMode.Completely`) so the output is a fully independent asset, not a Prefab Variant
+tied to the template — otherwise later template edits would leak into every previously generated
+prefab.
+
 After the callback, it calls `PathUtility.EnsureFolderExists(folder)` to create the output folder
-if needed, then `PrefabUtility.SaveAsPrefabAsset(instance, prefabPath)`.
-The instance is destroyed in the `finally` block regardless of whether an exception occurred.
+if needed, then `PrefabUtility.SaveAsPrefabAsset(instance, prefabPath)`. The instance is destroyed
+in the `finally` block regardless of whether an exception occurred.
 
 ## The IAssetRouterPrefabSetup callback
 
@@ -49,8 +56,9 @@ public class CharacterPrefabSetup : MonoBehaviour, IAssetRouterPrefabSetup
 }
 ```
 
-Only the first component found by `GetComponentInChildren` is called. If multiple components
-implement the interface, add a coordinator component that delegates to the others.
+Every component found by `GetComponentsInChildren` (including inactive ones) is called in
+sibling / hierarchy order. If several components implement the interface, all of them get the
+callback — the last one to write to a given field wins.
 
 ## Idempotency
 

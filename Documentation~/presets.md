@@ -9,7 +9,7 @@ before Unity finishes the import. The preset type must match the importer type: 
 ## Using the bundled presets
 
 The package ships with 10 presets covering common texture, audio, and model setups. They live in
-`Packages/Asset Router/Presets/`. Assign one via the **Import Preset** field in the rule details
+`Packages/com.kodlon.assetrouter/Presets/`. Assign one via the **Import Preset** field in the rule details
 and click **Save / Apply**. The full table is in
 [Bundled presets](DOCUMENTATION_EN.md#bundled-presets).
 

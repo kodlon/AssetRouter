@@ -13,16 +13,19 @@ Create a `.asmdef` for your tests in an `Editor` folder:
     "includePlatforms": ["Editor"],
     "references": [
         "AssetRouter.Editor",
-        "AssetRouter.Runtime"
+        "AssetRouter.Runtime",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
     ],
     "precompiledReferences": [
         "nunit.framework.dll"
     ],
-    "optionalUnityReferences": [
-        "TestAssemblies"
-    ]
+    "autoReferenced": false
 }
 ```
+
+This mirrors the asmdef used by the package's own edit-mode tests
+(`Tests/AssetRouter.Editor.Tests.asmdef`).
 
 Open **Window > General > Test Runner**, select **EditMode**, and your tests should appear.
 
@@ -207,4 +210,4 @@ integration tests with real assets or unit tests with mock inputs.
 ## See also
 
 [Writing Your Own Action](api/extension-points.md)
-`Tests/Actions/_ExampleActionTest.cs` in the package for a full example.
+`Tests/AppendToCatalogActionTests.cs` in the package for a full example.
