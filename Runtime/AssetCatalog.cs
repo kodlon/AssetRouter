@@ -42,6 +42,7 @@ namespace Kodlon.AssetRouter.Data
             return true;
         }
 
+        /// <summary>Returns true when the given asset is registered in this catalog. O(1) lookup.</summary>
         public bool Contains(Object asset)
         {
             if (asset == null)
@@ -52,11 +53,13 @@ namespace Kodlon.AssetRouter.Data
             return _lookup.Contains(asset);
         }
 
+        /// <inheritdoc />
         public void OnAfterDeserialize()
         {
             _lookup = new HashSet<Object>(entries);
         }
 
+        /// <inheritdoc />
         public void OnBeforeSerialize()
         {
             /* list is the source of truth */
