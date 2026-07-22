@@ -1,6 +1,6 @@
 {
   "name": "com.kodlon.assetrouter",
-  "version": "0.9.2",
+  "version": "0.9.5",
   "displayName": "Asset Router",
   "description": "Automatically applies import presets and moves assets to target folders based on naming rules. Zero setup — works out of the box.",
   "unity": "2022.3",
@@ -15,16 +15,18 @@
   "keywords": [
     "import",
     "asset",
-    "organizer",
+    "pipeline",
+    "workflow",
+    "automation",
     "preset",
-    "automation"
+    "postprocessor",
+    "naming",
+    "routing",
+    "organizer",
+    "rename",
+    "editor"
   ],
   "samples": [
-    {
-      "displayName": "Quick Start",
-      "description": "Written walkthrough of the auto-import and routing flow. See README.md — no sample scene yet.",
-      "path": "Samples~/QuickStart"
-    },
     {
       "displayName": "Legacy Actions",
       "description": "Actions removed from the core package (GenerateMeshCollider, RunMenuItem). Provided as reference examples.",

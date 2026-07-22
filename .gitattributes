@@ -1,0 +1,37 @@
+# Normalize all text files to LF in the repo, checkout as-is on Windows.
+* text=auto eol=lf
+
+# Explicit text files (belt & suspenders)
+*.cs         text eol=lf
+*.md         text eol=lf
+*.json       text eol=lf
+*.asmdef     text eol=lf
+*.yml        text eol=lf
+*.txt        text eol=lf
+*.gitignore  text eol=lf
+*.gitattributes text eol=lf
+LICENSE      text eol=lf
+
+# Unity YAML text files
+*.preset     text eol=lf
+*.meta       text eol=lf
+*.asset      text eol=lf merge=unityyamlmerge
+*.unity      text eol=lf merge=unityyamlmerge
+*.prefab     text eol=lf merge=unityyamlmerge
+*.mat        text eol=lf merge=unityyamlmerge
+*.anim       text eol=lf merge=unityyamlmerge
+*.controller text eol=lf merge=unityyamlmerge
+
+# Binary assets — never touch line endings
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.wav  binary
+*.mp3  binary
+*.ogg  binary
+*.fbx  binary
+*.tga  binary
+*.psd  binary
+*.exr  binary
+*.pdf  binary

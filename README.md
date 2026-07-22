@@ -3,6 +3,8 @@
 Unity Editor plugin that automatically moves imported assets to configured folders and applies
 import presets based on naming rules. Drop a file into the project and it lands in the right place.
 
+![Asset Router in action — drag a file, it lands in the right folder with preset applied](Documentation~/images/hero-demo.gif)
+
 **Namespace:** `Kodlon.AssetRouter`
 **Unity:** 2022.3 LTS or later
 **License:** MIT
@@ -94,7 +96,6 @@ First matching rule wins. Rules are reorderable via drag-and-drop.
 ├── Presets/        # 10 bundled .preset files
 ├── Tests/          # NUnit edit-mode tests
 ├── Samples~/
-│   ├── QuickStart/ # Written walkthrough of the auto-import flow
 │   └── LegacyActions/ # GenerateMeshColliderAction, RunMenuItemAction
 └── Documentation~/
 ```

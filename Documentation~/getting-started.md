@@ -20,8 +20,6 @@ once. After that, every import lands where it should.
 2. Click **+** in the top-left corner and choose **Add package from git URL**.
 3. Paste `https://github.com/kodlon/AssetRouter.git` and click **Add**.
 
-<!-- SCREENSHOT: Package Manager with the "Add package from git URL" field open -->
-
 Unity downloads and compiles the package. When it finishes, a new menu appears under
 **Tools > Asset Router**.
 
@@ -32,7 +30,7 @@ Unity downloads and compiles the package. When it finishes, a new menu appears u
 Right after installation Asset Router shows a small welcome dialog asking to create a default
 database.
 
-<!-- SCREENSHOT: Welcome window with the Create and Not now buttons -->
+![Asset Router Welcome window with Create and Not now buttons](images/gs-01-welcome-window.jpg)
 
 Click **Create**. Two things happen:
 
@@ -43,7 +41,7 @@ Click **Create**. Two things happen:
 If you clicked **Not now** or missed the dialog, open **Tools > Asset Router > Settings** and
 click **Create New Database** instead. The result is the same.
 
-<!-- SCREENSHOT: Asset Router window showing the six default rules -->
+![Asset Router Settings window with the six default rules](images/gs-02-default-rules.jpg)
 
 ---
 
@@ -125,8 +123,6 @@ Asset Router applies the `TextureImporter` preset and moves the file to
 [AssetRouter] Moved: Assets/T_Rock_D.png -> Assets/Art/Textures/T_Rock_D.png (General Textures)
 ```
 
-<!-- SCREENSHOT: Project window with the file inside Assets/Art/Textures and the Console log line -->
-
 That is the whole workflow. Name the file by convention, drop it anywhere, and it lands in the
 right place with the right import settings.
 
@@ -138,8 +134,6 @@ Rules can do more than move files. Click the **General Textures** rule in the li
 to the **Post-Import Actions** section in the rule details. It contains one entry: **Create Material
 From Texture**. This action creates a ready-to-use material for every texture matched by the rule,
 so you never have to right-click → Create → Material for a fresh diffuse texture again.
-
-<!-- SCREENSHOT: General Textures rule details with the Create Material From Texture entry in Post-Import Actions -->
 
 Test it. Rename a picture to `T_Rock_D.png` (if you skipped Step 4) and drop it into the project.
 It moves to `Assets/Art/Textures/`, and a matching `T_Rock_D_Mat.mat` appears in
@@ -157,7 +151,7 @@ built-in actions, from trimming silence in WAV files to generating prefabs. See 
 Rename a picture to `photo.png` and drop it in. No rule matches that name, so Asset Router shows
 a dialog listing the file and asking what to do.
 
-<!-- SCREENSHOT: the unknown files dialog with its three buttons -->
+![Unknown files dialog with Import all as-is, Cancel, and Delete all buttons](images/gs-03-unknown-file-dialog.jpg)
 
 - **Import all as-is** keeps the file where you dropped it.
 - **Cancel** also keeps the file, without logging anything.
@@ -191,8 +185,6 @@ The starter rules know nothing about voice-over files. Add a rule for them:
    project. "no matches found in project" is normal here: you have not imported any `Voice_`
    file yet. A red warning means the pattern itself is broken.
 4. Click **Save / Apply** at the bottom of the window.
-
-<!-- SCREENSHOT: the filled rule details with the live preview line -->
 
 Test it. Rename an audio file to `Voice_Intro.wav` and drop it into the project. It moves to
 `Assets/Audio/Voice/` with the voice preset applied.

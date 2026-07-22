@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.9.5] — 2026-07-22
 
 ### Added
 - **`CreateMaterialFromTextureAction` — pipeline-default fallback.** When `baseMaterial` is null the action now resolves to the active SRP's `RenderPipelineAsset.defaultMaterial` (URP/HDRP) or the Built-in RP `Default-Material`, so the default `General Textures` rule produces a `.mat` out of the box without manual configuration. Texture assignment also falls back from the configured `textureProperty` to `Material.mainTexture` when the property isn't on the shader — makes `_MainTex` (Standard) and `_BaseMap` (URP Lit) work with the same default.
@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Diagnostic Window — duplicated History, only worked while open, cleared on every assembly reload. A proper debug view is deferred.
 - **Legacy model formats from default monitored extensions.** `.3ds` and `.dae` were dropped; `.fbx` and `.obj` remain. The removed formats are effectively dead in modern Unity pipelines (`.3ds` is 30+ years old; `.dae`/Collada silently drops animation data). Users who need them can still add the extension back via the Settings window.
 - **`SetPivotAction` from default `UI Textures` rule.** Pivot on a full-image sprite is a no-op unless the sprite is set to `Custom` alignment first — kept the action in the codebase for users who need it, but out of defaults so a fresh database doesn't ship with a rule that silently does nothing.
+- **`Samples~/QuickStart` sample.** Content was duplicative of `README.md` and `Documentation~/getting-started.md`, and the sample shipped no asset files (only a written walkthrough). The walkthrough remains in the docs.
 
 ---
 
