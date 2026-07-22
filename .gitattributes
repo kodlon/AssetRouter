@@ -35,3 +35,5 @@ LICENSE      text eol=lf
 *.psd  binary
 *.exr  binary
 *.pdf  binary
+
+LICENSE.meta linguist-generated=true

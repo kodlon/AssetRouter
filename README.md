@@ -1,5 +1,9 @@
 # Asset Router
 
+![Tests](https://github.com/kodlon/AssetRouter/actions/workflows/test.yml/badge.svg)
+![Unity](https://img.shields.io/badge/Unity-2022.3%20LTS-black)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 Unity Editor plugin that automatically moves imported assets to configured folders and applies
 import presets based on naming rules. Drop a file into the project and it lands in the right place.
 
